@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.1 Úvod do serverových služeb · Operační systém Linux</title>
+<meta name="description" content="Princip klient-server, aplikační protokoly a jejich porty, konkrétní řešení serverů na Debian GNU/Linux. Kapitola 1.1, 2 vyučovací hodiny.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 1.1 — Úvod do serverových služeb — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf). Oproti šabloně navíc
+   obsahuje statický obsah (princip klient-server, referenční tabulka
+   protokolů a portů, sekce Hodnocení) — viz komentáře níže u jednotlivých
+   bloků.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem;}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* princip klient-server — statický obsah */
+.concept p{max-width:760px;}
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.85rem 1.05rem; border-left:3px solid var(--electric); max-width:760px;}
+.callout b{color:var(--ink);}
+.port-ranges{list-style:none; padding:0; margin:.8rem 0 1.6rem; display:grid; gap:.55rem; max-width:760px;}
+.port-ranges li{border:1px solid var(--border); border-radius:var(--radius); padding:.65rem .95rem; font-size:.87rem; color:var(--ink-soft); background:#fff;}
+.port-ranges b{color:var(--robot-deep);}
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* referenční tabulka protokolů a zdrojová tabulka — sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* rozšíření — "za horizontem" */
+.horizon-box{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--robot-tint); padding:1.2rem 1.3rem;}
+.horizon-box > h3{margin-top:0;}
+.horizon-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:.9rem;}
+.horizon-item{font-size:.86rem; color:var(--ink-soft);}
+.horizon-item b{display:block; color:var(--ink); margin-bottom:.15rem; font-size:.9rem;}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem;}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0; max-width:760px;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep);}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Úvod do serverových služeb</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Tato kapitola je stavební kámen celoroční výzvy <b>Škola X</b> — sledujte postup na rozcestníku.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>Klient-server, protokoly a porty</h2>
+      <p class="lede">Než se pustíte do vlastního katalogu služeb, projděte si princip, na kterém stojí úplně každá síťová komunikace, a ověřte si ho na referenční tabulce a ověřených zdrojích.</p>
+
+      <div class="concept">
+        <h3>Princip klient-server</h3>
+        <p>V každé síťové komunikaci vystupují dvě role — <b>klient</b> a <b>server</b>. Nejde o typ zařízení, ale o roli konkrétního procesu (programu) v dané komunikaci: server je proces, který běží na pozadí, naslouchá na určeném portu a čeká na požadavky; klient je proces, který spojení sám aktivně naváže a o něco požádá. Jeden fyzický počítač tak může být zároveň serverem (např. pro webovou službu na portu 443) i klientem (např. když si sám stahuje aktualizace balíčků přes HTTPS).</p>
+        <p>Z Cisco Networking Academy už znáte vrstvový model TCP/IP i OSI: fyzická a linková vrstva řeší přenos bitů po kabelu nebo Wi-Fi, síťová vrstva (IP) adresuje jednotlivé počítače v síti a transportní vrstva (TCP/UDP) rozlišuje jednotlivá spojení mezi nimi. Aplikační protokoly, kterým se dnes věnujeme, stojí na vrcholu tohoto modelu — využívají IP adresu k nalezení správného počítače a <b>port</b> k nalezení správné služby na tomto počítači.</p>
+        <div class="callout">📍 <b>Analogie:</b> server je jako recepce hotelu — má pevnou adresu (IP) a samostatnou přepážku pro každou službu (port): přepážka 22 je pro správce budovy (SSH), přepážka 443 pro hosty přicházející webem (HTTPS), přepážka 53 pro dotazy na pokoje podle jména (DNS). Klient je host, který přijde na správnou přepážku, řekne svůj požadavek a čeká na odpověď.</div>
+        <p>Port je 16bitové číslo (0–65535), které společně s IP adresou a transportním protokolem (TCP/UDP) jednoznačně identifikuje konkrétní síťové spojení. Díky portu může jeden server současně obsluhovat web na portu 443, SSH na portu 22 i databázi na portu 3306, aniž by si služby navzájem překážely. Podle IANA se porty dělí do tří rozsahů:</p>
+        <ul class="port-ranges">
+          <li><b>0–1023 · Well-known porty</b> — vyhrazené pro standardizované služby (HTTP, SSH, DNS…); na Linuxu je smí otevřít jen proces s právy roota.</li>
+          <li><b>1024–49151 · Registered porty</b> — registrované u IANA pro konkrétní aplikace (např. 3306 pro MySQL/MariaDB), smí je otevřít i běžný uživatel.</li>
+          <li><b>49152–65535 · Dynamické/privátní porty</b> — dočasně přidělované operačním systémem klientům pro odchozí spojení.</li>
+        </ul>
+        <p>Aplikační protokol si vždy vybírá i transportní protokol. <b>TCP</b> (RFC 9293) je spojovaný a spolehlivý — před přenosem dat naváže tzv. <i>three-way handshake</i> (SYN → SYN-ACK → ACK), potvrzuje doručení každého segmentu a v případě ztráty ho zopakuje; používá se všude, kde záleží na úplnosti dat (web, e-mail, přenos souborů, vzdálená správa). <b>UDP</b> (RFC 768) je nespojovaný a negarantuje doručení ani pořadí — má ale mnohem nižší režii; používá se tam, kde je rychlost důležitější než stoprocentní spolehlivost, nebo kde si spolehlivost řeší až sama aplikace (DNS dotazy, DHCP, streamování, NTP).</p>
+      </div>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <h3>Referenční tabulka: protokoly, porty a servery na Linuxu</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Toto je páteřní tabulka dnešní hodiny — budete ji potřebovat v sekci Řešení a budete se na ni odkazovat i v dalších kapitolách (1.2–1.11).</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Aplikační protokol</th><th>Port(y)</th><th>Transport</th><th>Využití</th><th>Linux server (Debian)</th></tr></thead>
+          <tbody>
+            <tr><td><b>HTTP</b></td><td>80</td><td>TCP</td><td>Nešifrovaný přenos webového obsahu</td><td><code>apache2</code>, <code>nginx</code></td></tr>
+            <tr><td><b>HTTPS</b></td><td>443</td><td>TCP (TLS)</td><td>Šifrovaný web — dnešní výchozí standard</td><td><code>apache2</code>+mod_ssl, <code>nginx</code>+certbot</td></tr>
+            <tr><td><b>SSH</b></td><td>22</td><td>TCP</td><td>Šifrovaná vzdálená správa; nese v sobě i SFTP a SCP</td><td><code>openssh-server</code></td></tr>
+            <tr><td><b>FTP</b></td><td>21 (řídicí) + 20 (data, aktivní režim)</td><td>TCP</td><td>Přenos souborů — bez šifrování</td><td><code>vsftpd</code>, <code>proftpd</code></td></tr>
+            <tr><td><b>Telnet</b></td><td>23</td><td>TCP</td><td>Nešifrovaná vzdálená správa — dnes se nepoužívá, nahrazeno SSH</td><td>historicky <code>telnetd</code> (jen k výuce)</td></tr>
+            <tr><td><b>SMTP</b></td><td>25 (mezi servery) / 587 (odeslání klientem, STARTTLS)</td><td>TCP</td><td>Odesílání e-mailu</td><td><code>postfix</code>, <code>exim4</code></td></tr>
+            <tr><td><b>POP3 / POP3S</b></td><td>110 / 995</td><td>TCP</td><td>Stažení e-mailu ze serveru do klienta</td><td><code>dovecot-pop3d</code></td></tr>
+            <tr><td><b>IMAP / IMAPS</b></td><td>143 / 993</td><td>TCP</td><td>Synchronizovaný přístup k e-mailové schránce</td><td><code>dovecot-imapd</code></td></tr>
+            <tr><td><b>DNS</b></td><td>53</td><td>UDP (dotazy) / TCP (zónové přenosy, velké odpovědi)</td><td>Překlad doménových jmen na IP adresy</td><td><code>bind9</code>, <code>unbound</code></td></tr>
+            <tr><td><b>DHCP</b></td><td>67 (server) / 68 (klient)</td><td>UDP</td><td>Automatické přidělení IP adresy a síťové konfigurace</td><td><code>isc-dhcp-server</code>, <code>kea-dhcp4-server</code></td></tr>
+            <tr><td><b>NTP</b></td><td>123</td><td>UDP</td><td>Synchronizace systémového času</td><td><code>chrony</code>, <code>ntpsec</code></td></tr>
+            <tr><td><b>SMB/CIFS</b></td><td>445</td><td>TCP</td><td>Sdílení souborů a tiskáren (i s Windows sítí)</td><td><code>samba</code></td></tr>
+            <tr><td><b>NFS (v4)</b></td><td>2049</td><td>TCP (příp. UDP)</td><td>Sdílení souborů mezi Linuxovými/Unixovými stroji</td><td><code>nfs-kernel-server</code></td></tr>
+            <tr><td><b>LDAP / LDAPS</b></td><td>389 / 636</td><td>TCP</td><td>Adresářová služba, centralizované přihlašování</td><td><code>slapd</code> (OpenLDAP), Samba AD DC</td></tr>
+            <tr><td><b>MySQL/MariaDB</b></td><td>3306</td><td>TCP</td><td>Vzdálený přístup k databázovému serveru</td><td><code>mariadb-server</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="horizon-box">
+        <h3>Za horizontem dnešní hodiny — co ještě k serverovým službám patří</h3>
+        <div class="horizon-grid">
+          <div class="horizon-item"><b>Firewall a filtrování</b>nftables (nástupce iptables) rozhoduje, které porty jsou zvenku vůbec dostupné.</div>
+          <div class="horizon-item"><b>TLS a certifikáty</b>HTTPS, IMAPS i LDAPS výše fungují díky TLS; certifikát (např. zdarma přes Let's Encrypt/certbot) dokazuje identitu serveru.</div>
+          <div class="horizon-item"><b>Virtualizace a kontejnery</b>váš server dnes poběží ve VirtualBox VM; v praxi se servery čím dál častěji provozují jako kontejnery (Docker, LXC) nebo v cloudu.</div>
+          <div class="horizon-item"><b>Vysoká dostupnost</b>u kritických služeb se nasazuje víc serverů zároveň (load balancing, clustering), aby výpadek jednoho stroje neznamenal výpadek služby.</div>
+          <div class="horizon-item"><b>Monitoring a logování</b>administrátor potřebuje vědět, že služba běží a jak se chová — <code>journalctl</code>, syslog, Prometheus/Grafana.</div>
+          <div class="horizon-item"><b>Princip nejmenších oprávnění</b>každá služba by měla běžet pod vlastním, omezeným systémovým účtem, ne pod rootem.</div>
+        </div>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>Návrh a realizace řešení</h2>
+      <p class="lede">Tři podfáze ACT podle metodiky: nejdřív koncept, pak ověření v praxi, nakonec finalizace a vyhodnocení.</p>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a závěrečná evaluace</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — nerozumí rozdílu klient/server, nezná pojem port.</li>
+            <li><b>Rozvíjející se</b> — rozumí klient-server modelu, ale plete si TCP/UDP nebo nezná rozsahy portů.</li>
+            <li><b>Očekávaná úroveň</b> — správně vysvětlí klient-server model, rozdíl TCP/UDP, rozsahy portů a zná standardní porty hlavních protokolů.</li>
+            <li><b>Nad rámec</b> — umí navíc zdůvodnit volbu TCP/UDP pro konkrétní protokol a vztah šifrované/nešifrované varianty portu.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — katalog služeb neúplný, čísla portů nesedí s IANA.</li>
+            <li><b>Rozvíjející se</b> — katalog vyplněný, ale s drobnými chybami v portech nebo přiřazení daemonů.</li>
+            <li><b>Očekávaná úroveň</b> — katalog kompletní a správný pro všech 8 služeb, ověřený příkazovou řádkou.</li>
+            <li><b>Nad rámec</b> — katalog navíc rozlišuje šifrované/nešifrované varianty a obsahuje poznámky k bezpečnosti.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí propojit teorii s příkazy v terminálu.</li>
+            <li><b>Rozvíjející se</b> — provede příkazy, ale nerozumí, co výstup znamená.</li>
+            <li><b>Očekávaná úroveň</b> — správně použije <code>ss</code>/<code>netstat</code>, <code>nslookup</code>/<code>dig</code> a <code>curl</code> a interpretuje výstup.</li>
+            <li><b>Nad rámec</b> — umí otestovat dostupnost portu (<code>nc</code>) a vysvětlit „otevřený/zavřený/filtrovaný“.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — pasivní, spoléhá na spolužáky.</li>
+            <li><b>Rozvíjející se</b> — zapojuje se, ale potřebuje časté vedení.</li>
+            <li><b>Očekávaná úroveň</b> — aktivně přispívá do katalogu, konzultuje s týmem, argumentuje návrhy.</li>
+            <li><b>Nad rámec</b> — vede diskuzi v týmu, pomáhá ostatním, přináší doplňující zdroje nad rámec zadání.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než katalog odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vlastními slovy vysvětlit princip klient-server.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím vyjmenovat aspoň 6 aplikačních protokolů a jejich standardní porty.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Vím, kde hledat oficiální zdroj pravdy o portech (IANA registr).</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím ke každému protokolu přiřadit konkrétní Linux server/daemon na Debianu.</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Chápu rozdíl mezi TCP a UDP a umím zdůvodnit, proč ho konkrétní služba používá.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 5 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty, konfigurační soubory a zápisky ukládejte do sdílené složky týmu — jsou důkazním portfoliem pro hodnocení podle rubriky.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky (kap. 7) — primárně oficiální RFC/IANA dokumentace, Debian wiki a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 1.1 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 1.1 — Úvod do serverových služeb
+   ========================================================================== */
+
+  var TOPIC = {
+    num: "1.1",
+    title: "Úvod do serverových služeb",
+    hours: "2 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "Model klient-server a přesně definované aplikační protokoly jsou základ, na kterém stojí každá síťová služba.",
+    eq: "Jak spolu domluví komunikaci dvě aplikace na síti — a jak z jediné IP adresy serveru pozná operační systém, které z desítek běžících služeb patří přijatá data?",
+    challenge: "Jako tým IT správců Školy X dostáváte první úkol: sestavit referenční katalog síťových služeb, které bude škola po zbytek roku postupně nasazovat. Pro každou službu určíte aplikační protokol, port a transportní protokol (TCP/UDP) a konkrétní Linuxový daemon, který ji na Debianu zajistí. Katalog se stane závaznou referencí pro kapitoly 1.2–1.11."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Co přesně znamená „klient“ a „server“ — je to role procesu, nebo vlastnost konkrétního počítače?",
+      "Kde v modelu TCP/IP (který znáte z Cisco Networking Academy) leží aplikační protokoly a jak se liší od transportní vrstvy?",
+      "K čemu slouží port a proč nestačí k adresování služby jen IP adresa?",
+      "Jaký je rozdíl mezi TCP a UDP a podle čeho si aplikační protokol vybírá?",
+      "Co jsou „well-known“, „registered“ a „dynamické“ porty podle IANA?",
+      "Proč se dnes většina protokolů provozuje v šifrované variantě (HTTPS, SFTP, IMAPS…) a co to znamená pro číslo portu?"
+    ],
+    resources: [
+      {
+        title: "RFC 9293 — Transmission Control Protocol (TCP)",
+        tag: "official",
+        items: [
+          "Aktuální (2022) standard transportního protokolu TCP — nahrazuje původní RFC 793 z roku 1981. Spojovaný, spolehlivý přenos s potvrzováním (ACK) a řízením toku.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc9293' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc9293</a>"
+        ]
+      },
+      {
+        title: "RFC 768 — User Datagram Protocol (UDP)",
+        tag: "official",
+        items: [
+          "Nespojovaný protokol bez záruky doručení — nižší režie, používá se tam, kde je rychlost důležitější než spolehlivost.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc768' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc768</a>"
+        ]
+      },
+      {
+        title: "IANA — Service Name and Transport Protocol Port Number Registry",
+        tag: "official",
+        items: [
+          "Oficiální celosvětová evidence přiřazení portů službám — základní zdroj pravdy při sporu „na kterém portu má co běžet“. Definuje i tři rozsahy portů (well-known/registered/dynamic).",
+          "<a href='https://www.iana.org/assignments/service-names-port-numbers/' target='_blank' rel='noopener'>iana.org/assignments/service-names-port-numbers</a>"
+        ]
+      },
+      {
+        title: "RFC 9110 — HTTP Semantics",
+        tag: "official",
+        items: [
+          "Aktuální (2022) specifikace HTTP, nahrazuje starší RFC 723x — definuje metody GET/POST/…, stavové kódy a hlavičky.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc9110' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc9110</a>"
+        ]
+      },
+      {
+        title: "Debian Wiki — dokumentace jednotlivých služeb",
+        tag: "doc",
+        items: [
+          "<a href='https://wiki.debian.org/Apache' target='_blank' rel='noopener'>wiki.debian.org/Apache</a> — webový server Apache2",
+          "<a href='https://wiki.debian.org/Nginx' target='_blank' rel='noopener'>wiki.debian.org/Nginx</a> — webový server Nginx",
+          "<a href='https://wiki.debian.org/SSH' target='_blank' rel='noopener'>wiki.debian.org/SSH</a> — vzdálená správa přes OpenSSH",
+          "<a href='https://wiki.debian.org/DHCP_Server' target='_blank' rel='noopener'>wiki.debian.org/DHCP_Server</a> — isc-dhcp-server",
+          "<a href='https://wiki.debian.org/Postfix' target='_blank' rel='noopener'>wiki.debian.org/Postfix</a> — poštovní server Postfix",
+          "<a href='https://wiki.debian.org/Samba' target='_blank' rel='noopener'>wiki.debian.org/Samba</a> — sdílení souborů Samba/SMB",
+          "<a href='https://wiki.debian.org/NFS/Server' target='_blank' rel='noopener'>wiki.debian.org/NFS/Server</a> — sdílení souborů NFS",
+          "<a href='https://wiki.debian.org/Mariadb' target='_blank' rel='noopener'>wiki.debian.org/Mariadb</a> — databázový server MariaDB"
+        ]
+      },
+      {
+        title: "Cisco Networking Academy — Introduction to Networks",
+        tag: "doc",
+        items: [
+          "Navazuje na to, co už znáte o modelu TCP/IP a OSI, transportní vrstvě a IP adresaci — dnes to propojíme s konkrétními aplikačními protokoly a Linuxovými servery.",
+          "<a href='https://www.netacad.com/' target='_blank' rel='noopener'>netacad.com</a>"
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Co je hlavním znakem role „server“ v komunikaci klient-server?",
+      opts: ["Vždy dražší hardware", "Proces, který naslouchá na portu a čeká na požadavky klientů", "Počítač, který se nikdy nesmí vypnout", "Zařízení bez operačního systému"],
+      correct: 1,
+      explain: "Server je role procesu — naslouchá na definovaném portu a reaguje na požadavky klientů; totéž zařízení může být zároveň klientem jiné služby."
+    },
+    {
+      q: "Ve kterém pořadí probíhá navázání TCP spojení (three-way handshake)?",
+      opts: ["ACK → SYN → SYN-ACK", "SYN → SYN-ACK → ACK", "SYN → ACK → SYN-ACK", "Handshake se u TCP nepoužívá"],
+      correct: 1,
+      explain: "TCP (RFC 9293) navazuje spojení výměnou SYN, SYN-ACK a ACK — teprve poté začíná přenos dat."
+    },
+    {
+      q: "Proč DNS dotazy typicky používají UDP místo TCP?",
+      opts: ["UDP je šifrovaný, TCP ne", "DNS dotaz i odpověď jsou obvykle malé, vyplatí se nižší režie UDP", "TCP na portu 53 vůbec neexistuje", "UDP garantuje doručení, TCP ne"],
+      correct: 1,
+      explain: "Malé, rychlé dotazy nepotřebují spolehlivostní mechanismy TCP; DNS ale TCP na portu 53 používá např. pro zónové přenosy nebo delší odpovědi."
+    },
+    {
+      q: "Jaký rozsah portů podle IANA je vyhrazený pro standardizované „well-known“ služby jako HTTP nebo SSH?",
+      opts: ["49152–65535", "1024–49151", "0–1023", "1–100"],
+      correct: 2,
+      explain: "Porty 0–1023 jsou Well-known porty; na Linuxu je smí otevřít jen proces s právy roota."
+    },
+    {
+      q: "Na kterém portu naslouchá standardně šifrovaný webový server (HTTPS)?",
+      opts: ["80", "8080", "443", "22"],
+      correct: 2,
+      explain: "Port 443/TCP je vyhrazený pro HTTPS — HTTP přes TLS; port 80 zůstává pro nešifrované HTTP."
+    },
+    {
+      q: "Který Debian balíček nejčastěji zajišťuje DNS server pro celou síť?",
+      opts: ["isc-dhcp-server", "bind9", "openssh-server", "vsftpd"],
+      correct: 1,
+      explain: "BIND9 (balíček bind9) je nejrozšířenější DNS server v Debianu; lehčí alternativou je unbound."
+    },
+    {
+      q: "Proč se dnes SMTP klienti připojují na port 587 místo přímo na port 25?",
+      opts: ["Port 25 je dnes vyhrazený jen pro FTP", "Port 587 je standardizovaný pro odesílání pošty klientem s autentizací a šifrováním (STARTTLS)", "Port 587 je rychlejší verze SMTP", "Rozdíl je čistě historický a dnes na tom nezáleží"],
+      correct: 1,
+      explain: "Port 25 slouží hlavně mezi poštovními servery navzájem; klienti dnes odesílají poštu přes port 587 (submission) s autentizací a STARTTLS."
+    },
+    {
+      q: "Co znamená, že DHCP používá porty 67 a 68?",
+      opts: ["67 je DHCP server, 68 DHCP klient — oba přes UDP", "67 je TCP, 68 je UDP", "Jde o dva nezávislé protokoly bez souvislosti", "Číslo portu se u DHCP mění podle výrobce routeru"],
+      correct: 0,
+      explain: "DHCP server naslouchá na UDP portu 67, DHCP klient na UDP portu 68 — vyměňují si zprávy DISCOVER/OFFER/REQUEST/ACK (RFC 2131)."
+    }
+  ];
+
+  var ACT = [
+    {
+      num: 1, en: "Solution Concept", title: "Návrh konceptu",
+      body: "<p>Ve dvojicích si nejprve <b>bez nahlížení do referenční tabulky</b> zkuste vybavit, jaký protokol, port a transportní protokol (TCP/UDP) používá každá z těchto osmi služeb: webový server, vzdálená správa, sdílení souborů v lokální síti, e-mail (odeslání i příjem), doménová jména, automatická síťová konfigurace, synchronizace času, databáze. Poznamenejte si i konkrétní Linuxový daemon, který byste na Debianu použili.</p>",
+      checklist: [
+        "Ke všem 8 službám jsme napsali odhad protokolu, portu a TCP/UDP",
+        "Ke každé službě jsme přiřadili konkrétní Debian balíček/daemon",
+        "Porovnali jsme svůj odhad s referenční tabulkou výše a označili rozdíly"
+      ]
+    },
+    {
+      num: 2, en: "Solution Development", title: "Vývoj řešení — ověření v praxi",
+      body: "<p>Nyní si teorii ověřte prakticky. Otevřete terminál (Linux/macOS) nebo PowerShell (Windows) a spusťte příkazy níže. Zjistíte, jaké porty naslouchají na vašem počítači, jak DNS překládá jméno na IP adresu a jak vypadá HTTP komunikace „zevnitř“.</p>",
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># Linux/macOS — naslouchající porty na vlastním počítači</span>\nss -tulpn\n\n<span class=\"c\"># Windows PowerShell — obdoba</span>\nnetstat -ano\n\n<span class=\"c\"># Překlad doménového jména na IP adresu (dotaz jde na port 53)</span>\nnslookup www.debian.org\ndig www.debian.org        <span class=\"c\"># jen Linux/macOS, podrobnější výstup</span>\n\n<span class=\"c\"># HTTP hlavičky a stavový kód bez prohlížeče</span>\ncurl -I https://www.debian.org\n\n<span class=\"c\"># Test dostupnosti konkrétního portu na vzdáleném serveru</span>\nnc -zv www.debian.org 443</code></pre>",
+      checklist: [
+        "Příkazem ss -tulpn / netstat -ano jsme našli aspoň 2 naslouchající porty a určili, které službě patří",
+        "Příkazem nslookup / dig jsme přeložili doménové jméno a všimli si dotazu na portu 53",
+        "Příkazem curl -I (nebo Nástroji pro vývojáře v prohlížeči → záložka Síť) jsme prohlédli HTTP hlavičky a stavový kód",
+        "Příkazem nc -zv jsme otestovali dostupnost portu 443 na vzdáleném serveru"
+      ]
+    },
+    {
+      num: 3, en: "Implementation & Evaluation", title: "Nasazení a vyhodnocení",
+      body: "<p>Zkonzultujte katalog s jinou dvojicí, opravte případné rozdíly a sestavte finální přehlednou tabulku (protokol – port – TCP/UDP – Linux daemon – k čemu slouží) pro všech 8 služeb. Uložte ji do sdílené složky týmu — stane se referenční přílohou pro kapitoly 1.2–1.11.</p>",
+      checklist: [
+        "Finální katalog obsahuje všech 8 služeb a je ověřený proti referenční tabulce/IANA",
+        "Katalog je uložený ve sdílené složce týmu s datem a jmény členů",
+        "Označili jsme, které 3–4 služby budeme v nejbližších kapitolách reálně instalovat na virtuální server"
+      ]
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Referenční katalog síťových služeb Školy X — protokol, port, TCP/UDP a konkrétní Linux daemon pro každou z 8 klíčových služeb; používaný jako příloha v kapitolách 1.2–1.11.";
+
+  var REFLECT = [
+    "Kam byste aplikační protokoly z dnešní hodiny zařadili v modelu, který znáte z Cisco Networking Academy (TCP/IP, OSI) — a proč zrovna tam?",
+    "Který port nebo protokol vás dnes nejvíc překvapil a proč?",
+    "Kde se váš katalog služeb lišil od jiné dvojice a jak jste rozdíl vyřešili?",
+    "Co byste si chtěli ověřit nebo dostudovat, než v kapitole 1.2 začnete instalovat první ostrý server?"
+  ];
+
+  var SOURCES = [
+    {title:"RFC 9293 — Transmission Control Protocol (TCP)", url:"https://www.rfc-editor.org/rfc/rfc9293", tag:"official", note:"Aktuální (2022) standard TCP, nahrazuje RFC 793."},
+    {title:"RFC 768 — User Datagram Protocol (UDP)", url:"https://www.rfc-editor.org/rfc/rfc768", tag:"official", note:"Základní specifikace protokolu UDP."},
+    {title:"RFC 9110 — HTTP Semantics", url:"https://www.rfc-editor.org/rfc/rfc9110", tag:"official", note:"Aktuální (2022) specifikace HTTP."},
+    {title:"RFC 1035 — Domain Names, Implementation and Specification", url:"https://www.rfc-editor.org/rfc/rfc1035", tag:"official", note:"Základní specifikace DNS."},
+    {title:"RFC 4251 — The Secure Shell (SSH) Protocol Architecture", url:"https://www.rfc-editor.org/rfc/rfc4251", tag:"official", note:"Architektura protokolu SSH."},
+    {title:"RFC 2131 — Dynamic Host Configuration Protocol", url:"https://www.rfc-editor.org/rfc/rfc2131", tag:"official", note:"Specifikace DHCP (DISCOVER/OFFER/REQUEST/ACK)."},
+    {title:"IANA Service Name and Port Number Registry", url:"https://www.iana.org/assignments/service-names-port-numbers/", tag:"official", note:"Oficiální celosvětová evidence přiřazení portů."},
+    {title:"Debian Wiki — Apache", url:"https://wiki.debian.org/Apache", tag:"doc", note:"Instalace a konfigurace webového serveru Apache2."},
+    {title:"Debian Wiki — Nginx", url:"https://wiki.debian.org/Nginx", tag:"doc", note:"Instalace a konfigurace webového serveru Nginx."},
+    {title:"Debian Wiki — SSH", url:"https://wiki.debian.org/SSH", tag:"doc", note:"Vzdálená správa přes OpenSSH."},
+    {title:"Debian Wiki — DHCP_Server", url:"https://wiki.debian.org/DHCP_Server", tag:"doc", note:"Instalace isc-dhcp-server."},
+    {title:"Debian Wiki — Postfix", url:"https://wiki.debian.org/Postfix", tag:"doc", note:"Poštovní server Postfix."},
+    {title:"Debian Wiki — Samba", url:"https://wiki.debian.org/Samba", tag:"doc", note:"Sdílení souborů a tiskáren přes SMB."},
+    {title:"Debian Wiki — NFS/Server", url:"https://wiki.debian.org/NFS/Server", tag:"doc", note:"Sdílení souborů mezi Linuxovými stroji."},
+    {title:"Debian Wiki — Mariadb", url:"https://wiki.debian.org/Mariadb", tag:"doc", note:"Databázový server MariaDB v Debianu."},
+    {title:"Debian Administrator's Handbook", url:"https://debian-handbook.info/browse/stable/", tag:"doc", note:"Oficiální, community-maintained příručka k Debianu."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — přidáno Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál/dokumentace</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+(phase.extra||'')+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+})();
+</script>
+</body>
+</html>
