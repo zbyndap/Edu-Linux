@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edu-Linux · Rozcestník</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Barvy a písmo podle logo manuálu SPŠ EI Ostrava (spsei_logo_manual_tisk.pdf):
+   Robot blue Pantone 7699C / RGB 71,101,125 · Electric green Pantone 388C / RGB 219,240,42.
+   Firemní písmo "Lilex" (monospace) není na veřejných CDN — nahrazeno JetBrains Mono
+   se systémovým monospace fallbackem pro offline/projekci. Stejný tokenový systém
+   jako v kapitolách (viz kapitoly/00-vstupni-diagnostika.html), rozšířený o barevnou
+   paletu dlaždic roadmapy (viz sekce "dlaždice" níže) — na přání "pestřejší" rozcestník. */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+.wrap{max-width:1080px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* header */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.8rem clamp(1rem,4vw,1.6rem) 1.8rem; margin:0 0 2rem;
+  border-radius:0 0 var(--radius-lg) var(--radius-lg);
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:46px; height:46px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.35rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.98rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.74rem; color:var(--ink-faint); letter-spacing:.02em;}
+.page-id{margin-top:1.2rem;}
+.page-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.page-id h1{font-size:1.9rem; margin-top:.2rem; color:var(--ink);}
+.page-id .sub{font-size:.92rem; color:var(--ink-soft); margin-top:.5rem; max-width:640px;}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap;}
+
+section{margin:3rem 0; scroll-margin-top:1rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:760px;}
+
+/* hero / master challenge card */
+.hero-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.6rem 1.7rem; box-shadow:var(--shadow-sm);
+}
+.hero-card p{margin-bottom:.85rem;}
+.hero-card p:last-child{margin-bottom:0;}
+.hero-card b{color:var(--robot-deep);}
+
+/* progress */
+.progress-row{display:flex; align-items:center; gap:1rem; margin-top:1.3rem; flex-wrap:wrap;}
+.progress-track{flex:1 1 220px; height:12px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:160px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .6s ease;}
+.progress-label{font-size:.85rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+/* roadmap grid */
+.roadmap{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.1rem; margin-top:1.4rem;}
+
+.tile{
+  position:relative; display:flex; flex-direction:column; gap:.7rem;
+  border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff;
+  padding:1.2rem 1.3rem 1.3rem; box-shadow:var(--shadow-sm); overflow:hidden;
+  border-top:4px solid var(--tile-color, var(--robot));
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+a.tile{text-decoration:none; color:inherit; cursor:pointer;}
+a.tile:hover{transform:translateY(-3px); box-shadow:var(--shadow-md); border-color:var(--tile-color, var(--robot));}
+.tile.planned{border-top-style:dashed; opacity:.72;}
+.tile.planned:hover{transform:none; box-shadow:var(--shadow-sm);}
+
+.tile-top{display:flex; align-items:flex-start; justify-content:space-between; gap:.6rem;}
+.tile-num{
+  flex:none; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center;
+  background:var(--surface); background:color-mix(in srgb, var(--tile-color, var(--robot)) 16%, #fff); color:var(--tile-color, var(--robot));
+  font-weight:800; font-size:.85rem;
+}
+.tile-icon{width:22px; height:22px; color:var(--tile-color, var(--robot));}
+.status-pill{font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.25rem .55rem; border-radius:999px; white-space:nowrap;}
+.status-pill.ready{background:var(--electric-tint); color:var(--electric-deep); border:1px solid var(--electric);}
+.status-pill.planned{background:var(--surface); color:var(--ink-faint); border:1px solid var(--border);}
+
+.tile h3{font-size:1rem; line-height:1.35;}
+.tile .tile-eq{font-size:.82rem; color:var(--ink-soft); flex:1;}
+.tile-foot{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-top:auto; padding-top:.6rem; border-top:1px solid var(--border);}
+.tile-hours{font-size:.76rem; color:var(--ink-faint); font-weight:600;}
+.tile-cta{font-size:.78rem; font-weight:700; color:var(--tile-color, var(--robot));}
+a.tile:hover .tile-cta{text-decoration:underline;}
+
+/* legend */
+.legend{display:flex; gap:1.4rem; flex-wrap:wrap; margin-top:1rem; font-size:.82rem; color:var(--ink-soft);}
+.legend span{display:inline-flex; align-items:center; gap:.4rem;}
+.legend .dot{width:9px; height:9px; border-radius:3px;}
+.legend .dot.ready{background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+.legend .dot.planned{background:var(--surface-2); border:1px dashed var(--ink-faint);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint);}
+
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="top-row">
+      <div class="brand-lockup">
+        <div class="ei-badge">ei</div>
+        <div class="brand-text">
+          <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+          <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+        </div>
+      </div>
+      <div class="chip-row" id="chip-row"></div>
+    </div>
+    <div class="page-id">
+      <div class="ct">Edu-Linux · Předmět Serverové služby</div>
+      <h1>Rozcestník kapitol</h1>
+      <p class="sub">Interaktivní výukové aplikace ke GNU/Linux Debian pro 4. ročník, metodou Challenge Based Learning. Klikněte na hotovou kapitolu a spusťte ji.</p>
+    </div>
+  </header>
+
+  <!-- Master Challenge / Big Idea -->
+  <section id="vyzva">
+    <span class="eyebrow">Celoroční výzva</span>
+    <h2>Škola X — postavte spolehlivou digitální infrastrukturu</h2>
+    <div class="hero-card">
+      <p><b>Big Idea:</b> Spolehlivá digitální infrastruktura.</p>
+      <p><b>Essential Question:</b> Jak navrhnout a provozovat síťovou infrastrukturu, na kterou se uživatelé mohou spolehnout — dostupnou, bezpečnou a snadno spravovatelnou?</p>
+      <p><b>Master Challenge:</b> Tým IT správců postupně naplánuje, nasadí a nakonec předvede funkční serverovou infrastrukturu pro fiktivní organizaci „Škola X“ — tak, aby ji na konci roku mohl převzít jiný správce. Každá kapitola 1.1–1.11 je stavební kámen; finále (1.11) vše zkompletuje a obhájí.</p>
+    </div>
+    <div class="progress-row">
+      <div class="progress-track"><span id="progress-bar" style="width:0%"></span></div>
+      <div class="progress-label" id="progress-label">0 / 0 kapitol hotovo</div>
+    </div>
+  </section>
+
+  <!-- Kapitola 0 -->
+  <section id="pred-zacatkem">
+    <span class="eyebrow">Před začátkem</span>
+    <h2>Vstupní diagnostika</h2>
+    <p class="lede">Než se pustíte do stavby serveru Školy X, ověřte si, na čem budete stavět — diagnostický sebetest znalostí z 1.–3. ročníku.</p>
+    <div class="roadmap" id="roadmap-prep"></div>
+  </section>
+
+  <!-- 1.1-1.11 -->
+  <section id="ses-kapitoly">
+    <span class="eyebrow">Master Challenge · Škola X</span>
+    <h2>Kapitoly 1.1 – 1.11</h2>
+    <p class="lede">11 témat tematického plánu SES, 60 vyučovacích hodin celkem. Barva dlaždice slouží jen k rychlé orientaci v roadmapě, nemá jiný význam.</p>
+    <div class="roadmap" id="roadmap-ses"></div>
+    <div class="legend">
+      <span><span class="dot ready"></span> Hotovo — klikněte a spusťte</span>
+      <span><span class="dot planned"></span> Připravuje se</span>
+    </div>
+  </section>
+
+  <footer class="pagefoot">Edu-Linux · Rozcestník kapitol · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</footer>
+</div>
+
+<script>
+(function(){
+
+  // Barevná paleta dlaždic — čistě orientační (rychlá vizuální navigace v roadmapě),
+  // odvozená z Robot blue / Electric green tak, aby ladila i s pestřejšími odstíny.
+  // Přidáte-li novou kapitolu, další barva se vezme automaticky (cyklicky).
+  var PALETTE = ["#47657D","#2C8C7B","#E08A2E","#7A5FA0","#3AA0C9","#C6564A","#4F8F5B","#B85C9E","#4B4E9E","#A98B2E","#3E7A8C","#D1603D"];
+
+  function icon(name){
+    var paths = {
+      compass:'<circle cx="12" cy="12" r="9"/><path d="M14.8 9.2 13 13l-3.8 1.8L11 11z"/>',
+      flag:'<path d="M5 21V4"/><path d="M5 5c2-1.3 4-1.3 6 0s4 1.3 6 0v9c-2 1.3-4 1.3-6 0s-4-1.3-6 0Z"/>',
+      gear:'<circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18 6l-1.5 1.5M7.5 16.5 6 18M18 18l-1.5-1.5M7.5 7.5 6 6"/>',
+      network:'<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="12" cy="18" r="2.4"/><path d="M8.2 7 15.8 7M7.4 8.2 10.8 15.8M16.6 8.2 13.2 15.8"/>',
+      cpu:'<rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M7 3v2M17 3v2M7 19v2M17 19v2M3 7h2M3 17h2M19 7h2M19 17h2"/>',
+      globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.4 4 5.6 4 9s-1.4 6.6-4 9c-2.6-2.4-4-5.6-4-9s1.4-6.6 4-9Z"/>',
+      tag:'<path d="M12.6 3.4 20 10.8a2 2 0 0 1 0 2.8l-6.4 6.4a2 2 0 0 1-2.8 0L3.4 12.6V4a.6.6 0 0 1 .6-.6Z"/><circle cx="8.4" cy="8.4" r="1.4"/>',
+      folder:'<path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/>',
+      lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+      database:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3"/>',
+      disk:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/><path d="M12 3v6M12 15v6"/>',
+      trophy:'<path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/>'
+    };
+    return '<svg class="tile-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">'+paths[name]+'</svg>';
+  }
+
+  // Aktualizace: přidejte novou kapitolu jako další objekt do PREP nebo SES pole.
+  // status: "ready" (odkaz aktivní) nebo "planned" (jen zobrazená dlaždice bez odkazu).
+  var PREP = [
+    {num:"0", title:"Vstupní diagnostika", eq:"Na jakých znalostech z 1.–3. ročníku budu stavět server Školy X — a kde mám mezery?", hours:"4 h", icon:"compass", status:"ready", href:"kapitoly/00-vstupni-diagnostika.html"}
+  ];
+
+  var SES = [
+    {num:"1.1", title:"Úvod do serverových služeb", eq:"Co všechno „server“ vlastně dělá a proč na tom záleží?", hours:"2 h", icon:"flag", status:"planned", href:"kapitoly/01-01-uvod-do-serveru.html"},
+    {num:"1.2", title:"Instalace a konfigurace OS", eq:"Jak připravit stabilní a bezpečně přístupný základ serveru?", hours:"8 h", icon:"gear", status:"planned", href:"kapitoly/01-02-instalace-os.html"},
+    {num:"1.3", title:"Konfigurace síťového rozhraní", eq:"Jak propojit servery a klienty do funkční sítě?", hours:"6 h", icon:"network", status:"planned", href:"kapitoly/01-03-sitove-rozhrani.html"},
+    {num:"1.4", title:"Služby a procesy, systemd", eq:"Jak zjistit, co server dělá, a spolehlivě to řídit?", hours:"6 h", icon:"cpu", status:"planned", href:"kapitoly/01-04-sluzby-systemd.html"},
+    {num:"1.5", title:"DNS (Bind9)", eq:"Jak zajistit, aby se uživatelé i služby v síti našli podle jména?", hours:"6 h", icon:"globe", status:"planned", href:"kapitoly/01-05-dns.html"},
+    {num:"1.6", title:"DHCP server a klient", eq:"Jak automatizovat přidělování síťové identity desítkám zařízení?", hours:"4 h", icon:"tag", status:"planned", href:"kapitoly/01-06-dhcp.html"},
+    {num:"1.7", title:"FTP služba", eq:"Jak bezpečně sdílet soubory se vzdálenými uživateli?", hours:"2 h", icon:"folder", status:"planned", href:"kapitoly/01-07-ftp.html"},
+    {num:"1.8", title:"SSH, certifikáty, scp/sftp", eq:"Jak spravovat server na dálku a přitom ho neohrozit?", hours:"6 h", icon:"lock", status:"planned", href:"kapitoly/01-08-ssh.html"},
+    {num:"1.9", title:"Webový server, SQL, phpMyAdmin", eq:"Jak zpřístupnit obsah a aplikace organizace na webu?", hours:"6 h", icon:"database", status:"planned", href:"kapitoly/01-09-web-sql.html"},
+    {num:"1.10", title:"Souborové systémy, zálohování", eq:"Jak ochránit data organizace před ztrátou?", hours:"6 h", icon:"disk", status:"planned", href:"kapitoly/01-10-souborove-systemy.html"},
+    {num:"1.11", title:"Samostatná práce (finále)", eq:"Funguje výsledná infrastruktura jako celek — a dokázali bychom ji předat dál?", hours:"8 h", icon:"trophy", status:"planned", href:"kapitoly/01-11-samostatna-prace.html"}
+  ];
+
+  function renderTile(item, colorIndex){
+    var color = PALETTE[colorIndex % PALETTE.length];
+    var ready = item.status === "ready";
+    var tag = ready ? "a" : "div";
+    var el = document.createElement(tag);
+    el.className = "tile" + (ready ? "" : " planned");
+    el.style.setProperty("--tile-color", color);
+    if(ready){ el.href = item.href; }
+    el.innerHTML =
+      '<div class="tile-top">'+
+        '<div class="tile-num">'+item.num+'</div>'+
+        icon(item.icon)+
+      '</div>'+
+      '<h3>'+item.title+'</h3>'+
+      '<p class="tile-eq">'+item.eq+'</p>'+
+      '<div class="tile-foot">'+
+        '<span class="tile-hours">'+item.hours+'</span>'+
+        (ready
+          ? '<span class="status-pill ready">Hotovo</span>'
+          : '<span class="status-pill planned">Připravuje se</span>')+
+      '</div>';
+    return el;
+  }
+
+  var prepEl = document.getElementById("roadmap-prep");
+  PREP.forEach(function(item, i){ prepEl.appendChild(renderTile(item, i)); });
+
+  var sesEl = document.getElementById("roadmap-ses");
+  SES.forEach(function(item, i){ sesEl.appendChild(renderTile(item, i + PREP.length)); });
+
+  // Souhrnný progress + hlavičkové chipy
+  var all = PREP.concat(SES);
+  var done = all.filter(function(i){ return i.status === "ready"; }).length;
+  var total = all.length;
+  var pct = total ? Math.round((done/total)*100) : 0;
+  document.getElementById("progress-bar").style.width = pct + "%";
+  document.getElementById("progress-label").textContent = done + " / " + total + " kapitol hotovo";
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip">'+total+' kapitol celkem</span>'+
+    '<span class="chip">60 vyuč. hodin (SES)</span>';
+
+})();
+</script>
+</body>
+</html>
