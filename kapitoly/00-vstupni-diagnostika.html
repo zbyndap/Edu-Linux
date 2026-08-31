@@ -1,0 +1,774 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kapitola 0 · Vstupní diagnostika</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Barvy a písmo podle logo manuálu SPŠ EI Ostrava (spsei_logo_manual_tisk.pdf):
+   Robot blue Pantone 7699C / RGB 71,101,125 · Electric green Pantone 388C / RGB 219,240,42
+   Firemní písmo "Lilex" (monospace) není na veřejných CDN dostupné — nahrazeno
+   nejbližším široce dostupným příbuzným řezem JetBrains Mono, se stejnou
+   rodinou systémových monospace fontů jako záložní varianta pro offline projekci. */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+  --accent-tint:var(--robot-tint);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* header */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.8rem clamp(1rem,4vw,1.6rem) 1.6rem; margin:0 0 2.4rem;
+  border-radius:0 0 var(--radius-lg) var(--radius-lg);
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:46px; height:46px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.35rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.98rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.74rem; color:var(--ink-faint); letter-spacing:.02em;}
+.chapter-id{margin-top:1.1rem;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:1.65rem; margin-top:.2rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap;}
+.back-link{font-size:.85rem; color:var(--ink-soft); margin-top:1.1rem;}
+
+section{margin:3.2rem 0; scroll-margin-top:1rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem;}
+
+/* engage */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card p{margin-bottom:.85rem;}
+.engage-card p:last-child{margin-bottom:0;}
+.engage-card b{color:var(--accent-ink);}
+
+/* tabs */
+.tabbar{display:flex; gap:.5rem; flex-wrap:wrap; margin:1.4rem 0 0; padding:0;}
+.tab-jump{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1rem 1.2rem 1.2rem; margin-bottom:1.8rem;}
+.tab-jump-label{font-size:.82rem; color:var(--ink-soft); margin:0 0 .2rem; font-weight:600;}
+.tab-jump .tabbar{margin-top:.7rem;}
+.tab-btn{
+  font-family:inherit; cursor:pointer; border:1px solid var(--border); background:#fff; color:var(--ink-soft);
+  border-radius:999px; padding:.55rem 1.05rem; font-size:.88rem; font-weight:600; display:flex; align-items:center; gap:.5rem;
+  transition:background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.tab-btn svg{width:16px; height:16px; flex:none;}
+.tab-btn:hover{border-color:var(--robot);}
+.tab-btn.active{background:var(--robot); border-color:var(--robot); color:#fff; box-shadow:var(--shadow-sm);}
+.tab-btn.active .tab-dot{background:var(--electric);}
+.tab-dot{width:7px; height:7px; border-radius:50%; background:var(--border); flex:none;}
+.tab-btn .tprog{font-size:.72rem; opacity:.85; font-variant-numeric:tabular-nums;}
+
+/* blocks */
+.block{border:1px solid var(--border); border-radius:var(--radius-lg); margin:1.4rem 0; overflow:hidden; box-shadow:var(--shadow-md); background:#fff;}
+.block[hidden]{display:none;}
+.block-head{display:flex; align-items:center; gap:.9rem; padding:1.2rem 1.4rem; background:var(--robot); background-image:var(--pattern); border-bottom:1px solid var(--border);}
+.block-head svg{width:30px;height:30px;flex:none; color:var(--electric);}
+.block-head h3{font-size:1.1rem; color:#fff;}
+.block-head .sub{font-size:.82rem; color:#DCE7EC;}
+.block-body{padding:1.4rem 1.4rem 1.7rem;}
+
+.gq-list{list-style:none; padding:0; margin:0 0 1.1rem;}
+.gq-list li{position:relative; padding-left:1.5rem; margin-bottom:.45rem; font-size:.92rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.05rem; height:1.05rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.85rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.3rem;}
+details.cheat code, .open-task code{background:#fff; border:1px solid var(--border); border-radius:6px; padding:.1rem .38rem; font-family:inherit; font-size:.85rem; color:var(--accent-ink);}
+
+/* quiz */
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.15rem 0;}
+.q:first-of-type{border-top:none;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* open tasks */
+.open-list{margin-top:1.6rem; padding-top:1.3rem; border-top:2px dashed var(--border);}
+.open-list > h4{font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; color:var(--robot); font-weight:700; margin-bottom:1rem;}
+.open-task{border-top:1px solid var(--border); padding:1.05rem 0;}
+.open-task:first-of-type{border-top:none;}
+.open-task .task-text{font-weight:700; font-size:.92rem; margin-bottom:.6rem;}
+.open-task textarea{
+  width:100%; min-height:52px; border:1px solid var(--border); border-radius:var(--radius); padding:.6rem .85rem;
+  font-family:inherit; font-size:.86rem; color:var(--ink); resize:vertical;
+  background:var(--surface); margin-bottom:.55rem;
+}
+.open-task textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+
+/* summary / gap map */
+.gapmap{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; margin:1.4rem 0;}
+.gap-card{border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.15rem 1.25rem; background:#fff; box-shadow:var(--shadow-sm);}
+.gap-card .gt{font-size:.84rem; color:var(--ink-faint); margin-bottom:.4rem; font-weight:600;}
+.gap-card .score{font-size:1.8rem; font-weight:700; color:var(--robot); font-variant-numeric:tabular-nums;}
+.bar{height:9px; border-radius:99px; background:var(--surface-2); margin:.7rem 0 .5rem; overflow:hidden;}
+.bar > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); width:0%; transition:width .5s ease;}
+.gap-card .note{font-size:.82rem; color:var(--ink-soft);}
+#recompute{margin-top:.4rem; font-size:.85rem; font-weight:700; color:var(--robot-deep); background:var(--electric); border:none; border-radius:999px; padding:.6rem 1.2rem; cursor:pointer; font-family:inherit; box-shadow:var(--shadow-sm);}
+#recompute:hover{filter:brightness(.96);}
+
+/* teacher-send */
+.teacher-send{margin:1.6rem 0 0; padding:1.1rem 1.3rem; border:1px dashed var(--border); border-radius:var(--radius-lg); background:var(--surface);}
+.tsend-note{font-size:.82rem; color:var(--ink-soft); margin:0 0 .8rem;}
+.tsend-note b{color:var(--ink);}
+#sendTeacher{font-size:.85rem; font-weight:700; color:#fff; background:var(--robot); border:none; border-radius:999px; padding:.6rem 1.2rem; cursor:pointer; font-family:inherit; box-shadow:var(--shadow-sm);}
+#sendTeacher:hover{background:var(--robot-deep);}
+#sendTeacher[disabled]{opacity:.6; cursor:default;}
+.tsend-status{display:inline-block; margin-left:.8rem; font-size:.83rem; color:var(--ink-soft); vertical-align:middle;}
+
+/* rubric mini */
+.rubric-mini{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:.8rem; margin:1.2rem 0;}
+.rubric-mini div{border:1px solid var(--border); border-radius:var(--radius); padding:.85rem .95rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface);}
+.rubric-mini b{display:block; color:var(--ink); margin-bottom:.28rem; font-size:.87rem;}
+
+/* reflection */
+.reflect-q{margin-bottom:1.1rem;}
+.reflect-q p{font-size:.93rem; margin-bottom:.4rem; font-weight:700;}
+textarea{
+  width:100%; min-height:70px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.88rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+
+/* sources */
+.src-list{list-style:none; padding:0; margin:0;}
+.src-list li{padding:.55rem 0; border-top:1px solid var(--border); font-size:.88rem; color:var(--ink-soft);}
+.src-list li:first-child{border-top:none;}
+.src-list b{color:var(--ink);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint);}
+
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="top-row">
+      <div class="brand-lockup">
+        <div class="ei-badge">ei</div>
+        <div class="brand-text">
+          <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+          <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+        </div>
+      </div>
+      <div class="chip-row">
+        <span class="chip">4 vyučovací hodiny</span>
+        <span class="chip">4 oblasti · sebetest</span>
+      </div>
+    </div>
+    <div class="chapter-id">
+      <div class="ct">Edu-Linux · Kapitola 0</div>
+      <h1>Vstupní diagnostika</h1>
+    </div>
+    <p class="back-link">← Předchází celoroční výzvě „Škola X“ (Master Challenge, SES – Serverové služby)</p>
+  </header>
+
+  <!-- 1 ENGAGE -->
+  <section id="vyzva">
+    <span class="eyebrow">Výzva</span>
+    <h2>Než začnete stavět server Školy X</h2>
+    <div class="engage-card">
+      <p><b>Odkud vycházíme:</b> Za sebou máte tři ročníky předmětu Operační systémy — základy OS, instalaci a správu systému, konfiguraci síťových služeb. Tenhle rok na to navazujete: postavíte a budete provozovat skutečnou serverovou infrastrukturu.</p>
+      <p><b>Essential Question:</b> Na jakých znalostech z 1.–3. ročníku budu stavět server Školy X — a kde mám mezery?</p>
+      <p><b>Challenge:</b> Projděte důkladnou diagnostiku ve čtyřech oblastech — včetně té, kterou žáci obvykle podceňují: adresářová struktura Linuxu. Výsledkem bude vaše osobní „mapa mezer“, se kterou příští hodinu rovnou začnete stavět svůj první server.</p>
+    </div>
+  </section>
+
+  <!-- 2-4 INVESTIGATE: four self-test blocks -->
+  <section id="sebetest">
+    <span class="eyebrow">Investigate · sebetest</span>
+    <h2>Prověřte si čtyři oblasti</h2>
+    <p class="lede">U každé otázky vyberte odpověď — hned uvidíte, jestli je správně, i krátké vysvětlení. U otevřených úloh si nejdřív sami zkuste napsat příkaz nebo odpověď do pole, teprve pak si otevřete řešení. Nejde o klasifikovanou písemku, ale o rychlou diagnostiku. Přepínejte mezi oblastmi pomocí záložek níže; otevřete si „Rychlé opakování“ u bloku, kde váháte.</p>
+    <div class="tabbar" id="tabbar"></div>
+    <div id="blocks"></div>
+  </section>
+
+  <!-- 5 SYNTHESIS: gap map -->
+  <section id="mapa-mezer">
+    <div class="tab-jump">
+      <p class="tab-jump-label">Nechcete se vracet nahoru? Přepněte blok rovnou tady:</p>
+      <div class="tabbar" id="tabbar2"></div>
+    </div>
+    <span class="eyebrow">Synthesis</span>
+    <h2>Vaše osobní mapa mezer</h2>
+    <p class="lede">Po vyplnění všech čtyř bloků klikněte na tlačítko níže — uvidíte, ve které oblasti stojí za to věnovat pár minut opakování ještě před příští hodinou, kdy začnete stavět svůj první server.</p>
+    <button id="recompute" type="button">Spočítat mapu mezer</button>
+    <div class="gapmap" id="gapmap"></div>
+
+    <div class="teacher-send" id="teacher-send" hidden>
+      <p class="tsend-note"><b>Volitelné:</b> po dokončení všech čtyř bloků můžete anonymně odeslat jen procenta úspěšnosti za bloky A–D vyučujícímu — pomůže mu to zjistit, na co se má třída příště zaměřit. Neodesílá se jméno ani žádný jiný identifikační údaj. Vyžaduje připojení k internetu.</p>
+      <button id="sendTeacher" type="button">Odeslat výsledky učiteli (anonymně)</button>
+      <span class="tsend-status" id="sendStatus"></span>
+    </div>
+  </section>
+
+  <!-- 6 EVALUATION -->
+  <section id="hodnoceni">
+    <span class="eyebrow">Hodnocení</span>
+    <h2>Jak se dnes hodnotí</h2>
+    <p class="lede">Dnešní hodina je formativní — cílem je zjistit, co je potřeba doučit, ne dát známku za výklad.</p>
+    <div class="rubric-mini">
+      <div><b>Sebetest</b>Není klasifikován. Slouží vám i vyučujícímu jako podklad k tomu, co zopakovat před příští hodinou.</div>
+      <div><b>Otevřené úlohy</b>Hodnotí se, že jste se o vlastní odpověď/příkaz upřímně pokusili dřív, než jste otevřeli řešení — ne přesnost na první pokus.</div>
+      <div><b>Samostatnost</b>Zda jste si dokázali dohledat chybějící znalost sami (dokumentace, spolužák, vyučující) místo čekání na hotové řešení.</div>
+      <div><b>Zapojení</b>Vyplněná reflexe níže a upřímně vyznačená mapa mezer.</div>
+    </div>
+  </section>
+
+  <!-- 7 REFLECT -->
+  <section id="reflexe">
+    <span class="eyebrow">Reflect</span>
+    <h2>Reflexe</h2>
+    <div class="reflect-q">
+      <p>Co jsem si dnes potvrdil, že bezpečně umím?</p>
+      <textarea placeholder="Napište pár vět…"></textarea>
+    </div>
+    <div class="reflect-q">
+      <p>Co si musím doučit, než příští hodinu začneme stavět server Školy X?</p>
+      <textarea placeholder="Napište pár vět…"></textarea>
+    </div>
+    <div class="reflect-q">
+      <p>Jak a kdy si tu mezeru doplním (např. do příští hodiny)?</p>
+      <textarea placeholder="Napište pár vět…"></textarea>
+    </div>
+    <p style="font-size:.82rem;color:var(--ink-faint)">Text v polích se nikam neukládá — opište si ho prosím do sešitu/portfolia před zavřením stránky.</p>
+  </section>
+
+  <!-- 8 SOURCES -->
+  <section id="zdroje">
+    <span class="eyebrow">Zdroje</span>
+    <h2>Odkud vychází obsah této kapitoly</h2>
+    <ul class="src-list">
+      <li><b>Rozsah opakované látky:</b> Školní vzdělávací program „Kyberbezpečnost a síťové technologie“, předmět Operační systémy, tematické celky 1.–3. ročníku (interní dokument školy) — včetně výstupu „orientuje se v organizaci adresářové struktury v OS“ (RVP/ŠVP, 1. ročník), na kterém stojí blok D.</li>
+      <li><b>Adresářová struktura Linuxu (FHS):</b> Filesystem Hierarchy Standard — refspecs.linuxfoundation.org/FHS_3.0, Debian Wiki – wiki.debian.org/FilesystemHierarchyStandard.</li>
+      <li><b>Pojmy CIA (Confidentiality, Integrity, Availability):</b> standardní model informační bezpečnosti.</li>
+      <li><b>Příkazy a služby Debianu</b> (adduser, chmod/chown, systemctl, apt, journalctl, SSH): Debian Wiki – wiki.debian.org, man stránky nainstalovaných nástrojů.</li>
+      <li><b>Licence software</b> (GPL, freeware, shareware): gnu.org/licenses, opensource.org.</li>
+    </ul>
+  </section>
+
+  <footer class="pagefoot">Edu-Linux · Kapitola 0 – Vstupní diagnostika · předmět Serverové služby, 4. ročník</footer>
+</div>
+
+<script>
+(function(){
+  var quiz = {
+    A: {
+      title: "Blok A · Operační systémy",
+      sub: "1. ročník",
+      icon: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5v17"/>',
+      guiding: [
+        "Umím popsat, k čemu OS slouží, a rozlišit typy/licence OS?",
+        "Rozumím rozdílu mezi virtualizací a cloudem?",
+        "Orientuji se v CLI i GUI (Windows i Linux)?",
+        "Chápu základy autentizace/autorizace a přístupových práv?",
+        "Umím nastavit sdílení a zálohování dat?"
+      ],
+      cheat: [
+        "OS spravuje hardware a poskytuje rozhraní pro aplikace a uživatele.",
+        "Licence: GPL/open-source (volná úprava a šíření) vs. freeware/shareware (zdarma/omezeně, bez zdrojového kódu).",
+        "Virtualizace = izolované VM na jednom stroji; cloud = zdroje jako služba přes síť (často postavené na virtualizaci). Hypervisor typu 2 (VirtualBox) běží nad hostitelským OS.",
+        "pwd, ls, cd, cp, mv, rm, mkdir, cat, man – základní orientace v shellu.",
+        "Autentizace = ověření identity. Autorizace = přidělení práv po ověření.",
+        "RAID chrání před selháním disku, ne před smazáním/ransomwarem – proto samostatná záloha."
+      ],
+      questions: [
+        {q:"Co je hlavním úkolem operačního systému?", o:["Spravuje hardware a poskytuje rozhraní pro aplikace","Vytváří webové stránky","Nahrazuje potřebu ovladačů","Slouží pouze jako grafické rozhraní"], c:0, e:"OS zprostředkovává komunikaci mezi hardwarem, aplikacemi a uživatelem a spravuje systémové zdroje."},
+        {q:"Který z uvedených je příklad open-source licence, u které smíte software volně upravovat a šířit?", o:["Freeware","GPL (GNU General Public License)","Shareware","OEM licence"], c:1, e:"GPL je typická open-source licence pro svobodný software (např. jádro Linuxu)."},
+        {q:"Co nejlépe popisuje rozdíl mezi virtualizací a cloudem?", o:["Jsou to synonyma","Virtualizace běží vždy jen na vzdáleném serveru","Virtualizace vytváří izolované VM na jednom stroji, cloud navíc poskytuje zdroje jako službu přes síť","Cloud nepoužívá virtualizaci"], c:2, e:"Cloud služby jsou typicky postavené na virtualizaci, přidávají vzdálený přístup a self-service model."},
+        {q:"V terminálu Linuxu chcete zjistit, ve kterém adresáři se právě nacházíte. Který příkaz použijete?", o:["ls","cd","pwd","whoami"], c:2, e:"pwd (print working directory) vypíše aktuální umístění v souborovém systému."},
+        {q:"Co je to autentizace?", o:["Ověření, zda je uživatel tím, za koho se vydává","Přidělení oprávnění uživateli","Šifrování hesla","Zálohování účtu"], c:0, e:"Autentizace = ověření identity (např. heslem); autorizace = přidělení práv po ověření."},
+        {q:"Proč nespoléhat jen na RAID pole místo pravidelné zálohy?", o:["RAID je pomalejší než záloha","RAID chrání jen před selháním disku, ne před smazáním souboru nebo ransomwarem","Záloha nahrazuje potřebu RAID","RAID zálohu úplně nahrazuje"], c:1, e:"RAID řeší dostupnost při výpadku disku, ale chybný/škodlivý zápis se replikuje na všechny disky."},
+        {q:"Co je hypervisor typu 2 (jako VirtualBox)?", o:["Software běžící přímo na holém hardwaru bez OS (bare-metal)","Software, který běží jako aplikace nad existujícím hostitelským OS a umožňuje spouštět virtuální stroje","Cloudová služba pro pronájem serverů","Nástroj pro zálohování disků"], c:1, e:"Hypervisor typu 2 (hosted) běží jako aplikace nad hostitelským OS – typicky VirtualBox, VMware Workstation. Typ 1 (bare-metal) běží přímo na hardwaru, např. VMware ESXi, Proxmox."},
+        {q:"Které tvrzení o cloudových službách je nejpřesnější?", o:["Cloud vždy znamená ztrátu kontroly nad daty","Cloud poskytuje výpočetní zdroje či služby na vyžádání přes síť, typicky s modelem pay-as-you-go","Cloud lze provozovat jen na Linuxu","Cloud je synonymum pro internet"], c:1, e:"Cloud = zdroje/služby na vyžádání přes síť, obvykle self-service a škálovatelné."},
+        {q:"Jaký typ škodlivého softwaru se šíří samostatně po síti bez nutnosti připojení k jinému programu?", o:["Virus","Worm (červ)","Trojský kůň","Adware"], c:1, e:"Worm se šíří samostatně sítí, na rozdíl od viru nepotřebuje hostitelský program."},
+        {q:"Co dělá ransomware?", o:["Zobrazuje reklamy","Zašifruje data uživatele a požaduje výkupné za jejich obnovení","Sleduje polohu zařízení","Zrychluje počítač"], c:1, e:"Ransomware znepřístupní (zašifruje) data a vyžaduje platbu za jejich obnovu – proto jsou zálohy tak důležité."},
+        {q:"Jaký příkaz v Linuxu zobrazí obsah aktuálního adresáře?", o:["ls","cd","pwd","touch"], c:0, e:"ls vypíše obsah adresáře; cd mění adresář, pwd vypíše cestu, touch vytváří prázdný soubor."},
+        {q:"Jaký příkaz v Linuxu zkopíruje soubor?", o:["mv","cp","rm","ln"], c:1, e:"cp kopíruje, mv přesouvá/přejmenovává, rm maže, ln vytváří odkaz."},
+        {q:"Co znamená pojem „systémové požadavky“ OS?", o:["Seznam nainstalovaných aplikací","Minimální hardwarové a softwarové parametry potřebné pro správný chod OS","Seznam uživatelských účtů","Nastavení sítě"], c:1, e:"Systémové požadavky určují, jaký hardware/software OS potřebuje ke správnému běhu."},
+        {q:"Jaký je rozdíl mezi proprietárním a open-source softwarem z hlediska zdrojového kódu?", o:["Žádný rozdíl neexistuje","Proprietární software má uzavřený zdrojový kód ve vlastnictví firmy, open-source je veřejně dostupný a upravitelný podle licence","Proprietární je vždy dražší","Open-source nelze používat komerčně"], c:1, e:"Klíčový rozdíl je v dostupnosti a licenčních právech ke zdrojovému kódu, ne v ceně."},
+        {q:"Co je „sdílená složka“ (shared folder) v kontextu virtualizace VirtualBoxu?", o:["Adresář viditelný jen uvnitř virtuálního stroje","Mechanismus umožňující výměnu souborů mezi hostitelským systémem a virtuálním strojem","Cloudové úložiště","Síťová tiskárna"], c:1, e:"Shared folder propojuje souborový systém hostitele a VM, aniž by bylo nutné přenášet soubory po síti."},
+        {q:"Proč je důležité pravidelně aktualizovat operační systém?", o:["Aktualizace jen mění vzhled","Opravují bezpečnostní chyby a zlepšují stabilitu/kompatibilitu systému","Aktualizace zpomalují počítač bez užitku","Nejsou důležité, pokud je firewall zapnutý"], c:1, e:"Aktualizace často opravují konkrétní zneužitelné bezpečnostní díry – firewall je nenahrazuje."},
+        {q:"Co znamená „sdílení dat mezi uživateli a skupinami v síti“?", o:["Že všichni uživatelé mají automaticky přístup ke všem souborům","Řízený přístup k datům podle členství v uživatelských skupinách a nastavených oprávnění","Že data jsou dostupná jen offline","Že se každý soubor automaticky zálohuje na cloud"], c:1, e:"Sdílení je vždy řízené oprávněními, ne automatický přístup pro každého."},
+        {q:"Jaký souborový systém je typický a výchozí pro moderní Linuxové (Debianové) instalace?", o:["NTFS","ext4","FAT32","HFS+"], c:1, e:"ext4 je dlouhodobě výchozí souborový systém většiny Linuxových distribucí včetně Debianu (alternativně btrfs, xfs)."}
+      ],
+      open: [
+        {task:"Napište příkaz, kterým v terminálu zjistíte, jaká verze a distribuce Linuxu na počítači běží.", answer:"<code>cat /etc/os-release</code> (případně <code>lsb_release -a</code> nebo <code>hostnamectl</code>)"},
+        {task:"Napište příkaz, kterým vytvoříte nový prázdný adresář s názvem „cviceni“ v aktuální složce.", answer:"<code>mkdir cviceni</code>"},
+        {task:"Popište vlastními slovy, k čemu slouží hypervisor a proč jej při výuce používáte.", answer:"Hypervisor (např. VirtualBox) umožňuje na jednom fyzickém počítači spouštět více izolovaných virtuálních strojů s vlastním OS – takže si můžeme bezpečně vyzkoušet server i klienty, aniž bychom potřebovali víc fyzických počítačů nebo riskovali poškození reálného systému."},
+        {task:"Napište příkaz, kterým v terminálu zjistíte využití připojených disků/oddílů.", answer:"<code>df -h</code> (zobrazí využití připojených souborových systémů; <code>lsblk</code> zobrazí strukturu disků a oddílů)"}
+      ]
+    },
+    B: {
+      title: "Blok B · Instalace, konfigurace a správa OS",
+      sub: "2. ročník",
+      icon: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18 6l-1.5 1.5M7.5 16.5 6 18M18 18l-1.5-1.5M7.5 7.5 6 6"/>',
+      guiding: [
+        "Umím nainstalovat a aktualizovat OS?",
+        "Umím vytvořit a spravovat uživatelské účty/skupiny a jejich oprávnění?",
+        "Rozumím principům důvěrnosti, integrity a dostupnosti dat?",
+        "Umím zálohovat, komprimovat a exportovat data?",
+        "Umím pracovat s příkazovým interpretem (shellem)?"
+      ],
+      cheat: [
+        "adduser &lt;jméno&gt; – interaktivní vytvoření účtu v Debianu (ptá se na heslo, jméno...). usermod -aG sudo &lt;jméno&gt; přidá do skupiny sudo.",
+        "Práva souboru: vlastník, skupina, ostatní (rwx) – viz výstup ls -l. chmod mění práva, chown mění vlastníka.",
+        "CIA: Confidentiality (důvěrnost), Integrity (integrita), Availability (dostupnost).",
+        "Zálohy: komprese šetří místo, ale formát musí jít i za pár let rozbalit. cron plánuje automatické opakované úlohy.",
+        "whoami – kdo jsem přihlášen; id – moje UID/GID a skupiny.",
+        "Profil uživatele = nastavení a oprávnění přizpůsobená roli/potřebám."
+      ],
+      questions: [
+        {q:"Jakým příkazem v Debianu interaktivně vytvoříte nového uživatele i s domovským adresářem?", o:["useradd","adduser","usermod","passwd"], c:1, e:"adduser je interaktivní nadstavba nad useradd, běžně doporučovaná pro ruční vytváření účtů v Debianu."},
+        {q:"Které tvrzení o právech v Linuxu je správné?", o:["Práva se nastavují jen na úrovni celého disku","Každý soubor má vlastníka, skupinu a práva pro „ostatní“ (rwx)","Práva nelze měnit po vytvoření souboru","sudo automaticky mění vlastníka souboru"], c:1, e:"Unixový model práv rozlišuje vlastníka, skupinu a ostatní, každý se svým rwx."},
+        {q:"Co zajišťuje princip integrity dat (jeden z pilířů CIA)?", o:["Že jsou data dostupná 24/7","Že k datům má přístup jen oprávněná osoba","Že data nejsou neoprávněně nebo neúmyslně změněna","Že jsou data zašifrovaná"], c:2, e:"Integrita = data odpovídají skutečnosti a nebyla poškozena či pozměněna."},
+        {q:"Proč je u dlouhodobé archivace důležité hlídat formát komprese zálohy?", o:["Komprese šifruje data","Snižuje se objem dat, ale je nutné zvolit formát, který půjde i za pár let obnovit","Komprimovaná data se nedají obnovit","Komprese nemá žádný přínos"], c:1, e:"Komprese šetří místo, klíčové je zvolit formát podporovaný i v budoucnu."},
+        {q:"Jakým příkazem zjistíte, kdo je aktuálně přihlášený uživatel?", o:["whoami","su","id -g","hostname"], c:0, e:"whoami vypíše jméno aktuálně přihlášeného uživatele."},
+        {q:"Co je „profil“ uživatele v kontextu správy účtů?", o:["Fotografie uživatele","Sada nastavení a oprávnění přizpůsobená roli uživatele","Heslo uložené v /etc/shadow","Skupina root"], c:1, e:"Profil = přizpůsobené nastavení (práva, prostředí) odpovídající roli/potřebám uživatele."},
+        {q:"Jaký příkaz v Debianu přidá existujícího uživatele do skupiny sudo?", o:["adduser jmeno sudo","usermod -aG sudo jmeno","passwd sudo jmeno","groupadd jmeno sudo"], c:1, e:"usermod -aG sudo jmeno přidá uživatele do skupiny bez odebrání z ostatních skupin (-a = append)."},
+        {q:"Co znamená „důvěrnost“ (confidentiality) v modelu CIA?", o:["Data jsou vždy dostupná","Data nejsou poškozena","K datům má přístup jen oprávněná osoba/proces","Data jsou zálohovaná"], c:2, e:"Důvěrnost = omezení přístupu jen na oprávněné osoby/procesy."},
+        {q:"Co znamená „dostupnost“ (availability) v modelu CIA?", o:["Data jsou zašifrovaná","Systém/data jsou funkční a přístupné, když je uživatel potřebuje","Data má jen jeden uživatel","Data se automaticky mažou"], c:1, e:"Dostupnost = systém funguje a data jsou přístupná, když je potřeba."},
+        {q:"Jakým příkazem změníte vlastníka souboru v Linuxu?", o:["chmod","chown","chgrp","passwd"], c:1, e:"chown mění vlastníka (případně i skupinu, chown uzivatel:skupina soubor); chmod mění práva; chgrp mění jen skupinu."},
+        {q:"Jakým příkazem změníte přístupová práva souboru v Linuxu?", o:["chown","chgrp","chmod","umask"], c:2, e:"chmod nastavuje práva čtení/zápisu/spouštění (rwx) pro vlastníka, skupinu a ostatní."},
+        {q:"Co dělá příkaz „sudo apt upgrade“?", o:["Nainstaluje úplně nový operační systém","Aktualizuje již nainstalované balíčky na nejnovější dostupné verze","Odstraní všechny balíčky","Restartuje počítač"], c:1, e:"apt upgrade aktualizuje nainstalované balíčky; předtím je vhodné spustit apt update pro obnovení seznamu."},
+        {q:"Co je „automatické zálohování“ a proč se používá?", o:["Ruční kopírování souborů jednou za rok","Naplánovaný, opakovaně spouštěný proces zálohy bez nutnosti ručního zásahu (např. přes cron), snižuje riziko lidské chyby/zapomenutí","Zálohování jen při vypnutí počítače","Funkce dostupná pouze v cloudu"], c:1, e:"Automatizace zálohy odstraňuje riziko, že si na ni administrátor jednoduše zapomene."},
+        {q:"K čemu slouží v Linuxu nástroj cron?", o:["Ke správě uživatelských účtů","K plánování a automatickému spouštění úloh v určený čas (např. pravidelné zálohy)","Ke konfiguraci sítě","Ke kompresi souborů"], c:1, e:"cron spouští naplánované úlohy (crontab) v zadaný čas nebo interval."},
+        {q:"Co je „export dat pro dlouhodobou archivaci“?", o:["Smazání starých dat","Převod a uložení dat do formátu/úložiště vhodného pro uchování po dlouhou dobu, nezávisle na aktuálním provozním systému","Přesun dat do RAM","Sdílení dat po síti"], c:1, e:"Cílem je, aby data zůstala čitelná a použitelná i po letech, nezávisle na aktuální infrastruktuře."},
+        {q:"Jaký příkaz v shellu použijete ke zjištění vlastníka a práv konkrétního souboru?", o:["ls -l","cd -l","pwd -l","cat -l"], c:0, e:"ls -l vypíše detailní výpis včetně vlastníka, skupiny a práv (rwx)."},
+        {q:"Co je „profil uživatele“ z pohledu konfigurace periferních zařízení a pracovního prostředí?", o:["Fotografie uživatele v systému","Sada individuálních nastavení (práva, přístupy, konfigurace zařízení) přizpůsobená konkrétní pracovní roli","Heslo v /etc/shadow","Skupina root"], c:1, e:"Profil přizpůsobuje prostředí a přístupy konkrétní roli/potřebám uživatele."},
+        {q:"Co znamená „konfigurace periferních zařízení“ v operačním systému?", o:["Nastavení a zprovoznění externích zařízení (např. tiskárny, skeneru, USB disku) tak, aby s nimi OS správně komunikoval","Zálohování dat na externí disk","Instalace nového jádra systému","Vytvoření nového uživatelského účtu"], c:0, e:"Konfigurace periferních zařízení zahrnuje instalaci ovladačů a nastavení, aby OS správně rozpoznal a používal připojený hardware (tiskárny, skenery, USB zařízení apod.)."}
+      ],
+      open: [
+        {task:"Napište příkaz, kterým v Debianu vytvoříte nového uživatele „petra“ a rovnou ho přidáte do skupiny sudo (dvěma kroky).", answer:"<code>sudo adduser petra</code>  a poté  <code>sudo usermod -aG sudo petra</code>"},
+        {task:"Napište příkaz, kterým nastavíte, aby soubor „skript.sh“ mohl spouštět (execute) jen jeho vlastník, ne skupina ani ostatní.", answer:"<code>chmod 700 skript.sh</code> (případně <code>chmod u+x,go-rwx skript.sh</code>)"},
+        {task:"Napište příkaz, kterým zazálohujete celý adresář /home/petra do komprimovaného souboru zaloha.tar.gz.", answer:"<code>tar -czvf zaloha.tar.gz /home/petra</code>"},
+        {task:"Popište vlastními slovy rozdíl mezi příkazy chmod a chown.", answer:"chmod mění, KDO (vlastník/skupina/ostatní) SMÍ CO dělat se souborem (číst/zapisovat/spouštět). chown mění, KOMU soubor patří – jeho vlastníka (případně i skupinu)."}
+      ]
+    },
+    C: {
+      title: "Blok C · Konfigurace síťových služeb",
+      sub: "3. ročník",
+      icon: '<circle cx="6" cy="6" r="2.6"/><circle cx="18" cy="6" r="2.6"/><circle cx="12" cy="18" r="2.6"/><path d="M8.3 7.2 15.7 7.2M7.4 8.4 10.8 15.8M16.6 8.4 13.2 15.8"/>',
+      guiding: [
+        "Umím nastavit síťové rozhraní a připojení k internetu?",
+        "Znám princip a význam základních síťových služeb (DNS, DHCP, HTTP, FTP, SMTP...)?",
+        "Umím nainstalovat/odinstalovat software a rozumím typům licencí?",
+        "Umím aktivovat, zastavit a sledovat síťovou službu?",
+        "Vím, k čemu slouží certifikáty?"
+      ],
+      cheat: [
+        "DHCP = automatické přidělování IP adres; DNS = překlad jmen na IP adresy.",
+        "SSH = šifrovaný vzdálený přístup k terminálu. ip a zobrazí síťová rozhraní (moderní náhrada za ifconfig).",
+        "Certifikát (TLS/SSL) ověřuje identitu serveru a umožňuje HTTPS; vydává ho certifikační autorita (CA).",
+        "Freeware = zdarma, zdroj. kód obvykle uzavřen; open-source = volně dostupný a upravitelný zdroj. kód; shareware = zdarma na zkoušku/omezeně.",
+        "systemctl status &lt;služba&gt; – zjištění stavu; systemctl enable &lt;služba&gt; – trvalé spouštění po restartu."
+      ],
+      questions: [
+        {q:"Jaká služba automaticky přiděluje IP adresy zařízením v síti?", o:["DNS","DHCP","FTP","SMTP"], c:1, e:"DHCP (Dynamic Host Configuration Protocol) automatizuje přidělování síťové konfigurace."},
+        {q:"K čemu slouží DNS?", o:["Přiděluje IP adresy","Překládá doménová jména na IP adresy","Přenáší e-maily","Šifruje webový provoz"], c:1, e:"DNS (Domain Name System) mapuje doménová jména na IP adresy."},
+        {q:"Který protokol se typicky používá pro bezpečný vzdálený přístup k příkazové řádce serveru?", o:["FTP","HTTP","SSH","SMTP"], c:2, e:"SSH (Secure Shell) poskytuje šifrovaný vzdálený přístup k terminálu."},
+        {q:"Co dělá digitální certifikát na webovém serveru?", o:["Zrychluje načítání stránky","Ověřuje identitu serveru a umožňuje šifrované (HTTPS) spojení","Nahrazuje potřebu hesla uživatele","Komprimuje přenášená data"], c:1, e:"Certifikát potvrzuje identitu serveru a je základem šifrovaného HTTPS spojení."},
+        {q:"Jaký je rozdíl mezi freeware a open-source softwarem?", o:["Jsou to synonyma","Freeware je zdarma, ale zdrojový kód obvykle není volný; open-source poskytuje zdrojový kód se svobodou úprav","Open-source je vždy placený","Freeware vždy obsahuje virus"], c:1, e:"Freeware = zdarma k užívání, licenčně omezené; open-source = otevřený zdrojový kód dle licence."},
+        {q:"Jak na Debianu zjistíte, zda běží služba (např. ssh), aniž byste server restartovali?", o:["sudo systemctl status ssh","sudo reboot","ping ssh","sudo apt remove ssh"], c:0, e:"systemctl status <služba> vypíše aktuální stav bez zásahu do chodu služby."},
+        {q:"Jaký příkaz v Debianu zobrazí aktuální síťová rozhraní a jejich IP adresy?", o:["ip a","cd network","ls /net","whoami"], c:0, e:"ip a (nebo ip addr) je moderní náhrada za starší ifconfig."},
+        {q:"Proč se dnes na moderních Linuxových systémech doporučuje příkaz „ip“ místo staršího „ifconfig“?", o:["ifconfig nikdy neexistoval","ifconfig je považován za zastaralý a v mnoha distribucích už není součástí základní instalace; „ip“ z balíčku iproute2 je jeho aktivně udržovaná náhrada","ip funguje jen v cloudu","Není mezi nimi žádný rozdíl"], c:1, e:"Balíček net-tools (ifconfig, route, netstat) je dlouhodobě legacy; moderní distribuce staví na iproute2 (ip, ss)."},
+        {q:"Jaký protokol se používá pro odesílání e-mailů mezi servery?", o:["SMTP","FTP","HTTP","DHCP"], c:0, e:"SMTP (Simple Mail Transfer Protocol) slouží k odesílání e-mailů."},
+        {q:"K čemu slouží protokol HTTP/HTTPS?", o:["K přenosu souborů přes FTP","K přenosu webových stránek a dat mezi klientem a webovým serverem","K přidělování IP adres","K překladu doménových jmen"], c:1, e:"HTTP(S) je protokol pro přenos webového obsahu mezi klientem a serverem."},
+        {q:"Jaký je hlavní rozdíl mezi HTTP a HTTPS?", o:["Žádný, jsou to synonyma","HTTPS je HTTP šifrované pomocí TLS/SSL certifikátu, což chrání přenášená data","HTTP je novější a rychlejší","HTTPS funguje jen v lokální síti"], c:1, e:"HTTPS = HTTP + šifrování TLS/SSL, chrání důvěrnost a integritu přenosu."},
+        {q:"K čemu slouží protokol FTP?", o:["K přenosu souborů mezi klientem a serverem","K odesílání e-mailů","K přidělování IP adres","Ke vzdálenému přihlášení do terminálu"], c:0, e:"FTP (File Transfer Protocol) slouží k přenosu souborů."},
+        {q:"Co je to „file server“ v kontextu síťových služeb?", o:["Server, který pouze ukládá logy","Server poskytující sdílený přístup k souborům přes síť více uživatelům/zařízením","Server pro doménová jména","Server pro e-mail"], c:1, e:"File server centralizuje a sdílí soubory pro více klientů v síti."},
+        {q:"K čemu slouží SQL server v podnikové/školní infrastruktuře?", o:["K přidělování IP adres","Ke správě a poskytování přístupu k databázím pro aplikace (např. web)","K šifrování hesel uživatelů","Ke kompresi souborů"], c:1, e:"SQL server ukládá a poskytuje strukturovaná data typicky pro webové a jiné aplikace."},
+        {q:"Co znamená „shareware“ jako typ licence software?", o:["Software s otevřeným zdrojovým kódem zdarma navždy","Software, který lze zdarma vyzkoušet, obvykle po omezenou dobu nebo s omezenou funkcionalitou, poté se očekává zakoupení","Software dostupný jen firmám","Software bez jakýchkoli omezení"], c:1, e:"Shareware je zkušební verze komerčního softwaru, ne open-source."},
+        {q:"Jaký příkaz v Debianu (systemd) použijete k trvalému zapnutí spouštění služby i po restartu serveru?", o:["systemctl status <služba>","systemctl enable <služba>","systemctl stop <služba>","systemctl mask <služba>"], c:1, e:"systemctl enable nastaví automatické spuštění služby při startu systému; systemctl start ji spustí hned."},
+        {q:"K čemu slouží certifikační autorita (CA) v souvislosti s certifikáty?", o:["Vytváří zálohy dat","Důvěryhodná třetí strana, která vydává a podepisuje digitální certifikáty, čímž potvrzuje identitu vlastníka certifikátu","Spravuje uživatelské účty","Přiděluje IP adresy"], c:1, e:"CA svým podpisem certifikátu potvrzuje, že ověřila identitu jeho vlastníka."},
+        {q:"Co je hlavním rozdílem mezi statickou a dynamickou (DHCP) IP adresou zařízení?", o:["Žádný rozdíl neexistuje","Statická adresa je ručně nastavená a neměnná, dynamická je automaticky přidělena DHCP serverem obvykle na omezenou dobu (lease)","Statická adresa funguje jen v cloudu","Dynamická adresa je vždy bezpečnější"], c:1, e:"Statická adresa se nastavuje ručně a nemění se; dynamická je přidělena DHCP serverem na dobu zápůjčky (lease)."}
+      ],
+      open: [
+        {task:"Napište příkaz, kterým ověříte, zda je server 8.8.8.8 dostupný přes síť.", answer:"<code>ping 8.8.8.8</code> (příp. <code>ping -c 4 8.8.8.8</code> pro 4 pokusy)"},
+        {task:"Napište příkaz, kterým se přihlásíte přes SSH na server s IP 192.168.1.10 pod uživatelem „admin“.", answer:"<code>ssh admin@192.168.1.10</code>"},
+        {task:"Napište příkaz, kterým nainstalujete balíček openssh-server na Debianu.", answer:"<code>sudo apt install openssh-server</code>"},
+        {task:"Popište vlastními slovy, co se stane, když zadáte doménové jméno do prohlížeče, než se zobrazí stránka (role DNS a HTTP).", answer:"Prohlížeč nejdřív pošle dotaz na DNS server, který doménové jméno přeloží na IP adresu. Poté se prohlížeč přes tuto IP adresu spojí s webovým serverem protokolem HTTP/HTTPS a stáhne obsah stránky."}
+      ]
+    },
+    D: {
+      title: "Blok D · Adresářová struktura a systémové soubory",
+      sub: "napříč ročníky · žáci tuto oblast často podceňují",
+      icon: '<path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/>',
+      guiding: [
+        "Vím, co obsahuje kořenový adresář / a jaké má VŠECHNY standardní podadresáře první úrovně?",
+        "Rozumím rozdílu mezi /bin, /sbin, /lib, /usr, /var, /etc, /home a /tmp?",
+        "Vím, kde Linux ukládá konfiguraci, logy, zařízení a dočasné soubory?",
+        "Poznám, které systémové soubory nikdy nemažu ani neupravuju bez rozmyslu?",
+        "Vím, kde hledat informace o uživatelích, síti a nainstalovaných službách?"
+      ],
+      cheat: [
+        "Kompletní přehled adresářů první úrovně (/) na Debianu:",
+        "/bin – základní příkazy pro všechny uživatele (ls, cp, cat…), potřebné i při startu; na moderním Debianu symlink do /usr/bin (usr-merge).",
+        "/boot – jádro systému (vmlinuz), initrd a zavaděč GRUB.",
+        "/dev – souborová reprezentace zařízení (např. /dev/sda = disk, /dev/null = „černá díra“).",
+        "/etc – konfigurace celého systému (jen nastavení, žádné programy).",
+        "/home – domovské adresáře běžných uživatelů.",
+        "/lib (a /lib64) – sdílené knihovny potřebné pro programy z /bin a /sbin; na moderním Debianu symlink do /usr/lib.",
+        "/media, /mnt – přípojné body pro vyměnitelná (media) a ručně/dočasně připojovaná (mnt) úložiště.",
+        "/opt – doplňkový software třetích stran mimo balíčkovací systém.",
+        "/proc, /sys – virtuální souborové systémy s informacemi o procesech a jádru (neexistují fyzicky na disku).",
+        "/root – domovský adresář uživatele root (není totéž co /).",
+        "/run – proměnná runtime data od posledního restartu (nahradilo starší /var/run).",
+        "/sbin – administrátorské/systémové příkazy (fdisk, reboot, ip…); na moderním Debianu symlink do /usr/sbin.",
+        "/srv – data poskytovaná systémem jako služba (např. web).",
+        "/tmp – dočasné soubory, mizí po restartu.",
+        "/usr – hlavní hierarchie nainstalovaného softwaru (/usr/bin, /usr/sbin, /usr/lib, /usr/local, /usr/share).",
+        "/var – proměnná data: logy /var/log, cache, /var/www.",
+        "Kromě adresářů má kořen i pár souborů/symlinků jako vmlinuz, initrd.img (odkazy do /boot) a u ext4 často adresář lost+found pro obnovu po chybě souborového systému.",
+        "Důležité soubory: /etc/passwd (účty), /etc/shadow (hashovaná hesla), /etc/group, /etc/fstab (co se připojí při startu), /etc/hostname, /etc/hosts, /etc/network/interfaces, /etc/apt/sources.list, /etc/sudoers (jen přes visudo!)."
+      ],
+      questions: [
+        {q:"Co obsahuje adresář /etc?", o:["Uživatelská data","Konfigurační soubory celého systému","Spustitelné programy","Dočasné soubory"], c:1, e:"/etc obsahuje jen konfigurační soubory – ne binárky ani uživatelská data."},
+        {q:"Kde má na typickém Linuxovém systému svůj domovský adresář běžný uživatel „petra“?", o:["/root/petra","/etc/petra","/home/petra","/usr/petra"], c:2, e:"Domovské adresáře běžných uživatelů jsou pod /home; /root patří výhradně uživateli root."},
+        {q:"Čím se liší /root od /?", o:["Jsou to naprosto stejné adresáře, jen jiný zápis","/ je kořen celého souborového systému, /root je domovský adresář uživatele root (podadresář kořene)","/root neexistuje na moderních systémech","/ je jen pro Windows"], c:1, e:"/ je vrchol celého stromu, /root je jen jeden z jeho podadresářů."},
+        {q:"Co typicky najdete v adresáři /var/log?", o:["Zálohy uživatelských dat","Systémové a aplikační logy (záznamy událostí)","Nainstalované aplikace","Konfigurační soubory sítě"], c:1, e:"/var/log tradičně uchovává logy; řada služeb dnes navíc/místo toho loguje přes systemd-journald."},
+        {q:"Jaký je účel adresáře /tmp?", o:["Trvalé úložiště důležitých dat","Dočasné soubory, které mohou být při restartu smazány","Domovský adresář root uživatele","Konfigurace zavaděče systému"], c:1, e:"/tmp je určen pro krátkodobá dočasná data, ne pro trvalé uložení."},
+        {q:"Co obsahuje /boot?", o:["Jádro systému (kernel) a soubory potřebné pro start počítače (např. GRUB)","Uživatelské dokumenty","Dočasné soubory prohlížeče","Databázové soubory"], c:0, e:"/boot obsahuje vmlinuz (jádro), initrd a konfiguraci zavaděče GRUB."},
+        {q:"Jaký je rozdíl mezi /media a /mnt?", o:["Žádný, jsou to synonyma","/media se používá pro automaticky připojovaná vyměnitelná média (USB, CD), /mnt spíše pro ruční/dočasné připojení souborových systémů administrátorem","/mnt je jen pro síťové disky","/media neexistuje na Debianu"], c:1, e:"Konvence FHS: /media pro automatické připojení výměnných médií, /mnt pro dočasné ruční připojení."},
+        {q:"Co je zvláštního na adresářích /proc a /sys?", o:["Obsahují nejdůležitější uživatelská data","Jsou to virtuální souborové systémy generované za běhu jádrem – neexistují fyzicky na disku, ale poskytují informace o procesech, hardwaru a jádru","Slouží výhradně k instalaci softwaru","Lze je bezpečně smazat pro uvolnění místa"], c:1, e:"/proc a /sys jsou pseudo-souborové systémy vytvářené jádrem za běhu – nezabírají místo na disku a nelze je „smazat“ jako běžné soubory."},
+        {q:"Kde na moderním systému se systemd najdete runtime data od posledního restartu (např. PID soubory běžících procesů)?", o:["/run","/opt","/srv","/media"], c:0, e:"/run nahradilo starší /var/run – je to tmpfs, který se vytváří znovu při každém startu."},
+        {q:"Co typicky obsahuje /srv?", o:["Osobní data uživatelů","Data poskytovaná systémem jako služba, např. podklady pro webový nebo FTP server","Dočasné soubory aplikací","Ovladače hardwaru"], c:1, e:"/srv je určeno pro data, která server poskytuje navenek jako službu."},
+        {q:"K čemu slouží adresář /opt?", o:["Pro dočasné soubory","Pro instalaci doplňkového softwaru třetích stran mimo standardní balíčkovací systém","Pro konfiguraci sítě","Pro domovské adresáře uživatelů"], c:1, e:"/opt drží software instalovaný mimo apt/dpkg, typicky komerční nebo ručně balené aplikace."},
+        {q:"Co je „usr-merge“, který proběhl na moderních verzích Debianu?", o:["Sloučení uživatelských účtů do jedné databáze","/bin, /sbin a /lib se staly symlinky do odpovídajících adresářů pod /usr (/usr/bin, /usr/sbin, /usr/lib), aby existovala jedna sada binárek","Sloučení všech disků do jednoho oddílu","Migrace na nový souborový systém"], c:1, e:"Usr-merge zjednodušuje systém a odstraňuje historické duplicity mezi / a /usr; na nových instalacích Debianu je to už výchozí stav (např. od Debianu 12 Bookworm)."},
+        {q:"V jakém souboru najdete seznam uživatelských účtů v systému (jména, UID, domovský adresář, shell)?", o:["/etc/shadow","/etc/passwd","/etc/hosts","/etc/fstab"], c:1, e:"/etc/passwd obsahuje základní informace o účtech (dnes už bez hesel). Skutečná hashovaná hesla jsou v /etc/shadow."},
+        {q:"Proč je soubor /etc/shadow přístupný jen uživateli root, na rozdíl od /etc/passwd?", o:["Je zbytečně velký","Obsahuje hashovaná hesla uživatelů, a jejich úniku je potřeba zabránit striktním omezením přístupu","Obsahuje reklamu","Je to jen historická konvence bez významu"], c:1, e:"Omezený přístup k /etc/shadow chrání hashovaná hesla před únikem a následným prolomením offline."},
+        {q:"Co se nastavuje v souboru /etc/fstab?", o:["Seznam nainstalovaných balíčků","Které souborové systémy/oddíly se mají automaticky připojit (mount) při startu systému a kam","Seznam uživatelů","Nastavení firewallu"], c:1, e:"/etc/fstab definuje statické (trvalé) připojení oddílů a souborových systémů při startu."},
+        {q:"K čemu slouží soubor /etc/hosts?", o:["Uchovává hesla uživatelů","Umožňuje ručně namapovat doménové jméno na IP adresu bez dotazu na DNS server","Konfiguruje firewall","Uchovává historii příkazů"], c:1, e:"/etc/hosts se kontroluje před DNS dotazem – vhodné pro testování nebo malé sítě bez DNS."},
+        {q:"Kde se v klasické konfiguraci Debian serveru (bez NetworkManageru) nastavuje statická IP adresa síťového rozhraní?", o:["/etc/passwd","/etc/network/interfaces","/etc/hosts","/etc/fstab"], c:1, e:"Debian tradičně používá ifupdown a soubor /etc/network/interfaces; některé novější desktopové instalace ale přebírá NetworkManager."},
+        {q:"Kde APT hledá seznam repozitářů (zdrojů balíčků) ke stažení softwaru?", o:["/etc/apt/sources.list (případně /etc/apt/sources.list.d/)","/etc/passwd","/var/log/apt.log","/home/apt"], c:0, e:"APT čte definice repozitářů z /etc/apt/sources.list a doplňkových souborů ve sources.list.d/."},
+        {q:"Jakým způsobem se má správně upravovat soubor /etc/sudoers, aby se předešlo riziku nenávratného poškození konfigurace?", o:["Přímo v libovolném textovém editoru jako root","Příkazem visudo, který před uložením zkontroluje syntaxi souboru","Smazáním a vytvořením nového souboru","Přes prohlížeč"], c:1, e:"visudo hlídá syntaxi – chyba v ručně editovaném /etc/sudoers by mohla znemožnit používání sudo komukoliv."},
+        {q:"Jaký je moderní doporučený způsob prohlížení systémových logů na Debianu se systemd, oproti pouhému čtení souborů ve /var/log?", o:["cat /var/log/*","journalctl (např. journalctl -u nazev-sluzby)","ping -l","ls -la /var/log"], c:1, e:"journalctl čte centralizovaný log systemd-journald a umožňuje filtrovat podle služby, času apod. – /var/log stále existuje souběžně."},
+        {q:"Co obsahuje adresář /usr/local?", o:["Dočasné soubory","Software nainstalovaný ručně mimo systém správy balíčků (aby se nemísil se softwarem z distribučních balíčků)","Konfiguraci sítě","Domovské adresáře"], c:1, e:"/usr/local odděluje ručně instalovaný software od toho spravovaného přes apt/dpkg."},
+        {q:"Proč byste se měli vyhnout mazání nebo úpravě souborů v /bin, /etc nebo /boot bez pochopení jejich funkce?", o:["Tyto adresáře jsou nepodstatné a lze je bez obav mazat","Obsahují klíčové systémové soubory/konfiguraci a jejich poškození může znemožnit start nebo správný chod celého systému","Slouží jen jako záloha","Systém je automaticky obnoví"], c:1, e:"Poškození těchto adresářů může způsobit, že se systém vůbec nenastartuje nebo přestanou fungovat základní příkazy."},
+        {q:"Co obsahuje adresář /dev?", o:["Vývojářské (development) nástroje a zdrojové kódy","Souborovou reprezentaci zařízení (např. /dev/sda pro disk, /dev/null jako „černá díra“)","Dokumentaci k systému","Zálohy databází"], c:1, e:"Linux zpřístupňuje hardwarová i virtuální zařízení jako speciální soubory v /dev – to je základ filozofie „všechno je soubor“."},
+        {q:"Co typicky najdete v adresáři /bin a proč tam musí být i v jednouživatelském (single-user/rescue) režimu?", o:["Konfigurační soubory sítě, protože se startují jako první","Základní příkazy pro všechny uživatele (ls, cp, cat, mv…), nutné k tomu, aby systém fungoval i bez zbytku /usr", "Uživatelská data, protože se zálohují jako první","Dočasné soubory aplikací"], c:1, e:"/bin obsahuje nezbytné příkazy dostupné všem uživatelům už v raných fázích startu; na moderním Debianu je to symlink do /usr/bin (usr-merge), logicky ale stále reprezentuje „základní binárky“."},
+        {q:"Čím se liší /sbin od /bin?", o:["/sbin neexistuje na Debianu","/sbin obsahuje administrátorské/systémové příkazy (např. fdisk, reboot, ip), typicky pro roota, zatímco /bin obsahuje běžné příkazy pro všechny uživatele","/sbin je jen pro grafické aplikace","Jsou to přesná synonyma bez rozdílu"], c:1, e:"Rozdělení bin/sbin odráží, komu je příkaz primárně určen – běžnému uživateli, nebo správci systému. Oba jsou dnes na Debianu symlinky do /usr/bin resp. /usr/sbin."},
+        {q:"K čemu slouží adresář /lib (na moderním Debianu symlink do /usr/lib)?", o:["Ukládá uživatelské knihovny fotografií","Obsahuje sdílené knihovny (shared libraries) potřebné ke spuštění programů z /bin a /sbin","Ukládá licence nainstalovaného softwaru","Je to alias pro /home"], c:1, e:"Programy v /bin a /sbin se za běhu často odkazují na sdílené knihovny (.so soubory) uložené v /lib – bez nich by nešly spustit."}
+      ],
+      open: [
+        {task:"Napište příkaz, kterým vypíšete obsah kořenového adresáře / a uvidíte všechny adresáře první úrovně.", answer:"<code>ls -la /</code>"},
+        {task:"Ve kterém adresáři byste hledali konfigurační soubor síťového rozhraní na klasickém Debian serveru? Napište plnou cestu.", answer:"<code>/etc/network/interfaces</code>"},
+        {task:"Napište příkaz, kterým zjistíte posledních 20 řádků logu služby ssh přes journalctl.", answer:"<code>journalctl -u ssh -n 20</code>"},
+        {task:"Ve kterém souboru je uložen hash hesla uživatele (ne v /etc/passwd)? Napište plnou cestu.", answer:"<code>/etc/shadow</code>"},
+        {task:"Vysvětlete vlastními slovy, proč je nebezpečné spustit příkaz jako „rm -rf /“, a čemu to odpovídá vzhledem k tomu, co jsme se naučili o adresářové struktuře.", answer:"Příkaz by se pokusil nenávratně smazat úplně všechno od kořene souborového systému dolů – všechny konfigurace (/etc), programy (/bin, /usr), uživatelská data (/home) i jádro (/boot). Systém by přestal fungovat a bez zálohy by byla data nenávratně ztracena."},
+        {task:"Vypište co nejvíce standardních adresářů první úrovně kořene (/) na Debianu a ke každému jednou větou napište, k čemu slouží. Zkuste jich najít alespoň 12.", answer:"/bin – základní příkazy pro všechny · /boot – jádro a zavaděč · /dev – soubory zařízení · /etc – konfigurace systému · /home – domovy běžných uživatelů · /lib – sdílené knihovny · /media – automaticky připojená vyměnitelná média · /mnt – ručně/dočasně připojená úložiště · /opt – doplňkový software mimo balíčky · /proc – virtuální info o procesech · /root – domov uživatele root · /run – runtime data od posledního restartu · /sbin – administrátorské příkazy · /srv – data poskytovaná jako služba · /sys – virtuální info o jádru/hardwaru · /tmp – dočasné soubory · /usr – hlavní hierarchie softwaru · /var – proměnná data (logy, cache). (Na moderním Debianu jsou /bin, /sbin, /lib symlinky do odpovídajících adresářů pod /usr – tzv. usr-merge.)"}
+      ]
+    }
+  };
+
+  var scores = {A:{correct:0,total:0}, B:{correct:0,total:0}, C:{correct:0,total:0}, D:{correct:0,total:0}};
+
+  // Anonymní odeslání výsledků učiteli — nastavte po vytvoření Google Formuláře
+  // (viz "Get pre-filled link" v Google Forms) a nahraďte hodnoty níže.
+  // Dokud actionUrl obsahuje "REPLACE", tlačítko se na stránce vůbec nezobrazí.
+  var TEACHER_FORM = {
+    actionUrl: "REPLACE_WITH_GOOGLE_FORM_FORMRESPONSE_URL",
+    entries: {
+      A: "REPLACE_entry_id_blok_A",
+      B: "REPLACE_entry_id_blok_B",
+      C: "REPLACE_entry_id_blok_C",
+      D: "REPLACE_entry_id_blok_D"
+    }
+  };
+
+  var blocksEl = document.getElementById("blocks");
+  var tabbarContainers = ["tabbar","tabbar2"]
+    .map(function(id){ return document.getElementById(id); })
+    .filter(Boolean);
+  var keys = Object.keys(quiz);
+
+  function selectTab(key){
+    keys.forEach(function(k){
+      var isActive = (k === key);
+      document.getElementById("block-"+k).hidden = !isActive;
+    });
+    document.querySelectorAll(".tab-btn").forEach(function(btn){
+      btn.classList.toggle("active", btn.dataset.key === key);
+    });
+  }
+
+  keys.forEach(function(key, ki){
+    var b = quiz[key];
+    tabbarContainers.forEach(function(container, ci){
+      var tabBtn = document.createElement("button");
+      tabBtn.type = "button";
+      tabBtn.className = "tab-btn";
+      tabBtn.dataset.key = key;
+      tabBtn.innerHTML =
+        '<span class="tab-dot"></span>'+
+        '<span>'+key+' · '+b.title.replace(/^Blok .\s*·\s*/,"")+'</span>'+
+        '<span class="tprog" data-tprog="'+key+'"></span>';
+      tabBtn.addEventListener("click", function(){
+        selectTab(key);
+        if(ci > 0){ document.getElementById("sebetest").scrollIntoView({behavior:"smooth", block:"start"}); }
+      });
+      container.appendChild(tabBtn);
+    });
+  });
+
+  Object.keys(quiz).forEach(function(key){
+    var b = quiz[key];
+    var block = document.createElement("div");
+    block.className = "block";
+    block.id = "block-"+key;
+    block.hidden = true;
+
+    var head = document.createElement("div");
+    head.className = "block-head";
+    head.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">'+b.icon+'</svg>'+
+      '<div><h3>'+b.title+'</h3><div class="sub">'+b.sub+'</div></div>';
+    block.appendChild(head);
+
+    var body = document.createElement("div");
+    body.className = "block-body";
+
+    var gq = document.createElement("ul");
+    gq.className = "gq-list";
+    b.guiding.forEach(function(g){
+      var li = document.createElement("li");
+      li.textContent = g;
+      gq.appendChild(li);
+    });
+    body.appendChild(gq);
+
+    var cheat = document.createElement("details");
+    cheat.className = "cheat";
+    var cheatItems = b.cheat.map(function(c){ return "<li>"+c+"</li>"; }).join("");
+    cheat.innerHTML = "<summary>Rychlé opakování</summary><div class='cheat-body'><ul>"+cheatItems+"</ul></div>";
+    body.appendChild(cheat);
+
+    var progress = document.createElement("div");
+    progress.className = "quiz-progress";
+    progress.id = "progress-"+key;
+    body.appendChild(progress);
+
+    b.questions.forEach(function(item, qi){
+      var q = document.createElement("div");
+      q.className = "q";
+      var qt = document.createElement("div");
+      qt.className = "q-text";
+      qt.textContent = (qi+1)+". "+item.q;
+      q.appendChild(qt);
+
+      var opts = document.createElement("div");
+      opts.className = "opts";
+      var explain = document.createElement("div");
+      explain.className = "explain";
+      explain.textContent = item.e;
+
+      item.o.forEach(function(optText, oi){
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "opt";
+        btn.textContent = optText;
+        btn.addEventListener("click", function(){
+          if(btn.dataset.answered) return;
+          var allBtns = opts.querySelectorAll(".opt");
+          allBtns.forEach(function(o){ o.disabled = true; o.dataset.answered = "1"; });
+          if(oi === item.c){
+            btn.classList.add("correct");
+            scores[key].correct++;
+          } else {
+            btn.classList.add("wrong");
+            allBtns[item.c].classList.add("correct");
+          }
+          scores[key].total++;
+          explain.classList.add("show");
+          updateProgress(key);
+        });
+        opts.appendChild(btn);
+      });
+
+      q.appendChild(opts);
+      q.appendChild(explain);
+      body.appendChild(q);
+    });
+
+    if(b.open && b.open.length){
+      var openWrap = document.createElement("div");
+      openWrap.className = "open-list";
+      var oh = document.createElement("h4");
+      oh.textContent = "Otevřené úlohy";
+      openWrap.appendChild(oh);
+      b.open.forEach(function(item, oi){
+        var ot = document.createElement("div");
+        ot.className = "open-task";
+        var tt = document.createElement("div");
+        tt.className = "task-text";
+        tt.textContent = (oi+1)+". "+item.task;
+        ot.appendChild(tt);
+        var ta = document.createElement("textarea");
+        ta.placeholder = "Sem napište svůj příkaz / odpověď…";
+        ot.appendChild(ta);
+        var rev = document.createElement("details");
+        rev.className = "cheat";
+        rev.innerHTML = "<summary>Zobrazit řešení</summary><div class='cheat-body'>"+item.answer+"</div>";
+        ot.appendChild(rev);
+        openWrap.appendChild(ot);
+      });
+      body.appendChild(openWrap);
+    }
+
+    block.appendChild(body);
+    blocksEl.appendChild(block);
+    updateProgress(key);
+  });
+
+  selectTab(keys[0]);
+
+  function updateProgress(key){
+    var s = scores[key];
+    var total = quiz[key].questions.length;
+    document.getElementById("progress-"+key).textContent = "Zodpovězeno "+s.total+" z "+total+" · správně "+s.correct+"x";
+    document.querySelectorAll('[data-tprog="'+key+'"]').forEach(function(tprog){
+      tprog.textContent = s.total+"/"+total;
+    });
+  }
+
+  var gapmapEl = document.getElementById("gapmap");
+  function renderGapMap(){
+    gapmapEl.innerHTML = "";
+    Object.keys(quiz).forEach(function(key){
+      var s = scores[key];
+      var total = quiz[key].questions.length;
+      var pct = s.total ? Math.round((s.correct/total)*100) : 0;
+      var note = "Zatím nevyplněno — otevřete příslušnou záložku a projděte otázky.";
+      if(s.total === total){
+        if(pct >= 80) note = "Pevné základy. Na příští hodinu jste připraveni.";
+        else if(pct >= 50) note = "Solidní, ale otevřete si „Rychlé opakování“ u bloku ještě jednou před příští hodinou.";
+        else note = "Doporučujeme projít „Rychlé opakování“ i zdroje na konci kapitoly ještě před příští hodinou.";
+      } else if(s.total > 0){
+        note = "Blok není dokončen ("+s.total+"/"+total+" otázek).";
+      }
+      var card = document.createElement("div");
+      card.className = "gap-card";
+      card.style.cursor = "pointer";
+      card.title = "Kliknutím přejdete na tento blok";
+      card.innerHTML =
+        '<div class="gt">'+quiz[key].title+'</div>'+
+        '<div class="score">'+(s.total? pct+"%" : "—")+'</div>'+
+        '<div class="bar"><span style="width:'+pct+'%"></span></div>'+
+        '<div class="note">'+note+'</div>';
+      card.addEventListener("click", function(){
+        selectTab(key);
+        document.getElementById("sebetest").scrollIntoView({behavior:"smooth", block:"start"});
+      });
+      gapmapEl.appendChild(card);
+    });
+  }
+  renderGapMap();
+  document.getElementById("recompute").addEventListener("click", renderGapMap);
+
+  // --- Anonymní odeslání výsledků učiteli (Google Form) ---
+  var teacherSendEl = document.getElementById("teacher-send");
+  var formConfigured = TEACHER_FORM.actionUrl.indexOf("REPLACE") === -1 && TEACHER_FORM.actionUrl.length > 0;
+  if(formConfigured){
+    teacherSendEl.hidden = false;
+    document.getElementById("sendTeacher").addEventListener("click", function(){
+      var btn = this;
+      var statusEl = document.getElementById("sendStatus");
+      var incomplete = keys.filter(function(k){ return scores[k].total !== quiz[k].questions.length; });
+      if(incomplete.length){
+        statusEl.textContent = "Nejprve dokončete všechny čtyři bloky (chybí: "+incomplete.join(", ")+").";
+        return;
+      }
+      var body = new URLSearchParams();
+      keys.forEach(function(k){
+        var s = scores[k];
+        var total = quiz[k].questions.length;
+        var pct = Math.round((s.correct/total)*100);
+        body.append("entry."+TEACHER_FORM.entries[k], String(pct));
+      });
+      btn.disabled = true;
+      statusEl.textContent = "Odesílám…";
+      fetch(TEACHER_FORM.actionUrl, {method:"POST", mode:"no-cors", body:body})
+        .then(function(){
+          statusEl.textContent = "Odesláno — děkujeme! (anonymně, bez jména)";
+        })
+        .catch(function(){
+          statusEl.textContent = "Odeslání se nezdařilo — zkontrolujte připojení k internetu a zkuste to znovu.";
+          btn.disabled = false;
+        });
+    });
+  }
+})();
+</script>
+</body>
+</html>
