@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.3 Konfigurace síťového rozhraní — Edu-Linux</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FFFFFF;
+  --surface: #F2F6F8;
+  --surface-2: #E6EEF1;
+  --border: #D7E3E8;
+  --ink: #1E2E38;
+  --ink-soft: #54666F;
+  --ink-faint: #8698A1;
+  --robot: #47657D;
+  --robot-deep: #2E4657;
+  --robot-tint: #EAF0F3;
+  --electric: #DBF02A;
+  --electric-deep: #71801A;
+  --electric-tint: #FAFBE6;
+  --ok: #52C41A;
+  --err: #F5222D;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 3px rgba(30, 46, 56, 0.08);
+  --shadow-md: 0 4px 12px rgba(30, 46, 56, 0.12);
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "JetBrains Mono", sans-serif;
+  font-size: 15.5px;
+  line-height: 1.68;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+p { margin: 0 0 1em 0; }
+a { color: var(--robot); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 clamp(1rem, 4vw, 2rem); }
+
+/* Header */
+header {
+  background: linear-gradient(135deg, var(--robot-tint), var(--surface));
+  border-bottom: 2px solid var(--robot);
+  padding: 1.5rem 0;
+  margin-bottom: 2rem;
+}
+header .wrap { display: flex; align-items: center; gap: 1.2rem; }
+.ei-badge {
+  width: 44px; height: 44px;
+  background: var(--electric);
+  color: var(--robot-deep);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 1.2rem;
+  flex-shrink: 0;
+}
+header h1 { font-size: 1.7rem; margin: 0; color: var(--robot-deep); }
+.meta { font-size: 0.85rem; color: var(--ink-soft); margin-top: 0.3rem; }
+
+/* Sticky Navigation */
+nav.sticky {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 2px solid var(--border);
+  padding: 0.8rem 0;
+  margin: 0 0 2rem 0;
+  z-index: 999;
+  box-shadow: var(--shadow-sm);
+}
+nav.sticky .wrap { display: flex; gap: 0; }
+nav.sticky a {
+  flex: 1;
+  text-align: center;
+  padding: 0.6rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+nav.sticky a:hover { color: var(--robot); }
+nav.sticky a.active { color: var(--electric-deep); border-bottom-color: var(--electric); }
+
+/* Sections */
+section { margin: 3rem 0; scroll-margin-top: 80px; }
+section > h2 {
+  font-size: 1.8em;
+  color: var(--robot-deep);
+  margin-bottom: 1rem;
+  border-bottom: 3px solid var(--electric);
+  padding-bottom: 0.5rem;
+}
+
+/* Cards & Content */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--electric);
+  border-radius: var(--radius-lg);
+  padding: 1.3rem;
+  margin: 1.2rem 0;
+  box-shadow: var(--shadow-sm);
+}
+.card.hero {
+  background: linear-gradient(135deg, #fff, var(--robot-tint));
+  border-left: 5px solid var(--electric);
+}
+.card h3 {
+  font-size: 1.2rem;
+  color: var(--robot-deep);
+  margin: 0 0 0.8rem 0;
+}
+.card p { margin: 0 0 0.8rem 0; }
+.card p:last-child { margin-bottom: 0; }
+.card strong { color: var(--robot-deep); }
+
+/* Guiding Questions */
+.guiding-questions {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1.2rem 0;
+}
+.q-item {
+  background: var(--electric-tint);
+  border-left: 4px solid var(--electric);
+  padding: 1rem;
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+}
+.q-item strong { color: var(--electric-deep); }
+
+/* Dropdowns */
+.dropdown {
+  margin: 1rem 0;
+}
+.dropdown-toggle {
+  background: var(--robot);
+  color: #fff;
+  border: none;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s ease;
+}
+.dropdown-toggle:hover { background: var(--robot-deep); }
+.dropdown-toggle::after {
+  content: "▼";
+  font-size: 0.8rem;
+  transition: transform 0.2s ease;
+}
+.dropdown-toggle.open::after { transform: rotate(180deg); }
+.dropdown-content {
+  display: none;
+  background: var(--surface-2);
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  margin-bottom: 1rem;
+}
+.dropdown-content.open { display: block; }
+.dropdown-content p { margin: 0 0 1rem 0; }
+.dropdown-content code {
+  display: block;
+  background: #fff;
+  padding: 0.8rem;
+  border-left: 3px solid var(--robot);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9rem;
+  margin: 0.8rem 0;
+  overflow-x: auto;
+}
+
+/* Quiz */
+.quiz { margin: 1.5rem 0; }
+.quiz-q {
+  background: #fff;
+  border: 1px solid var(--border);
+  padding: 1.2rem;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.2rem;
+}
+.quiz-q h4 { margin: 0 0 1rem 0; font-size: 1rem; color: var(--ink); }
+.quiz-options {
+  display: grid;
+  gap: 0.6rem;
+}
+.quiz-option {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.quiz-option:hover { background: var(--surface-2); border-color: var(--robot); }
+.quiz-option input[type="radio"] { margin: 0; cursor: pointer; }
+.quiz-option.selected {
+  background: var(--electric-tint);
+  border-color: var(--electric);
+}
+.quiz-btn {
+  display: inline-block;
+  background: var(--robot);
+  color: #fff;
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-weight: 600;
+  margin: 1rem 0;
+  transition: background 0.2s ease;
+}
+.quiz-btn:hover { background: var(--robot-deep); }
+.quiz-feedback {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius);
+  display: none;
+}
+.quiz-feedback.show { display: block; }
+.quiz-feedback.correct {
+  background: rgba(82, 196, 26, 0.1);
+  border-left: 4px solid var(--ok);
+  color: var(--robot-deep);
+}
+.quiz-feedback.incorrect {
+  background: rgba(245, 34, 45, 0.1);
+  border-left: 4px solid var(--err);
+  color: var(--robot-deep);
+}
+
+/* Checklist */
+.checklist { margin: 1.5rem 0; }
+.checklist-item {
+  display: flex;
+  gap: 0.8rem;
+  align-items: flex-start;
+  padding: 0.8rem;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--electric);
+  border-radius: var(--radius);
+  margin-bottom: 0.6rem;
+  transition: all 0.2s ease;
+}
+.checklist-item input[type="checkbox"] {
+  margin-top: 0.2rem;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+}
+.checklist-item input:checked + label {
+  text-decoration: line-through;
+  color: var(--ink-faint);
+}
+.checklist-item input:checked ~ * { opacity: 0.7; }
+.checklist-item label { cursor: pointer; flex: 1; }
+
+/* Progress Bar */
+.progress-bar {
+  width: 100%;
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 1.2rem 0;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--robot), var(--electric));
+  transition: width 0.5s ease;
+  border-radius: 99px;
+}
+.progress-text {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--robot-deep);
+  margin: 0.5rem 0;
+}
+
+/* Artifact Box */
+.artifact-box {
+  background: var(--electric-tint);
+  border: 2px solid var(--electric);
+  border-radius: var(--radius-lg);
+  padding: 1.2rem;
+  margin: 1.5rem 0;
+}
+.artifact-box h4 {
+  margin: 0 0 0.8rem 0;
+  color: var(--electric-deep);
+  font-size: 1rem;
+}
+.artifact-box p { margin: 0; }
+
+/* Sources Table */
+.sources-table {
+  width: 100%;
+  margin: 1.5rem 0;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.sources-table thead {
+  background: var(--robot);
+  color: #fff;
+}
+.sources-table th, .sources-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.sources-table tbody tr:hover { background: var(--surface); }
+.sources-table a { color: var(--robot); font-weight: 600; }
+
+/* Reflection Textarea */
+.reflection {
+  margin: 1.5rem 0;
+}
+.reflection-q {
+  font-weight: 600;
+  margin: 1.2rem 0 0.5rem 0;
+  color: var(--robot-deep);
+}
+.reflection textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.95rem;
+  resize: vertical;
+}
+.reflection textarea:focus {
+  outline: none;
+  border-color: var(--robot);
+  box-shadow: 0 0 0 3px rgba(71, 101, 125, 0.1);
+}
+
+/* Footer */
+footer {
+  border-top: 1px solid var(--border);
+  margin-top: 3rem;
+  padding: 1.5rem 0;
+  font-size: 0.85rem;
+  color: var(--ink-faint);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  header .wrap { flex-direction: column; align-items: flex-start; }
+  nav.sticky a { font-size: 0.8rem; padding: 0.5rem 0.4rem; }
+  section > h2 { font-size: 1.4em; }
+  .quiz-option { padding: 0.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="ei-badge">ei</div>
+    <div>
+      <h1>1.3 Konfigurace síťového rozhraní</h1>
+      <div class="meta">Serverové služby · 6 vyučovacích hodin</div>
+    </div>
+  </div>
+</header>
+
+<nav class="sticky">
+  <div class="wrap">
+    <a href="#vyzva" data-section="vyzva">Výzva</a>
+    <a href="#zkoumani" data-section="zkoumani">Zkoumání</a>
+    <a href="#reseni" data-section="reseni">Řešení</a>
+    <a href="#reflexe" data-section="reflexe">Reflexe</a>
+    <a href="#zdroje" data-section="zdroje">Zdroje</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ENGAGE -->
+  <section id="vyzva">
+    <h2>Výzva</h2>
+    <div class="card hero">
+      <h3>Big Idea</h3>
+      <p><strong>Stabilní a správně nakonfigurovaná síťová připojení jsou základem bezpečné a spolehlivé serverové infrastruktury.</strong> Bez nich server nemůže komunikovat se zbytkem sítě a poskytovat své služby.</p>
+
+      <h3 style="margin-top: 1.2rem;">Essential Question</h3>
+      <p><strong>Jak nakonfigurovat a diagnostikovat síťové rozhraní tak, aby server bezpečně a spolehlivě komunikoval v síti?</strong></p>
+
+      <h3 style="margin-top: 1.2rem;">Challenge</h3>
+      <p>Na serveru vytvořeném v Kapitole 1.2 (IP adresa 192.168.1.10, doména vyuka.cz) potřebujete:</p>
+      <ol style="margin: 0.8rem 0; padding-left: 1.5rem;">
+        <li>Ověřit a zdokumentovat aktuální konfiguraci síťového rozhraní (ip addr, ethtool, nmtui)</li>
+        <li>Konfiguraci zálohovat a vytvořit zálohu konfigurace v souboru /etc/network/interfaces</li>
+        <li>Diagnostikovat síť pomocí nástrojů (ping, traceroute, netstat, ss, dig)</li>
+        <li>Zdokumentovat výsledky diagnostiky a vytvořit tabulku pro správce sítě</li>
+      </ol>
+
+      <p style="margin-top: 1rem;"><strong>Master Challenge:</strong> Tato kapitola zajišťuje, že Škola X má stabilní a diagnostikovatelné síťové připojení — nezbytné pro všechny následující služby (DNS, DHCP, web, atd.).</p>
+    </div>
+  </section>
+
+  <!-- INVESTIGATE -->
+  <section id="zkoumani">
+    <h2>Zkoumání</h2>
+
+    <h3>Vedoucí otázky</h3>
+    <div class="guiding-questions">
+      <div class="q-item"><strong>1.</strong> Jaké jsou hlavní komponenty síťové konfigurace v Linuxu a jak se konfigurují?</div>
+      <div class="q-item"><strong>2.</strong> Jaké nástroje používáme k zobrazení aktuální síťové konfigurace a diagnostice?</div>
+      <div class="q-item"><strong>3.</strong> Jak se liší tradiční nástroje (ifconfig, route) od novějších (ip, ss)?</div>
+      <div class="q-item"><strong>4.</strong> Jaké jsou nejčastější problémy v síťové konfiguraci a jak je diagnostikovat?</div>
+      <div class="q-item"><strong>5.</strong> Jak zálohovat a obnovit síťové nastavení bezpečně?</div>
+    </div>
+
+    <h3>Ověřené zdroje</h3>
+
+    <div class="dropdown">
+      <button class="dropdown-toggle" onclick="toggleDropdown(this)">
+        <span>1. Linux Network Configuration — Debian Handbook</span>
+      </button>
+      <div class="dropdown-content">
+        <p><strong>Relevance:</strong> Podrobný průvodce síťovou konfigurací v Debianu — statické IP, DHCP, DNS, brána, маршрутизáce.</p>
+        <p><strong>Klíčové body:</strong></p>
+        <ul style="margin: 0.5rem 0; padding-left: 1.5rem;">
+          <li>Tradiční metoda: <code>/etc/network/interfaces</code></li>
+          <li>Moderní metoda: <code>netplan</code>, <code>nmcli</code></li>
+          <li>Souborová struktura síťové konfigurace</li>
+          <li>Restart síťových služeb bez výpadku</li>
+        </ul>
+        <p><strong>Zdroj:</strong> Debian Handbook — Chapter 8: System Administration (https://debian-handbook.info/browse/stable/system-administration.html)</p>
+      </div>
+    </div>
+
+    <div class="dropdown">
+      <button class="dropdown-toggle" onclick="toggleDropdown(this)">
+        <span>2. Network Tools Reference — ip, ss, netstat, nmcli</span>
+      </button>
+      <div class="dropdown-content">
+        <p><strong>Relevance:</strong> Moderní i zastaralé nástroje pro diagnostiku síťe — oba jsou důležité, protože starší systémy ještě starý nástroje používají.</p>
+        <p><strong>Praktické příkazy:</strong></p>
+        <code>
+# Zobrazit IP adresy a rozhraní
+ip addr show
+ip link show
+
+# DNS resolver
+cat /etc/resolv.conf
+dig vyuka.cz
+nslookup server.vyuka.cz
+
+# Routing tabulka
+ip route show
+route -n
+
+# Aktivní porty a spojení
+ss -tlnp
+netstat -tulpn
+
+# Otestovat síť
+ping 192.168.1.1
+traceroute 8.8.8.8
+mtr 8.8.8.8
+        </code>
+        <p><strong>Zdroj:</strong> Linux man-pages project (https://man7.org/)</p>
+      </div>
+    </div>
+
+    <div class="dropdown">
+      <button class="dropdown-toggle" onclick="toggleDropdown(this)">
+        <span>3. Ethtool & Interface Management</span>
+      </button>
+      <div class="dropdown-content">
+        <p><strong>Relevance:</strong> Detailní informace o fyzickém rozhraní — rychlost, duplex mód, čítače chyb.</p>
+        <p><strong>Příkazy:</strong></p>
+        <code>
+# Zobrazit vlastnosti rozhraní
+ethtool eth0
+ethtool -S eth0        # Statistika
+ethtool -d eth0        # Diagnostika
+
+# Nastavit duplex
+ethtool -s eth0 speed 1000 duplex full autoneg on
+
+# Zobrazit all rozhraní s IP
+ip link
+ip addr
+
+# Interaktivní konfigurace (NetworkManager)
+nmtui
+nmcli conn show
+        </code>
+        <p><strong>Zdroj:</strong> Linux Kernel Documentation</p>
+      </div>
+    </div>
+
+    <div class="dropdown">
+      <button class="dropdown-toggle" onclick="toggleDropdown(this)">
+        <span>4. /etc/network/interfaces — Tradiční konfigurace</span>
+      </button>
+      <div class="dropdown-content">
+        <p><strong>Relevance:</strong> Statický config soubor pro síťová rozhraní — nejčastější a nejspolehlivější metoda v serverovém prostředí.</p>
+        <p><strong>Příklad konfigurace pro server (Debian/Ubuntu):</strong></p>
+        <code>
+# /etc/network/interfaces
+
+source /etc/network/interfaces.d/*
+
+auto lo
+iface lo inet loopback
+
+auto eth0
+iface eth0 inet static
+    address 192.168.1.10/24
+    gateway 192.168.1.1
+    dns-nameservers 192.168.1.1 8.8.8.8
+
+# IPv6 (pokud je dostupné)
+iface eth0 inet6 static
+    address 2001:db8::10/64
+    gateway 2001:db8::1
+        </code>
+        <p><strong>Aplikace změn:</strong></p>
+        <code>
+# Bez restartu (pokud jste na konzoli mimo SSH):
+ifdown eth0 && ifup eth0
+
+# Nebo restart síťové služby:
+systemctl restart networking
+
+# Ověření:
+ip addr show eth0
+ip route show
+        </code>
+        <p><strong>Zdroj:</strong> man interfaces (5), Debian Wiki</p>
+      </div>
+    </div>
+
+    <div class="dropdown">
+      <button class="dropdown-toggle" onclick="toggleDropdown(this)">
+        <span>5. DNS Configuration — /etc/resolv.conf a /etc/hosts</span>
+      </button>
+      <div class="dropdown-content">
+        <p><strong>Relevance:</strong> Jak nastavit DNS resolvery a lokální hostname resolution — kritické pro komunikaci po jménech místo IP adres.</p>
+        <p><strong>DNS nastavení:</strong></p>
+        <code>
+# /etc/resolv.conf — obvykle generován systemd-resolved
+# V novějších Debianu se konfiguruje přes netplan nebo /etc/network/interfaces
+
+# Ruční přidání DNS (pokud je potřeba):
+nameserver 192.168.1.1      # Lokální DNS server
+nameserver 8.8.8.8          # Google DNS (fallback)
+
+# Lokální hostname resolution:
+# /etc/hosts
+127.0.0.1    localhost
+::1          localhost
+192.168.1.10 server.vyuka.cz server
+
+# Ověření:
+getent hosts server.vyuka.cz
+dig server.vyuka.cz @192.168.1.1
+nslookup server.vyuka.cz
+        </code>
+        <p><strong>Zdroj:</strong> man resolv.conf (5), man hosts (5)</p>
+      </div>
+    </div>
+
+    <h3>Přehled síťové konfigurace — praktické scénáře</h3>
+
+    <p>Tato tabulka ukazuje, jak se liší konfigurační přístupy a nástroje v různých situacích:</p>
+
+    <table class="sources-table" style="margin: 1rem 0; font-size: 0.9rem;">
+      <thead>
+        <tr>
+          <th>Scénář</th>
+          <th>Konfigurace</th>
+          <th>Diagnostické nástroje</th>
+          <th>Poznámka</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Server — statická IP</strong></td>
+          <td>/etc/network/interfaces<br/>nebo netplan</td>
+          <td>ip, ping, traceroute,<br/>dig, ss</td>
+          <td>Nejspolehlivější — ideální<br/>pro produkční servery</td>
+        </tr>
+        <tr>
+          <td><strong>Workstation — DHCP</strong></td>
+          <td>NetworkManager<br/>nebo systemd-networkd</td>
+          <td>nmcli, ip, dhclient</td>
+          <td>Flexibilní — dobrý pro<br/>desktopy/notebooky</td>
+        </tr>
+        <tr>
+          <td><strong>Diagnostika — problémy</strong></td>
+          <td>žádná (jen čtení)</td>
+          <td>ip addr, ethtool,<br/>netstat, iftop, mtr</td>
+          <td>Nebezpečí: SSH výpadek<br/>při poškozené síti</td>
+        </tr>
+        <tr>
+          <td><strong>Zálohování</strong></td>
+          <td>cp /etc/network/interfaces<br/>/backup/</td>
+          <td>grep, diff</td>
+          <td>Vždy zálohujte PŘED<br/>změnami konfigurace</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>Doporučení pro praxi:</strong> Při konfiguraci síťě na serveru (speciálně přes SSH) vždy:</p>
+    <ul style="margin: 0.8rem 0; padding-left: 1.5rem;">
+      <li>✓ Vytvořte zálohu aktuální konfigurace</li>
+      <li>✓ Zapište si příkazem, jak vrátit zpět (ifdown/ifup)</li>
+      <li>✓ Pracujte na konzoli (ne SSH), pokud to možné</li>
+      <li>✓ Po každé změně otestujte základní konektivitu (ping, dns lookup)</li>
+      <li>✗ Nikdy neaplikujte velké změny bez možnosti vrácení se</li>
+    </ul>
+
+    <h3>Interaktivní Quiz — Ověření znalostí</h3>
+
+    <div class="quiz">
+      <div class="quiz-q">
+        <h4>1. Co je výstupem příkazu `ip addr show` a proč je důležitý?</h4>
+        <div class="quiz-options">
+          <label class="quiz-option">
+            <input type="radio" name="q1" value="a">
+            <span>Zobrazuje seznam všech síťových rozhraní, jejich IP adresy, MAC adresy a stavy.</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q1" value="b">
+            <span>Zobrazuje pouze aktivní síťová rozhraní.</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q1" value="c">
+            <span>Zobrazuje jen informace o routingu.</span>
+          </label>
+        </div>
+        <button class="quiz-btn" onclick="checkQuiz(1, 'a')">Odeslat odpověď</button>
+        <div class="quiz-feedback" id="q1-feedback"></div>
+      </div>
+
+      <div class="quiz-q">
+        <h4>2. Jak se liší `/etc/network/interfaces` a NetworkManager?</h4>
+        <div class="quiz-options">
+          <label class="quiz-option">
+            <input type="radio" name="q2" value="a">
+            <span>Jsou totéž — jen jiné názvy.</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q2" value="b">
+            <span>interfaces je tradiční config soubor (statický); NetworkManager je dynamický správce pro desktopy.</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q2" value="c">
+            <span>NetworkManager je vždy lepší volba.</span>
+          </label>
+        </div>
+        <button class="quiz-btn" onclick="checkQuiz(2, 'b')">Odeslat odpověď</button>
+        <div class="quiz-feedback" id="q2-feedback"></div>
+      </div>
+
+      <div class="quiz-q">
+        <h4>3. Jaký příkaz byste použili k diagnostice problémů s DNS resolvováním?</h4>
+        <div class="quiz-options">
+          <label class="quiz-option">
+            <input type="radio" name="q3" value="a">
+            <span>ip route show</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q3" value="b">
+            <span>dig, nslookup, nebo host</span>
+          </label>
+          <label class="quiz-option">
+            <input type="radio" name="q3" value="c">
+            <span>ifconfig</span>
+          </label>
+        </div>
+        <button class="quiz-btn" onclick="checkQuiz(3, 'b')">Odeslat odpověď</button>
+        <div class="quiz-feedback" id="q3-feedback"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ACT -->
+  <section id="reseni">
+    <h2>Řešení</h2>
+
+    <h3>Fáze 1: Příprava a Dokumentace Aktuálního Stavu</h3>
+    <div class="card">
+      <p>Nejdříve si zdokumentujete a zálohujete aktuální konfiguraci — abyste věděli, co mění a mohli se vrátit.</p>
+    </div>
+
+    <div class="checklist">
+      <div class="checklist-item">
+        <input type="checkbox" id="c1" onchange="updateProgress()">
+        <label for="c1">Přihlášení na server terminálově (SSH: ssh debian@192.168.1.10)</label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c2" onchange="updateProgress()">
+        <label for="c2">Zobrazení všech síťových rozhraní: <code>ip link show</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c3" onchange="updateProgress()">
+        <label for="c3">Zobrazení IP adres a jejich konfigurací: <code>ip addr show</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c4" onchange="updateProgress()">
+        <label for="c4">Kontrola fyzických vlastností rozhraní: <code>ethtool eth0</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c5" onchange="updateProgress()">
+        <label for="c5">Zálohování aktuální konfigurace: <code>sudo cp /etc/network/interfaces /etc/network/interfaces.bak</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c6" onchange="updateProgress()">
+        <label for="c6">Ověření DNS nastavení: <code>cat /etc/resolv.conf</code> a <code>cat /etc/hosts</code></label>
+      </div>
+    </div>
+
+    <h3>Fáze 2: Diagnostika a Testování Konektivity</h3>
+    <div class="card">
+      <p>Diagnostikujete síť pomocí standardních nástrojů a zaznamenáte výsledky.</p>
+    </div>
+
+    <div class="checklist">
+      <div class="checklist-item">
+        <input type="checkbox" id="c7" onchange="updateProgress()">
+        <label for="c7">Test konektivity na bránu: <code>ping -c 4 192.168.1.1</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c8" onchange="updateProgress()">
+        <label for="c8">Trasování cesty na externí server: <code>traceroute 8.8.8.8</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c9" onchange="updateProgress()">
+        <label for="c9">Kontrola DNS resolvování: <code>dig vyuka.cz</code> a <code>dig server.vyuka.cz</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c10" onchange="updateProgress()">
+        <label for="c10">Kontrola aktivních portů: <code>sudo ss -tlnp</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c11" onchange="updateProgress()">
+        <label for="c11">Zobrazení routing tabulky: <code>ip route show</code></label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c12" onchange="updateProgress()">
+        <label for="c12">Zaznamenání výsledků do textového souboru: <code>sudo tee /var/log/network-diagnostic.log</code></label>
+      </div>
+    </div>
+
+    <h3>Fáze 3: Dokumentace a Odevzdání</h3>
+    <div class="card">
+      <p>Zdokumentujete nalezené informace a připravíte report pro správce sítě.</p>
+    </div>
+
+    <div class="checklist">
+      <div class="checklist-item">
+        <input type="checkbox" id="c13" onchange="updateProgress()">
+        <label for="c13">Vytvoření summary tabulky s údaji o síťě (viz níže)</label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c14" onchange="updateProgress()">
+        <label for="c14">Popis konfigurace v /etc/network/interfaces (pokud existuje)</label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c15" onchange="updateProgress()">
+        <label for="c15">Export a uložení všech diagnostických výstupů v jednom dokumentu (HTML nebo PDF)</label>
+      </div>
+      <div class="checklist-item">
+        <input type="checkbox" id="c16" onchange="updateProgress()">
+        <label for="c16">Vytvoření návodu pro správce k vrácení se (recovery instructions)</label>
+      </div>
+    </div>
+
+    <div style="margin: 1.5rem 0;">
+      <div class="progress-bar">
+        <div class="progress-bar-fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+      <div class="progress-text" id="progress-text">0 / 16 položek hotovo</div>
+    </div>
+
+    <h3>Artefakt — Co Odevzdat</h3>
+    <div class="artifact-box">
+      <h4>Odevzdání v Kapitole 1.3</h4>
+      <p><strong>Network Configuration Report</strong> — Dokument (HTML, Markdown nebo PDF) obsahující:</p>
+      <ul style="margin: 0.8rem 0; padding-left: 1.5rem;">
+        <li>Summary tabulka se základními údaji o síti serveru</li>
+        <li>Kopie souboru /etc/network/interfaces (nebo netplan konfigurace)</li>
+        <li>Výstupy diagnostických příkazů (ip addr, ip route, dig, ss)</li>
+        <li>Tabulka DNS názvů v infrastruktuře (hostname, IP, doména)</li>
+        <li>Recovery instructions — jak vrátit konfiguraci v případě problémů</li>
+      </ul>
+    </div>
+
+    <h3>Prakitcká Tabulka: Dokumentace Vaší Sítě</h3>
+    <table class="sources-table" style="margin: 1rem 0;">
+      <thead>
+        <tr>
+          <th>Parametr</th>
+          <th>Vaše Hodnota</th>
+          <th>Popis</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Hostname</td>
+          <td><em>Vyplnit ➜ server</em></td>
+          <td>Jméno serveru v síti</td>
+        </tr>
+        <tr>
+          <td>Doména</td>
+          <td><em>Vyplnit ➜ vyuka.cz</em></td>
+          <td>Doménové jméno</td>
+        </tr>
+        <tr>
+          <td>IP adresa (IPv4)</td>
+          <td><em>Vyplnit ➜ 192.168.1.10</em></td>
+          <td>Statická IP adresa serveru</td>
+        </tr>
+        <tr>
+          <td>Maska sítě (CIDR)</td>
+          <td><em>Vyplnit ➜ /24 (255.255.255.0)</em></td>
+          <td>Rozsah sítě</td>
+        </tr>
+        <tr>
+          <td>Výchozí brána</td>
+          <td><em>Vyplnit ➜ 192.168.1.1</em></td>
+          <td>Router / gateway</td>
+        </tr>
+        <tr>
+          <td>Primární DNS</td>
+          <td><em>Vyplnit ➜ 192.168.1.1</em></td>
+          <td>DNS server k resolvování jmen</td>
+        </tr>
+        <tr>
+          <td>Sekundární DNS</td>
+          <td><em>Vyplnit ➜ 8.8.8.8</em></td>
+          <td>Fallback DNS (Google)</td>
+        </tr>
+        <tr>
+          <td>Síťové rozhraní</td>
+          <td><em>Vyplnit ➜ eth0</em></td>
+          <td>Primární NIC (ethernet)</td>
+        </tr>
+        <tr>
+          <td>MAC adresa</td>
+          <td><em>Vyplnit ➜ (z ip link)</em></td>
+          <td>Fyzická adresa rozhraní</td>
+        </tr>
+        <tr>
+          <td>Konfigurace</td>
+          <td><em>Vyplnit ➜ /etc/network/interfaces</em></td>
+          <td>Soubor s konfigurací</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- REFLECT -->
+  <section id="reflexe">
+    <h2>Reflexe</h2>
+
+    <p>Odpovězte na následující reflexivní otázky. Vaše odpovědi vám pomáhají uvědomit si, co jste se naučili, a jak to souvisí s ostatními kapitolami.</p>
+
+    <div class="reflection">
+      <div class="reflection-q">1. Jaké jsou podle vás nejdůležitější součásti síťové konfigurace serveru a proč?</div>
+      <textarea id="r1" placeholder="Napište svou úvahu..."></textarea>
+    </div>
+
+    <div class="reflection">
+      <div class="reflection-q">2. Jaké problémy byste očekávali, kdyby byla síť špatně nakonfigurovaná, a jak byste je diagnostikovali?</div>
+      <textarea id="r2" placeholder="Napište svou úvahu..."></textarea>
+    </div>
+
+    <div class="reflection">
+      <div class="reflection-q">3. Jak se tato kapitola váže na předchozí (instalace OS) a následující (DNS, DHCP)? Kde vidíte souvislost?</div>
+      <textarea id="r3" placeholder="Napište svou úvahu..."></textarea>
+    </div>
+  </section>
+
+  <!-- SOURCES -->
+  <section id="zdroje">
+    <h2>Zdroje</h2>
+
+    <table class="sources-table">
+      <thead>
+        <tr>
+          <th>Typ</th>
+          <th>Název a Odkaz</th>
+          <th>Relevance</th>
+          <th>Autor / Instituce</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Dokumentace</td>
+          <td><a href="https://debian-handbook.info/browse/stable/system-administration.html" target="_blank">Debian Handbook — Network Configuration</a></td>
+          <td>Kompletní průvodce síťovou konfigurací v Debianu</td>
+          <td>Debian Project</td>
+        </tr>
+        <tr>
+          <td>Manual</td>
+          <td><a href="https://man7.org/linux/man-pages/man8/ip.8.html" target="_blank">ip(8) — show and manipulate routing, network devices</a></td>
+          <td>Úplná referenční příručka příkazu ip</td>
+          <td>Linux man-pages project</td>
+        </tr>
+        <tr>
+          <td>Manual</td>
+          <td><a href="https://man7.org/linux/man-pages/man1/dig.1.html" target="_blank">dig(1) — DNS lookup utility</a></td>
+          <td>Příručka pro DNS diagnostiku</td>
+          <td>ISC BIND Project</td>
+        </tr>
+        <tr>
+          <td>Manual</td>
+          <td><a href="https://man7.org/linux/man-pages/man8/ss.8.html" target="_blank">ss(8) — another utility to investigate sockets</a></td>
+          <td>Zobrazení aktivních síťových spojení a portů</td>
+          <td>Linux man-pages project</td>
+        </tr>
+        <tr>
+          <td>Konfigurační soubor</td>
+          <td><a href="https://man7.org/linux/man-pages/man5/interfaces.5.html" target="_blank">interfaces(5) — network interface configuration</a></td>
+          <td>Formát souboru /etc/network/interfaces</td>
+          <td>Debian / ifupdown projekt</td>
+        </tr>
+        <tr>
+          <td>Metodika</td>
+          <td>Metodika CBL — Serverové služby, SPŠ EI Ostrava</td>
+          <td>Pedagogický rámec Challenge-Based Learning</td>
+          <td>SPŠ EI Ostrava, 2026</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer>
+    Edu-Linux · Kapitola 1.3: Konfigurace síťového rozhraní · 6 vyučovacích hodin · Challenge-Based Learning
+  </footer>
+
+</div>
+
+<script>
+// Sticky nav scrollspy
+window.addEventListener('scroll', function() {
+  const sections = ['vyzva', 'zkoumani', 'reseni', 'reflexe', 'zdroje'];
+  let current = '';
+
+  sections.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el.offsetTop - 100 <= window.scrollY) {
+      current = id;
+    }
+  });
+
+  document.querySelectorAll('nav.sticky a').forEach(a => {
+    a.classList.remove('active');
+    if (a.dataset.section === current) {
+      a.classList.add('active');
+    }
+  });
+});
+
+// Dropdown toggle
+function toggleDropdown(btn) {
+  const content = btn.nextElementSibling;
+  const isOpen = content.classList.contains('open');
+
+  document.querySelectorAll('.dropdown-content.open').forEach(el => {
+    el.classList.remove('open');
+    el.previousElementSibling.classList.remove('open');
+  });
+
+  if (!isOpen) {
+    content.classList.add('open');
+    btn.classList.add('open');
+  }
+}
+
+// Quiz checking
+function checkQuiz(qNum, correct) {
+  const selected = document.querySelector(`input[name="q${qNum}"]:checked`);
+  if (!selected) {
+    alert('Vyberte prosím odpověď');
+    return;
+  }
+
+  const feedback = document.getElementById(`q${qNum}-feedback`);
+  const isCorrect = selected.value === correct;
+
+  feedback.classList.add('show');
+  if (isCorrect) {
+    feedback.classList.add('correct');
+    feedback.classList.remove('incorrect');
+    feedback.innerHTML = '<strong>✓ Správně!</strong> Vaše odpověď je správná.';
+  } else {
+    feedback.classList.add('incorrect');
+    feedback.classList.remove('correct');
+    feedback.innerHTML = '<strong>✗ Incorrect.</strong> Přečtěte si prosím sekci "Ověřené zdroje" a zkuste znovu.';
+  }
+}
+
+// Checklist progress
+function updateProgress() {
+  const total = 16;
+  const checked = document.querySelectorAll('.checklist-item input[type="checkbox"]:checked').length;
+  const pct = Math.round((checked / total) * 100);
+
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-text').textContent = `${checked} / ${total} položek hotovo`;
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+  // Set first nav item active
+  document.querySelector('nav.sticky a').classList.add('active');
+});
+</script>
+
+</body>
+</html>

@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>1.1 Úvod do serverových služeb · Operační systém Linux</title>
-<meta name="description" content="Princip klient-server, aplikační protokoly a jejich porty, konkrétní řešení serverů na Debian GNU/Linux. Kapitola 1.1, 2 vyučovací hodiny.">
+<title>1 Úvod do serverových služeb · Operační systém Linux</title>
+<meta name="description" content="Princip klient-server, aplikační protokoly a jejich porty, konkrétní řešení serverů na Debian GNU/Linux. Kapitola 1, 2 vyučovací hodiny.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ============================================================================
-   KAPITOLA 1.1 — Úvod do serverových služeb — Edu-Linux (SPŠ EI Ostrava)
+   KAPITOLA 1 — Úvod do serverových služeb — Edu-Linux (SPŠ EI Ostrava)
    Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
    Electric green dle spsei_logo_manual_tisk.pdf). Oproti šabloně navíc
    obsahuje statický obsah (princip klient-server, referenční tabulka
@@ -415,7 +415,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
       <ul class="gq-list" id="gq-list"></ul>
 
       <h3>Referenční tabulka: protokoly, porty a servery na Linuxu</h3>
-      <p class="lede" style="margin-bottom:.9rem;">Toto je páteřní tabulka dnešní hodiny — budete ji potřebovat v sekci Řešení a budete se na ni odkazovat i v dalších kapitolách (1.2–1.11).</p>
+      <p class="lede" style="margin-bottom:.9rem;">Toto je páteřní tabulka dnešní hodiny — budete ji potřebovat v sekci Řešení a budete se na ni odkazovat i v dalších kapitolách (2–11).</p>
       <div style="overflow-x:auto;">
         <table class="src-table">
           <thead><tr><th>Aplikační protokol</th><th>Port(y)</th><th>Transport</th><th>Využití</th><th>Linux server (Debian)</th></tr></thead>
@@ -562,7 +562,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     </section>
 
     <footer class="pagefoot">
-      <span>Edu-Linux · Kapitola 1.1 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span>Edu-Linux · Kapitola 1 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
       <span id="foot-num"></span>
     </footer>
   </div>
@@ -572,11 +572,11 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
 (function(){
 
 /* ==========================================================================
-   OBSAH KAPITOLY 1.1 — Úvod do serverových služeb
+   OBSAH KAPITOLY 1 — Úvod do serverových služeb
    ========================================================================== */
 
   var TOPIC = {
-    num: "1.1",
+    num: "1",
     title: "Úvod do serverových služeb",
     hours: "2 h",
     ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
@@ -585,7 +585,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
   var ENGAGE = {
     bigIdea: "Model klient-server a přesně definované aplikační protokoly jsou základ, na kterém stojí každá síťová služba.",
     eq: "Jak spolu domluví komunikaci dvě aplikace na síti — a jak z jediné IP adresy serveru pozná operační systém, které z desítek běžících služeb patří přijatá data?",
-    challenge: "Jako tým IT správců Školy X dostáváte první úkol: sestavit referenční katalog síťových služeb, které bude škola po zbytek roku postupně nasazovat. Pro každou službu určíte aplikační protokol, port a transportní protokol (TCP/UDP) a konkrétní Linuxový daemon, který ji na Debianu zajistí. Katalog se stane závaznou referencí pro kapitoly 1.2–1.11."
+    challenge: "Jako tým IT správců Školy X dostáváte první úkol: sestavit referenční katalog síťových služeb, které bude škola po zbytek roku postupně nasazovat. Pro každou službu určíte aplikační protokol, port a transportní protokol (TCP/UDP) a konkrétní Linuxový daemon, který ji na Debianu zajistí. Katalog se stane závaznou referencí pro kapitoly 2–11."
   };
 
   var INVESTIGATE = {
@@ -729,7 +729,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     },
     {
       num: 3, en: "Implementation & Evaluation", title: "Nasazení a vyhodnocení",
-      body: "<p>Zkonzultujte katalog s jinou dvojicí, opravte případné rozdíly a sestavte finální přehlednou tabulku (protokol – port – TCP/UDP – Linux daemon – k čemu slouží) pro všech 8 služeb. Uložte ji do sdílené složky týmu — stane se referenční přílohou pro kapitoly 1.2–1.11.</p>",
+      body: "<p>Zkonzultujte katalog s jinou dvojicí, opravte případné rozdíly a sestavte finální přehlednou tabulku (protokol – port – TCP/UDP – Linux daemon – k čemu slouží) pro všech 8 služeb. Uložte ji do sdílené složky týmu — stane se referenční přílohou pro kapitoly 2–11.</p>",
       checklist: [
         "Finální katalog obsahuje všech 8 služeb a je ověřený proti referenční tabulce/IANA",
         "Katalog je uložený ve sdílené složce týmu s datem a jmény členů",
@@ -738,13 +738,13 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     }
   ];
 
-  var ARTIFACT_TEXT = "Referenční katalog síťových služeb Školy X — protokol, port, TCP/UDP a konkrétní Linux daemon pro každou z 8 klíčových služeb; používaný jako příloha v kapitolách 1.2–1.11.";
+  var ARTIFACT_TEXT = "Referenční katalog síťových služeb Školy X — protokol, port, TCP/UDP a konkrétní Linux daemon pro každou z 8 klíčových služeb; používaný jako příloha v kapitolách 2–11.";
 
   var REFLECT = [
     "Kam byste aplikační protokoly z dnešní hodiny zařadili v modelu, který znáte z Cisco Networking Academy (TCP/IP, OSI) — a proč zrovna tam?",
     "Který port nebo protokol vás dnes nejvíc překvapil a proč?",
     "Kde se váš katalog služeb lišil od jiné dvojice a jak jste rozdíl vyřešili?",
-    "Co byste si chtěli ověřit nebo dostudovat, než v kapitole 1.2 začnete instalovat první ostrý server?"
+    "Co byste si chtěli ověřit nebo dostudovat, než v kapitole 2 začnete instalovat první ostrý server?"
   ];
 
   var SOURCES = [

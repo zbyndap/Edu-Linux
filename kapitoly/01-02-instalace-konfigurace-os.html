@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>1.2 Instalace a konfigurace OS · Operační systém Linux</title>
+<meta name="description" content="Instalace Debianu ve VMware, ruční rozdělení disku (7 GB / + 1,6 GB swap) a instalace VirtualBox Guest Additions. Kapitola 1.2, 8 vyučovacích hodin.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 1.2 — Instalace a konfigurace OS — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf). Oproti šabloně navíc
+   obsahuje statický obsah (5 scénářů rozdělení disku, přehled mount pointů,
+   didaktická poznámka, sekce Hodnocení) — stejný vzor rozšíření jako
+   kapitoly/01-01-uvod-do-serveru.html.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky (rozdělení disku, mount pointy, zdroje) — sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+.table-wrap{overflow-x:auto; margin:0 0 1.3rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm);}
+.table-wrap .src-table{margin:0;}
+.table-wrap .src-table th, .table-wrap .src-table td{padding:.6rem .8rem;}
+
+/* rozšíření — "za horizontem" */
+.horizon-box{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--robot-tint); padding:1.2rem 1.3rem;}
+.horizon-box > h3{margin-top:0;}
+.horizon-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:.9rem;}
+.horizon-item{font-size:.86rem; color:var(--ink-soft);}
+.horizon-item b{display:block; color:var(--ink); margin-bottom:.15rem; font-size:.9rem;}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Instalace a konfigurace OS</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Tato kapitola je stavební kámen celoroční výzvy <b>Škola X</b> — server, který zde připravíte, budete v dalších kapitolách rozšiřovat o služby.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>Instalace Debianu a rozdělení disku</h2>
+      <p class="lede">Než začnete instalovat, ověřte si na těchto otázkách a zdrojích, jak instalace Debianu probíhá a proč se disk dělí na víc oddílů podle standardu FHS.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <h3>Doporučené rozdělení diskových oddílů podle účelu serveru</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Rozdělení disku (na tzv. připojovací body, mount points) se po instalaci těžko mění, proto se volí podle toho, k čemu bude počítač sloužit. Projděte si pět typických scénářů — s tím posledním, „Server“, budete dnes reálně pracovat.</p>
+
+      <h4>1. Domácí a kancelářský počítač</h4>
+      <p>Nejjednodušší varianta pro běžného uživatele bez zvláštních nároků:</p>
+      <div class="table-wrap">
+        <table class="src-table">
+          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Souborový systém</th><th>Účel</th></tr></thead>
+          <tbody>
+            <tr><td><code>/</code></td><td>30–50 GB</td><td>ext4</td><td>Kořenový systém</td></tr>
+            <tr><td><code>/home</code></td><td>zbytek disku</td><td>ext4</td><td>Data uživatelů</td></tr>
+            <tr><td>swap</td><td>2–8 GB</td><td>swap</td><td>Odkládací prostor</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><b>Výhoda:</b> při přeinstalování systému zůstanou data v <code>/home</code> nedotčená, pokud se pouze zformátuje <code>/</code>.</p>
+
+      <h4>2. Školní nebo kancelářská pracovní stanice (UEFI)</h4>
+      <div class="table-wrap">
+        <table class="src-table">
+          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Souborový systém</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><code>/boot/efi</code></td><td>512 MB</td><td>FAT32</td><td>UEFI zavaděč — jen na UEFI systémech</td></tr>
+            <tr><td><code>/boot</code></td><td>1 GB</td><td>ext4</td><td>Jádro a GRUB</td></tr>
+            <tr><td><code>/</code></td><td>40 GB</td><td>ext4</td><td>Systém a aplikace</td></tr>
+            <tr><td><code>/home</code></td><td>50–100 GB</td><td>ext4</td><td>Domovské adresáře</td></tr>
+            <tr><td>swap</td><td>dle RAM, max. 8 GB</td><td>swap</td><td>Virtuální paměť</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Oddělený <code>/boot</code> usnadňuje správu zavaděče GRUB nezávisle na zbytku systému.</p>
+
+      <h4>3. Server (webový, databázový)</h4>
+      <div class="table-wrap">
+        <table class="src-table">
+          <thead><tr><th>Připojovací bod</th><th>Doporučená velikost</th><th>Účel</th></tr></thead>
+          <tbody>
+            <tr><td><code>/boot</code></td><td>1 GB</td><td>Jádro a zavaděč</td></tr>
+            <tr><td><code>/</code></td><td>20–30 GB</td><td>Systém</td></tr>
+            <tr><td><code>/var</code></td><td>20–100 GB</td><td>Logy, cache, databáze, webový obsah</td></tr>
+            <tr><td><code>/home</code></td><td>5–10 GB</td><td>Domovské adresáře správců</td></tr>
+            <tr><td>swap</td><td>4–16 GB</td><td>Virtuální paměť</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><b>Proč oddělit <code>/var</code>:</b> obsahuje logy, cache a databáze, tedy data, která rychle rostou a mění se za provozu. Když se <code>/var</code> zaplní, zbytek systému zůstane funkční.</p>
+
+      <h4>4. Datový nebo souborový server</h4>
+      <div class="table-wrap">
+        <table class="src-table">
+          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Účel</th></tr></thead>
+          <tbody>
+            <tr><td><code>/</code></td><td>30 GB</td><td>Systém</td></tr>
+            <tr><td><code>/srv</code></td><td>většina disku</td><td>Sdílené soubory, FTP, web</td></tr>
+            <tr><td>swap</td><td>dle RAM</td><td>Virtuální paměť</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>/srv</code> slouží k ukládání dat, která server poskytuje ven — sdílené soubory (Samba/NFS), FTP, webový obsah.</p>
+
+      <h4>5. Virtualizační server (Proxmox, KVM)</h4>
+      <div class="table-wrap">
+        <table class="src-table">
+          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Účel</th></tr></thead>
+          <tbody>
+            <tr><td><code>/boot</code></td><td>1 GB</td><td>Jádro a zavaděč</td></tr>
+            <tr><td><code>/</code></td><td>50 GB</td><td>Systém</td></tr>
+            <tr><td><code>/var/lib/libvirt</code></td><td>většina prostoru</td><td>Disky virtuálních strojů</td></tr>
+            <tr><td>swap</td><td>8–16 GB</td><td>Virtuální paměť</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Virtuální stroje zabírají velký a rychle rostoucí prostor — samostatný oddíl zabrání, aby zaplnily celý disk.</p>
+
+      <h3>Přehled nejčastějších připojovacích bodů (FHS)</h3>
+      <div class="table-wrap">
+        <table class="src-table">
+          <thead><tr><th>Bod</th><th>Použití</th></tr></thead>
+          <tbody>
+            <tr><td><code>/</code></td><td>Kořen systému — základní adresáře a binární soubory</td></tr>
+            <tr><td><code>/boot</code></td><td>Jádro Linuxu a zavaděč GRUB — kritické pro start systému</td></tr>
+            <tr><td><code>/boot/efi</code></td><td>UEFI zavaděč — jen na systémech s UEFI</td></tr>
+            <tr><td><code>/home</code></td><td>Domovské adresáře uživatelů — osobní data</td></tr>
+            <tr><td><code>/var</code></td><td>Logy, databáze, cache — data měnící se za provozu</td></tr>
+            <tr><td><code>/srv</code></td><td>Data poskytovaná službami — web, FTP, sdílené soubory</td></tr>
+            <tr><td><code>/tmp</code></td><td>Dočasné soubory aplikací — obvykle se maže po restartu</td></tr>
+            <tr><td><code>/opt</code></td><td>Doplňkový software instalovaný mimo balíčkovací systém</td></tr>
+            <tr><td><code>/usr</code></td><td>Programy a knihovny — sdílená, jen ke čtení určená část systému</td></tr>
+            <tr><td>swap</td><td>Virtuální paměť — diskový prostor pro přetečení RAM</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><b>Didaktická poznámka pro studenty:</b> Zapamatujte si jedno jednoduché pravidlo — čím víc služeb server poskytuje a čím víc dat se za provozu mění, tím víc se oddíly oddělují:</p>
+        <ul>
+          <li><b>Pracovní stanice</b> → <code>/</code>, <code>/home</code>, swap</li>
+          <li><b>UEFI počítač</b> → navíc <code>/boot/efi</code></li>
+          <li><b>Server</b> → navíc oddělit <code>/var</code></li>
+          <li><b>Datový server</b> → navíc oddělit <code>/srv</code></li>
+          <li><b>Virtualizační server</b> → navíc oddělit prostor pro virtuální stroje</li>
+        </ul>
+        <p style="margin-top:.6rem;">Hlavní důvod: když se jeden oddíl zaplní (typicky <code>/var</code> zaplněný logy), zbytek systému zůstane funkční a přístupný přes SSH — nezhroutí se vám celý server.</p>
+      </div>
+
+      <div class="horizon-box">
+        <h3>Za horizontem dnešní kapitoly</h3>
+        <div class="horizon-grid">
+          <div class="horizon-item"><b>LVM (Logical Volume Manager)</b>umožňuje oddíly za provozu zvětšovat, aniž byste museli disk přepartitovat od nuly.</div>
+          <div class="horizon-item"><b>RAID</b>zrcadlení nebo rozložení dat na víc disků kvůli odolnosti proti výpadku disku.</div>
+          <div class="horizon-item"><b>Šifrování disku (LUKS)</b>ochrana dat, pokud se fyzický disk nebo server dostane do nepovolaných rukou.</div>
+          <div class="horizon-item"><b>Automatizovaná instalace</b>Kickstart/preseed nebo Ansible dovolí nainstalovat desítky serverů stejně a bez klikání.</div>
+        </div>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>Návrh a realizace řešení</h2>
+      <p class="lede">Čtyři fáze: příprava VM ve VMware → instalace Debianu → ověření přípojných bodů → instalace Guest Additions. Síťová konfigurace (IP adresa) se v této kapitole ještě nenastavuje — přijde až v kapitole 1.3.</p>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — nerozumí, proč se disk dělí na víc oddílů.</li>
+            <li><b>Rozvíjející se</b> — zná pár mount pointů, ale neumí zdůvodnit volbu pro konkrétní typ serveru.</li>
+            <li><b>Očekávaná úroveň</b> — jasně rozumí FHS a umí vybrat vhodné rozdělení disku podle účelu počítače.</li>
+            <li><b>Nad rámec</b> — diskutuje i pokročilá témata: LVM, RAID, šifrování disku.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — instalace selhala nebo je nekompletní.</li>
+            <li><b>Rozvíjející se</b> — server funguje, ale s chybami (síť, oddíly, uživatel).</li>
+            <li><b>Očekávaná úroveň</b> — server správně nainstalován přesně podle zadání, přípojné body vypsané a doložené screenshotem, Guest Additions funkční.</li>
+            <li><b>Nad rámec</b> — navíc zdokumentováno a připraveno k rozšíření o další služby.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neví, jak bude server dál rozšiřovat.</li>
+            <li><b>Rozvíjející se</b> — vidí spojitost s dalšími kapitolami jen obecně.</li>
+            <li><b>Očekávaná úroveň</b> — umí říct, co konkrétně přibude v 1.3 (síť), 1.5 (DNS) apod.</li>
+            <li><b>Nad rámec</b> — kriticky zhodnotí, jestli zvolené rozdělení disku vydrží i po přidání služeb.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — závislý na pomoci u každého kroku.</li>
+            <li><b>Rozvíjející se</b> — poradí si se základní instalací, u chyb potřebuje pomoc.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, chyby si dohledá v dokumentaci.</li>
+            <li><b>Nad rámec</b> — experimentuje (jiné rozdělení, jiné parametry VM), pomáhá spolužákům.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než server odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit, proč se disk dělí na víc oddílů místo jednoho velkého.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Disk je ručně rozdělený přesně podle zadání: / (EXT4, 7 GB) + swap (cca 1,6 GB).</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Přihlásil/a jsem se pod uživatelem s plnými oprávněními a příkazem jsem vypsal/a přípojné body.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Mám pořízený a uložený screenshot jako důkaz splnění úkolu.</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Guest Additions jsou nainstalované a funkční (rozlišení, schránka, případně sdílená složka).</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 5 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshot s výpisem přípojných bodů a zdůvodnění zvoleného rozdělení disku ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky (kap. 7) — oficiální dokumentace Debianu, standard FHS, dokumentace VirtualBoxu a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 1.2 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 1.2 — Instalace a konfigurace OS
+   ========================================================================== */
+
+  var TOPIC = {
+    num: "1.2",
+    title: "Instalace a konfigurace OS",
+    hours: "8 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "Prvním krokem k funkčnímu serveru je jeho virtuální zřízení a promyšlená konfigurace základního operačního systému — včetně rozdělení disku, které se později těžko mění.",
+    eq: "Jak nainstalovat a nakonfigurovat OS tak, aby v dalších kapitolách spolehlivě poskytoval služby (síť, DNS, DHCP, web…)?",
+    challenge: "Ve VMware vytvořte virtuální server, nainstalujte Debian s ručním rozdělením disku (7 GB EXT4 pro / + cca 1,6 GB swap) a doinstalujte VirtualBox Guest Additions. Počítač pojmenujte <b>Server</b> a zařaďte do domény <b>vyuka.cz</b> — síťová konfigurace (IP adresa) přijde až v kapitole 1.3. Tento server se stane základem pro všechny následující kapitoly."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Jaké jsou různé druhy instalace Debianu (minimální, desktopová, serverová) a kdy se která hodí?",
+      "Co je Linux Filesystem Hierarchy Standard (FHS) a proč se disk při instalaci rozděluje na víc oddílů místo jednoho velkého?",
+      "Které připojovací body (mount points) jsou na serveru klíčové a co se do nich ukládá?",
+      "Jak probíhá instalátor Debianu krok za krokem a co se v něm volí?",
+      "K čemu slouží VirtualBox Guest Additions a proč se instalují až po dokončené instalaci OS?"
+    ],
+    resources: [
+      {
+        title: "Debian Administrator's Handbook — Installation",
+        tag: "official",
+        items: [
+          "Detailní popis instalačního procesu, jednotlivých voleb a ručního partitionování.",
+          "<a href='https://debian-handbook.info/browse/stable/installation-steps.html' target='_blank' rel='noopener'>debian-handbook.info/browse/stable/installation-steps.html</a>"
+        ]
+      },
+      {
+        title: "Debian Installation Guide",
+        tag: "official",
+        items: [
+          "Oficiální instalační průvodce Debian projektu pro aktuální stabilní verzi.",
+          "<a href='https://www.debian.org/releases/stable/installmanual' target='_blank' rel='noopener'>debian.org/releases/stable/installmanual</a>"
+        ]
+      },
+      {
+        title: "Filesystem Hierarchy Standard 3.0",
+        tag: "official",
+        items: [
+          "Standard adresářové struktury Linuxu — definuje význam /var, /srv, /home, /boot a dalších.",
+          "<a href='https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html' target='_blank' rel='noopener'>refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html</a>"
+        ]
+      },
+      {
+        title: "VirtualBox User Manual — Guest Additions",
+        tag: "official",
+        items: [
+          "Oficiální kapitola manuálu k instalaci a funkcím Guest Additions na Linux hostech.",
+          "<a href='https://www.virtualbox.org/manual/ch04.html' target='_blank' rel='noopener'>virtualbox.org/manual/ch04.html</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Která varianta instalace Debianu je nejvhodnější pro server bez grafického rozhraní?",
+      opts: ["Desktopová instalace (GNOME)", "Minimální instalace — jen standardní systémové nástroje", "Live systém spouštěný z USB", "Instalace přes grafický App Store"],
+      correct: 1,
+      explain: "Minimální instalace šetří prostor i útočnou plochu — na serveru bez grafického rozhraní nemá desktopové prostředí smysl."
+    },
+    {
+      q: "K čemu především slouží oddíl /var na serveru?",
+      opts: ["Domovské adresáře uživatelů", "Logy, cache a databáze — data, která se mění za provozu", "Zdrojový kód jádra systému", "Zaváděcí soubory GRUBu"],
+      correct: 1,
+      explain: "/var obsahuje proměnná data (logy, cache, databáze). Když se zaplní, oddělený oddíl ochrání zbytek systému před výpadkem."
+    },
+    {
+      q: "Jaký zavaděč Debian standardně používá?",
+      opts: ["LILO", "GRUB", "Windows Boot Manager", "systemd-boot"],
+      correct: 1,
+      explain: "GRUB2 je výchozí zavaděč Debianu s podporou multibootu; LILO je zastaralý a dnes se nepoužívá."
+    }
+  ];
+
+  var ACT = [
+    {
+      num: 1, en: "VM Preparation", title: "Příprava virtuálního stroje",
+      body: "<p>Stáhněte poslední verzi OS Debian pro 64bitovou architekturu a ve VMware vytvořte nový virtuální počítač.</p>",
+      checklist: [
+        "Stažena poslední verze OS Debian pro 64bitovou architekturu",
+        "Ve VMware vytvořen nový virtuální počítač v umístění <code>D:\\%USERNAME%\\Server</code>",
+        "Zvolena správná architektura (64bitová)",
+        "Přidělena operační paměť 1024 MB",
+        "Vytvořen nový dynamický disk VDI o velikosti 8 GB",
+        "Stažený instalační obraz vložen do virtuální CD mechaniky virtuálního počítače"
+      ]
+    },
+    {
+      num: 2, en: "Debian Installation", title: "Instalace Debianu",
+      body: "<p>Spusťte instalaci Debianu na virtuální stanici. Pro opuštění focusu z okna virtuální stanice používejte <code>Ctrl+Alt</code>.</p>",
+      checklist: [
+        "Spuštěna instalace Debianu na virtuální stanici",
+        "Počítač pojmenován <code>Server</code>",
+        "Nastavena doména <code>vyuka.cz</code>",
+        "Zvoleno heslo pro uživatele root",
+        "Vytvořen uživatel s vlastním jménem",
+        "Ručně rozdělen disk — 1. primární oddíl připojen ke kořeni <code>/</code>, souborový systém EXT4, velikost 7 GB",
+        "Ručně rozdělen disk — 2. primární oddíl jako odkládací prostor (swap) o zbylé velikosti cca 1,6 GB",
+        "Při výběru programů zvolena pouze instalace standardních systémových nástrojů, ostatní volby zrušeny",
+        "Povolena instalace zavaděče GRUB"
+      ]
+    },
+    {
+      num: 3, en: "Post-Install Verification", title: "Ověření po instalaci",
+      body: "<p>Restartujte virtuální PC a přihlaste se poprvé do nového stroje pod uživatelem, který má všechna oprávnění. V bashi zjistěte přípojné body a výsledek doložte screenshotem.</p>",
+      checklist: [
+        "Proveden restart virtuálního PC",
+        "Provedeno první přihlášení pod uživatelem, který má všechna oprávnění",
+        "Příkazem v bashi vypsány přípojné body — seznam všech automaticky připojovaných diskových oddílů a místo jejich připojení do souborového systému (např. <code>df -h</code> nebo <code>mount</code>)",
+        "Pořízen snímek obrazovky (screenshot) jako důkaz splnění úkolu",
+        "Screenshot odevzdán ke kontrole splnění úkolu"
+      ]
+    },
+    {
+      num: 4, en: "VirtualBox Guest Additions", title: "Instalace VirtualBox Guest Additions",
+      body: "<p><b>Cíl:</b> Naučit se nainstalovat a otestovat VirtualBox Guest Additions v čisté instalaci Debianu.</p>",
+      checklist: [
+        "1. Aktualizován systém Debian",
+        "2. Nainstalovány potřebné balíčky pro kompilaci kernel modulů: <code>build-essential</code>, <code>dkms</code>, <code>linux-headers</code>",
+        "3. Připojeno ISO s Guest Additions přes menu VirtualBoxu",
+        "4. Zkontrolováno, zda se CD připojilo (v adresáři <code>/media/cdrom</code> nebo <code>/mnt</code>)",
+        "5. Spuštěn instalační skript <code>VBoxLinuxAdditions.run</code>",
+        "6. Restartován systém",
+        "7. Ověřeno, že se načetly moduly <code>vboxguest</code>, <code>vboxsf</code>, <code>vboxvideo</code>",
+        "8a. Ověřena funkce Guest Additions — automatická změna rozlišení obrazovky",
+        "8b. Ověřena funkce Guest Additions — sdílená schránka (copy-paste mezi hostem a hostitelem)",
+        "8c. Ověřena funkce Guest Additions — sdílené složky (pokud nastaveny ve VirtualBoxu)"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># shrnutí příkazů pro instalaci Guest Additions</span>\nsudo apt update &amp;&amp; sudo apt upgrade -y\nsudo apt install -y build-essential dkms linux-headers-$(uname -r)\n<span class=\"c\"># menu VirtualBoxu: Zařízení → Vložit obraz Guest Additions CD</span>\nsudo /media/cdrom/VBoxLinuxAdditions.run\nsudo reboot\nlsmod | grep vbox</code></pre>"
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Nainstalovaný Debian server (hostname Server, doména vyuka.cz) s ručně rozděleným diskem (7 GB EXT4 pro / + cca 1,6 GB swap) a funkčními Guest Additions. Odevzdejte screenshot s výpisem přípojných bodů (df -h / mount) a zdůvodnění zvoleného rozdělení disku.";
+
+  var REFLECT = [
+    "Co bylo při instalaci nejtěžší a jak jste to vyřešili?",
+    "Jak souvisí rozdělení disku, které jste dnes zvolili, s rolí, kterou bude server plnit v dalších kapitolách?",
+    "Jaké otázky vám zůstávají před kapitolou 1.3 (konfigurace síťového rozhraní)?"
+  ];
+
+  var SOURCES = [
+    {title:"Debian Administrator's Handbook — Installation", url:"https://debian-handbook.info/browse/stable/installation-steps.html", tag:"official", note:"Detailní průvodce instalací a ručním partitionováním."},
+    {title:"Debian Installation Guide", url:"https://www.debian.org/releases/stable/installmanual", tag:"official", note:"Oficiální instalační průvodce Debian projektu."},
+    {title:"Filesystem Hierarchy Standard 3.0", url:"https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html", tag:"official", note:"Standard adresářové struktury a mount pointů."},
+    {title:"VirtualBox User Manual — Guest Additions", url:"https://www.virtualbox.org/manual/ch04.html", tag:"official", note:"Instalace a funkce Guest Additions na Linux hostech."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."},
+    {title:"Metodika CBL — Serverové služby", url:"../Metodika_CBL_Serverove_sluzby.docx", tag:"doc", note:"Pedagogický rámec Challenge-Based Learning, ze kterého kapitola vychází."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+(phase.extra||'')+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+})();
+</script>
+</body>
+</html>

@@ -166,7 +166,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3rem; padding-top
     <div class="hero-card">
       <p><b>Big Idea:</b> Spolehlivá digitální infrastruktura.</p>
       <p><b>Essential Question:</b> Jak navrhnout a provozovat síťovou infrastrukturu, na kterou se uživatelé mohou spolehnout — dostupnou, bezpečnou a snadno spravovatelnou?</p>
-      <p><b>Master Challenge:</b> Tým IT správců postupně naplánuje, nasadí a nakonec předvede funkční serverovou infrastrukturu pro fiktivní organizaci „Škola X“ — tak, aby ji na konci roku mohl převzít jiný správce. Každá kapitola 1.1–1.11 je stavební kámen; finále (1.11) vše zkompletuje a obhájí.</p>
+      <p><b>Master Challenge:</b> Tým IT správců postupně naplánuje, nasadí a nakonec předvede funkční serverovou infrastrukturu pro fiktivní organizaci „Škola X“ — tak, aby ji na konci roku mohl převzít jiný správce. Každá kapitola 1–11 je stavební kámen; finále (11) vše zkompletuje a obhájí.</p>
     </div>
     <div class="progress-row">
       <div class="progress-track"><span id="progress-bar" style="width:0%"></span></div>
@@ -182,10 +182,10 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3rem; padding-top
     <div class="roadmap" id="roadmap-prep"></div>
   </section>
 
-  <!-- 1.1-1.11 -->
+  <!-- 1-11 -->
   <section id="ses-kapitoly">
     <span class="eyebrow">Master Challenge · Škola X</span>
-    <h2>Kapitoly 1.1 – 1.11</h2>
+    <h2>Kapitoly 1 – 11</h2>
     <p class="lede">11 témat tematického plánu SES, 60 vyučovacích hodin celkem. Barva dlaždice slouží jen k rychlé orientaci v roadmapě, nemá jiný význam.</p>
     <div class="roadmap" id="roadmap-ses"></div>
     <div class="legend">
@@ -230,17 +230,17 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3rem; padding-top
   ];
 
   var SES = [
-    {num:"1.1", title:"Úvod do serverových služeb", eq:"Co všechno „server“ vlastně dělá a proč na tom záleží?", hours:"2 h", icon:"flag", status:"ready", href:"kapitoly/01-01-uvod-do-serveru.html"},
-    {num:"1.2", title:"Instalace a konfigurace OS", eq:"Jak připravit stabilní a bezpečně přístupný základ serveru?", hours:"8 h", icon:"gear", status:"planned", href:"kapitoly/01-02-instalace-os.html"},
-    {num:"1.3", title:"Konfigurace síťového rozhraní", eq:"Jak propojit servery a klienty do funkční sítě?", hours:"6 h", icon:"network", status:"planned", href:"kapitoly/01-03-sitove-rozhrani.html"},
-    {num:"1.4", title:"Služby a procesy, systemd", eq:"Jak zjistit, co server dělá, a spolehlivě to řídit?", hours:"6 h", icon:"cpu", status:"planned", href:"kapitoly/01-04-sluzby-systemd.html"},
-    {num:"1.5", title:"DNS (Bind9)", eq:"Jak zajistit, aby se uživatelé i služby v síti našli podle jména?", hours:"6 h", icon:"globe", status:"planned", href:"kapitoly/01-05-dns.html"},
-    {num:"1.6", title:"DHCP server a klient", eq:"Jak automatizovat přidělování síťové identity desítkám zařízení?", hours:"4 h", icon:"tag", status:"planned", href:"kapitoly/01-06-dhcp.html"},
-    {num:"1.7", title:"FTP služba", eq:"Jak bezpečně sdílet soubory se vzdálenými uživateli?", hours:"2 h", icon:"folder", status:"planned", href:"kapitoly/01-07-ftp.html"},
-    {num:"1.8", title:"SSH, certifikáty, scp/sftp", eq:"Jak spravovat server na dálku a přitom ho neohrozit?", hours:"6 h", icon:"lock", status:"planned", href:"kapitoly/01-08-ssh.html"},
-    {num:"1.9", title:"Webový server, SQL, phpMyAdmin", eq:"Jak zpřístupnit obsah a aplikace organizace na webu?", hours:"6 h", icon:"database", status:"planned", href:"kapitoly/01-09-web-sql.html"},
-    {num:"1.10", title:"Souborové systémy, zálohování", eq:"Jak ochránit data organizace před ztrátou?", hours:"6 h", icon:"disk", status:"planned", href:"kapitoly/01-10-souborove-systemy.html"},
-    {num:"1.11", title:"Samostatná práce (finále)", eq:"Funguje výsledná infrastruktura jako celek — a dokázali bychom ji předat dál?", hours:"8 h", icon:"trophy", status:"planned", href:"kapitoly/01-11-samostatna-prace.html"}
+    {num:"1", title:"Úvod do serverových služeb", eq:"Co všechno „server“ vlastně dělá a proč na tom záleží?", hours:"2 h", icon:"flag", status:"ready", href:"kapitoly/01-uvod-do-serveru.html"},
+    {num:"2", title:"Instalace a konfigurace OS", eq:"Jak připravit stabilní a bezpečně přístupný základ serveru?", hours:"8 h", icon:"gear", status:"ready", href:"kapitoly/02-instalace-konfigurace-os.html"},
+    {num:"3", title:"Konfigurace síťového rozhraní", eq:"Jak propojit servery a klienty do funkční sítě?", hours:"6 h", icon:"network", status:"planned", href:"kapitoly/03-sitove-rozhrani.html"},
+    {num:"4", title:"Služby a procesy, systemd", eq:"Jak zjistit, co server dělá, a spolehlivě to řídit?", hours:"6 h", icon:"cpu", status:"planned", href:"kapitoly/04-sluzby-systemd.html"},
+    {num:"5", title:"DNS (Bind9)", eq:"Jak zajistit, aby se uživatelé i služby v síti našli podle jména?", hours:"6 h", icon:"globe", status:"planned", href:"kapitoly/05-dns.html"},
+    {num:"6", title:"DHCP server a klient", eq:"Jak automatizovat přidělování síťové identity desítkám zařízení?", hours:"4 h", icon:"tag", status:"planned", href:"kapitoly/06-dhcp.html"},
+    {num:"7", title:"FTP služba", eq:"Jak bezpečně sdílet soubory se vzdálenými uživateli?", hours:"2 h", icon:"folder", status:"planned", href:"kapitoly/07-ftp.html"},
+    {num:"8", title:"SSH, certifikáty, scp/sftp", eq:"Jak spravovat server na dálku a přitom ho neohrozit?", hours:"6 h", icon:"lock", status:"planned", href:"kapitoly/08-ssh.html"},
+    {num:"9", title:"Webový server, SQL, phpMyAdmin", eq:"Jak zpřístupnit obsah a aplikace organizace na webu?", hours:"6 h", icon:"database", status:"planned", href:"kapitoly/09-web-sql.html"},
+    {num:"10", title:"Souborové systémy, zálohování", eq:"Jak ochránit data organizace před ztrátou?", hours:"6 h", icon:"disk", status:"planned", href:"kapitoly/10-souborove-systemy.html"},
+    {num:"11", title:"Samostatná práce (finále)", eq:"Funguje výsledná infrastruktura jako celek — a dokázali bychom ji předat dál?", hours:"8 h", icon:"trophy", status:"planned", href:"kapitoly/11-samostatna-prace.html"}
   ];
 
   function renderTile(item, colorIndex){

@@ -29,7 +29,7 @@ Interaktivní, modulární e-learningová platforma, která zapojuje studenty do
 ┌─────────────────────────────────────────────┐
 │  INDEX.HTML — Hub & Progress Tracker       │  (Úvodní stránka)
 ├─────────────────────────────────────────────┤
-│  KAPITOLA (1.1–1.11)                       │  (12 modulů)
+│  KAPITOLA (1–11)                         │  (12 modulů)
 │  ├─ Engage (Výzva)                         │
 │  ├─ Investigate (Zkoumání)                 │
 │  ├─ Act (Řešení)                           │
@@ -80,7 +80,7 @@ Engage → Investigate → Act → Reflect → Sources
 #### 3.2.1 Header
 - **Logo EI** (levý roh, 40×40px)
 - **Název kapitoly** (centrální, bold, 1.8em)
-- **Číslo a trvání** (1.1 · 5 hodin)
+- **Číslo a trvání** (1 · 5 hodin)
 
 #### 3.2.2 Sticky Subnav
 - **5 sekcí** (Výzva / Zkoumání / Řešení / Reflexe / Zdroje)
@@ -292,7 +292,7 @@ edu-linux-platform/
 │   ├── _sablona-kapitoly.html   # Universální šablona
 │   ├── 01-intro-serverovych-sluzeb.html
 │   ├── 02-linux-pravo-pristup.html
-│   ├── ... (až 1.11)
+│   ├── ... (až 11)
 │   └── 00-vstupni-diagnostika.html
 ├── assets/
 │   ├── css/

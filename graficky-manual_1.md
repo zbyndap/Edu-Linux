@@ -178,7 +178,7 @@ line-height: 1.2;
 color: #47657D;
 margin: 0 0 0.5em 0;
 ```
-*Příklad: "1.1 Úvod do serverových služeb"*
+*Příklad: "1 Úvod do serverových služeb"*
 
 #### H2 — Section Heading
 ```css
@@ -909,14 +909,14 @@ a:focus {
 
 2. **Aktualizuj metadata (v <head>)**
    ```html
-   <title>1.1 Úvod do serverových služeb</title>
+   <title>1 Úvod do serverových služeb</title>
    <meta name="description" content="Praktická výzva na...">
    ```
 
 3. **Vyplň JS objekty v <script> (na začátku)**
    ```javascript
    const TOPIC = {
-     number: "1.1",
+     number: "1",
      title: "Úvod do serverových služeb",
      duration: "5 hodin",
      // ...
@@ -939,7 +939,7 @@ a:focus {
 5. **Zaregistruj v index.html**
    ```html
    <a href="kapitoly/01-nazev-kapitoly.html" class="tile" style="...">
-     <span>1.1</span>
+     <span>1</span>
      Úvod do serverových služeb
    </a>
    ```
@@ -1200,7 +1200,7 @@ Před publikací zkontroluj:
   - [ ] Všechny interaktivní prvky fungují bez JS chyb (check dev tools)
 
 - [ ] **Metadata**
-  - [ ] <title> správný (1.1 Název...)
+  - [ ] <title> správný (1 Název...)
   - [ ] <meta description> vyplněn
   - [ ] EI logo je přítomno v headeru
 
@@ -1225,4 +1225,4 @@ Před publikací zkontroluj:
 
 **Konec grafického manuálu.**
 
-Používej tento dokument jako **referenci** při tvorbě obsahu pro jednotlivé kapitoly (1.1–1.11). Všechny barevné kódy, komponenty, spacing a typografické normy jsou zde definovány — stačí je aplikovat a obsah vytvořit.
+Používej tento dokument jako **referenci** při tvorbě obsahu pro jednotlivé kapitoly (1–11). Všechny barevné kódy, komponenty, spacing a typografické normy jsou zde definovány — stačí je aplikovat a obsah vytvořit.
