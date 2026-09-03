@@ -195,6 +195,20 @@ details.cheat code{background:#fff; border:1px solid var(--border); border-radiu
 .checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
 .checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
 
+/* Blok s Linux příkazy, kterými se úloha řeší (pole "extra" u fáze ACT) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
 .progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
 .progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
 .progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
@@ -406,6 +420,10 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     }
   ];
 
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu (odpověď), se NEPÍŠÍ přímo do body/checklist.
+  // Vloží se do pole "extra" dané fáze jako <pre class="cmdblock"><code>...</code></pre> (viz ukázka
+  // ve fázi 2 níže) — renderAct je automaticky zabalí do rozklikávacího "Zobrazit řešení"
+  // (funkce wrapSolution). Studenti tak mají hledat řešení nejdřív sami, příkazy jsou jen na kontrolu.
   var ACT = [
     {
       num: 1, en: "Solution Concept", title: "Návrh konceptu",
@@ -418,11 +436,12 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     },
     {
       num: 2, en: "Solution Development", title: "Vývoj řešení",
-      body: "Návrh porovnejte s jiným týmem, doplňte chybějící služby a sjednoťte terminologii, kterou budete používat po zbytek roku.",
+      body: "Návrh porovnejte s jiným týmem, doplňte chybějící služby a sjednoťte terminologii, kterou budete používat po zbytek roku. Ukázka použití pole <code>extra</code>: ověřte si verzi a datum instalovaného Debianu v terminálu.",
       checklist: [
         "Konzultovali jsme návrh s jiným týmem a zapracovali zpětnou vazbu",
         "Sjednotili jsme pojmenování serverů a služeb pro celý rok"
-      ]
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># ukázka: pole extra se v HTML zobrazí jen po kliknutí na \"Zobrazit řešení\"</span>\ncat /etc/debian_version\nuname -a</code></pre>"
     },
     {
       num: 3, en: "Implementation & Evaluation", title: "Nasazení a vyhodnocení",
@@ -549,6 +568,13 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     updateQuizProgress();
   });
 
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
   // ACT phases
   var actEl = document.getElementById("act-phases");
   var totalSteps = 0;
@@ -562,7 +588,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     }).join("");
     div.innerHTML =
       '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
-      '<div class="act-phase-body"><p style="margin-bottom:.8rem;">'+phase.body+'</p><ul class="checklist">'+itemsHtml+'</ul></div>';
+      '<div class="act-phase-body"><p style="margin-bottom:.8rem;">'+phase.body+'</p><ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
     actEl.appendChild(div);
   });
 

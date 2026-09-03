@@ -3,19 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>1.2 Instalace a konfigurace OS · Operační systém Linux</title>
-<meta name="description" content="Instalace Debianu ve VMware, ruční rozdělení disku (7 GB / + 1,6 GB swap) a instalace VirtualBox Guest Additions. Kapitola 1.2, 8 vyučovacích hodin.">
+<title>3 X server, display manažéry a desktopy · Operační systém Linux</title>
+<meta name="description" content="X server, display manažéry (xdm, lightdm) a desktop environmenty (icewm, XFCE4) na Debian serveru. Kapitola 3, 2 vyučovací hodiny.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ============================================================================
-   KAPITOLA 1.2 — Instalace a konfigurace OS — Edu-Linux (SPŠ EI Ostrava)
+   KAPITOLA 3 — X server, display manažéry a desktopy — Edu-Linux (SPŠ EI Ostrava)
    Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
    Electric green dle spsei_logo_manual_tisk.pdf). Oproti šabloně navíc
-   obsahuje statický obsah (5 scénářů rozdělení disku, přehled mount pointů,
-   didaktická poznámka, sekce Hodnocení) — stejný vzor rozšíření jako
-   kapitoly/01-01-uvod-do-serveru.html.
+   obsahuje statický obsah (3 SVG diagramy, sekce Hodnocení) — stejný vzor
+   rozšíření jako kapitoly/02-instalace-konfigurace-os.html.
    ========================================================================= */
 :root{
   --bg:#FFFFFF;
@@ -133,6 +132,24 @@ section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
 .callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
 .callout li{margin-bottom:.3rem;}
 
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+
 /* guiding questions */
 .gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
 .gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
@@ -152,23 +169,13 @@ details.cheat li a{color:var(--accent-ink); font-weight:600;}
 .src-tag.official{background:var(--good-tint); color:var(--good);}
 .src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
 
-/* tabulky (rozdělení disku, mount pointy, zdroje) — sdílený vzhled */
+/* tabulky sdílený vzhled */
 .src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
 .src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
 .src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
 .src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
 .src-table tr:last-child td{border-bottom:none;}
 .src-table td b{color:var(--ink);}
-.table-wrap{overflow-x:auto; margin:0 0 1.3rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm);}
-.table-wrap .src-table{margin:0;}
-.table-wrap .src-table th, .table-wrap .src-table td{padding:.6rem .8rem;}
-
-/* rozšíření — "za horizontem" */
-.horizon-box{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:var(--robot-tint); padding:1.2rem 1.3rem;}
-.horizon-box > h3{margin-top:0;}
-.horizon-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:.9rem;}
-.horizon-item{font-size:.86rem; color:var(--ink-soft);}
-.horizon-item b{display:block; color:var(--ink); margin-bottom:.15rem; font-size:.9rem;}
 
 /* quiz */
 .quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
@@ -223,6 +230,15 @@ pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--ra
 pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
 pre.cmdblock .c{color:#9FD1C7;}
 
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
 /* Hodnocení — rubrika */
 .rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
 .rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
@@ -269,7 +285,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
       </div>
       <div class="chapter-id">
         <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
-        <h1 id="h1-title">Operační systém Linux — Instalace a konfigurace OS</h1>
+        <h1 id="h1-title">Operační systém Linux — X server, display manažéry a desktopy</h1>
         <div class="chip-row" id="chip-row"></div>
       </div>
     </div>
@@ -288,133 +304,149 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
       <div class="engage-card" id="engage-card"></div>
       <div class="master-strip">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
-        <span id="master-note">Tato kapitola je stavební kámen celoroční výzvy <b>Škola X</b> — server, který zde připravíte, budete v dalších kapitolách rozšiřovat o služby.</span>
+        <span id="master-note">Tato kapitola je stavební kámen celoroční výzvy <b>Škola X</b> — server dnes získá volitelnou grafickou vrstvu, kterou budete umět kdykoli zapnout, vypnout nebo přepnout na jinou variantu.</span>
       </div>
     </section>
 
     <!-- INVESTIGATE -->
     <section id="zkoumani">
       <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
-      <h2>Instalace Debianu a rozdělení disku</h2>
-      <p class="lede">Než začnete instalovat, ověřte si na těchto otázkách a zdrojích, jak instalace Debianu probíhá a proč se disk dělí na víc oddílů podle standardu FHS.</p>
+      <h2>Vrstvy grafického rozhraní Linuxu</h2>
+      <p class="lede">Než začnete instalovat, projděte si, jak jsou jednotlivé vrstvy grafického rozhraní poskládané nad sebou a jak spolu komunikují — každá vrstva se dá vyměnit nezávisle na ostatních.</p>
 
       <h3>Badatelské otázky</h3>
       <ul class="gq-list" id="gq-list"></ul>
 
-      <h3>Doporučené rozdělení diskových oddílů podle účelu serveru</h3>
-      <p class="lede" style="margin-bottom:.9rem;">Rozdělení disku (na tzv. připojovací body, mount points) se po instalaci těžko mění, proto se volí podle toho, k čemu bude počítač sloužit. Projděte si pět typických scénářů — s tím posledním, „Server“, budete dnes reálně pracovat.</p>
+      <h3>Od hardwaru k pracovní ploše — čtyři vrstvy nad sebou</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Grafické rozhraní Linuxu není jeden program, ale sada nezávislých vrstev. Dnešní hodina se týká tří prostředních vrstev — X server, display manager a window manager/desktop environment.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 620 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg2title svg2desc">
+          <title id="svg2title">Vrstvy grafického rozhraní Linuxu</title>
+          <desc id="svg2desc">Od hardwaru přes X server a display manager až po window manager nebo desktop environment a aplikace — každá vrstva staví na té pod sebou a lze ji samostatně vyměnit.</desc>
 
-      <h4>1. Domácí a kancelářský počítač</h4>
-      <p>Nejjednodušší varianta pro běžného uživatele bez zvláštních nároků:</p>
-      <div class="table-wrap">
-        <table class="src-table">
-          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Souborový systém</th><th>Účel</th></tr></thead>
-          <tbody>
-            <tr><td><code>/</code></td><td>30–50 GB</td><td>ext4</td><td>Kořenový systém</td></tr>
-            <tr><td><code>/home</code></td><td>zbytek disku</td><td>ext4</td><td>Data uživatelů</td></tr>
-            <tr><td>swap</td><td>2–8 GB</td><td>swap</td><td>Odkládací prostor</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p><b>Výhoda:</b> při přeinstalování systému zůstanou data v <code>/home</code> nedotčená, pokud se pouze zformátuje <code>/</code>.</p>
+          <rect x="40" y="10" width="500" height="64" rx="14" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2"/>
+          <text x="66" y="36" font-size="16" font-weight="700" fill="#1E2E38">Aplikace</text>
+          <text x="66" y="58" font-size="12" fill="#54666F">terminál · textový editor · správce souborů…</text>
 
-      <h4>2. Školní nebo kancelářská pracovní stanice (UEFI)</h4>
-      <div class="table-wrap">
-        <table class="src-table">
-          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Souborový systém</th><th>Poznámka</th></tr></thead>
-          <tbody>
-            <tr><td><code>/boot/efi</code></td><td>512 MB</td><td>FAT32</td><td>UEFI zavaděč — jen na UEFI systémech</td></tr>
-            <tr><td><code>/boot</code></td><td>1 GB</td><td>ext4</td><td>Jádro a GRUB</td></tr>
-            <tr><td><code>/</code></td><td>40 GB</td><td>ext4</td><td>Systém a aplikace</td></tr>
-            <tr><td><code>/home</code></td><td>50–100 GB</td><td>ext4</td><td>Domovské adresáře</td></tr>
-            <tr><td>swap</td><td>dle RAM, max. 8 GB</td><td>swap</td><td>Virtuální paměť</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>Oddělený <code>/boot</code> usnadňuje správu zavaděče GRUB nezávisle na zbytku systému.</p>
+          <path d="M290 96 L290 80" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M283 88 L290 78 L297 88" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
 
-      <h4>3. Server (webový, databázový)</h4>
-      <div class="table-wrap">
-        <table class="src-table">
-          <thead><tr><th>Připojovací bod</th><th>Doporučená velikost</th><th>Účel</th></tr></thead>
-          <tbody>
-            <tr><td><code>/boot</code></td><td>1 GB</td><td>Jádro a zavaděč</td></tr>
-            <tr><td><code>/</code></td><td>20–30 GB</td><td>Systém</td></tr>
-            <tr><td><code>/var</code></td><td>20–100 GB</td><td>Logy, cache, databáze, webový obsah</td></tr>
-            <tr><td><code>/home</code></td><td>5–10 GB</td><td>Domovské adresáře správců</td></tr>
-            <tr><td>swap</td><td>4–16 GB</td><td>Virtuální paměť</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p><b>Proč oddělit <code>/var</code>:</b> obsahuje logy, cache a databáze, tedy data, která rychle rostou a mění se za provozu. Když se <code>/var</code> zaplní, zbytek systému zůstane funkční.</p>
+          <rect x="40" y="96" width="500" height="64" rx="14" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="66" y="122" font-size="16" font-weight="700" fill="#1E2E38">Window manager / Desktop environment</text>
+          <text x="66" y="144" font-size="12" fill="#54666F">icewm · XFCE4 — dnešní úkol</text>
 
-      <h4>4. Datový nebo souborový server</h4>
-      <div class="table-wrap">
-        <table class="src-table">
-          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Účel</th></tr></thead>
-          <tbody>
-            <tr><td><code>/</code></td><td>30 GB</td><td>Systém</td></tr>
-            <tr><td><code>/srv</code></td><td>většina disku</td><td>Sdílené soubory, FTP, web</td></tr>
-            <tr><td>swap</td><td>dle RAM</td><td>Virtuální paměť</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p><code>/srv</code> slouží k ukládání dat, která server poskytuje ven — sdílené soubory (Samba/NFS), FTP, webový obsah.</p>
+          <path d="M290 182 L290 166" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M283 174 L290 164 L297 174" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
 
-      <h4>5. Virtualizační server (Proxmox, KVM)</h4>
-      <div class="table-wrap">
-        <table class="src-table">
-          <thead><tr><th>Připojovací bod</th><th>Velikost</th><th>Účel</th></tr></thead>
-          <tbody>
-            <tr><td><code>/boot</code></td><td>1 GB</td><td>Jádro a zavaděč</td></tr>
-            <tr><td><code>/</code></td><td>50 GB</td><td>Systém</td></tr>
-            <tr><td><code>/var/lib/libvirt</code></td><td>většina prostoru</td><td>Disky virtuálních strojů</td></tr>
-            <tr><td>swap</td><td>8–16 GB</td><td>Virtuální paměť</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p>Virtuální stroje zabírají velký a rychle rostoucí prostor — samostatný oddíl zabrání, aby zaplnily celý disk.</p>
+          <rect x="40" y="182" width="500" height="64" rx="14" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="66" y="208" font-size="16" font-weight="700" fill="#1E2E38">Display manager</text>
+          <text x="66" y="230" font-size="12" fill="#54666F">xdm · lightdm — dnešní úkol</text>
 
-      <h3>Přehled nejčastějších připojovacích bodů (FHS)</h3>
-      <div class="table-wrap">
-        <table class="src-table">
-          <thead><tr><th>Bod</th><th>Použití</th></tr></thead>
-          <tbody>
-            <tr><td><code>/</code></td><td>Kořen systému — základní adresáře a binární soubory</td></tr>
-            <tr><td><code>/boot</code></td><td>Jádro Linuxu a zavaděč GRUB — kritické pro start systému</td></tr>
-            <tr><td><code>/boot/efi</code></td><td>UEFI zavaděč — jen na systémech s UEFI</td></tr>
-            <tr><td><code>/home</code></td><td>Domovské adresáře uživatelů — osobní data</td></tr>
-            <tr><td><code>/var</code></td><td>Logy, databáze, cache — data měnící se za provozu</td></tr>
-            <tr><td><code>/srv</code></td><td>Data poskytovaná službami — web, FTP, sdílené soubory</td></tr>
-            <tr><td><code>/tmp</code></td><td>Dočasné soubory aplikací — obvykle se maže po restartu</td></tr>
-            <tr><td><code>/opt</code></td><td>Doplňkový software instalovaný mimo balíčkovací systém</td></tr>
-            <tr><td><code>/usr</code></td><td>Programy a knihovny — sdílená, jen ke čtení určená část systému</td></tr>
-            <tr><td>swap</td><td>Virtuální paměť — diskový prostor pro přetečení RAM</td></tr>
-          </tbody>
-        </table>
-      </div>
+          <path d="M290 268 L290 252" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M283 260 L290 250 L297 260" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <rect x="40" y="268" width="500" height="64" rx="14" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="66" y="294" font-size="16" font-weight="700" fill="#1E2E38">X server (Xorg)</text>
+          <text x="66" y="316" font-size="12" fill="#54666F">kreslí okna, čte klávesnici a myš — dnešní úkol</text>
+
+          <path d="M290 354 L290 338" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M283 346 L290 336 L297 346" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <rect x="40" y="354" width="500" height="64" rx="14" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="66" y="380" font-size="16" font-weight="700" fill="#1E2E38">Hardware</text>
+          <text x="66" y="402" font-size="12" fill="#54666F">grafická karta · monitor · klávesnice · myš</text>
+        </svg>
+        <figcaption>Obr. 1 — Čtyři vrstvy grafického rozhraní. Tři prostřední (modře orámované, se štítkem „dnešní úkol“) instalujete dnes.</figcaption>
+      </figure>
 
       <div class="callout">
-        <p><b>Didaktická poznámka pro studenty:</b> Zapamatujte si jedno jednoduché pravidlo — čím víc služeb server poskytuje a čím víc dat se za provozu mění, tím víc se oddíly oddělují:</p>
+        <p><b>Proč se to takhle odděluje:</b> každá vrstva řeší jinou věc a dá se vyměnit bez zásahu do ostatních.</p>
         <ul>
-          <li><b>Pracovní stanice</b> → <code>/</code>, <code>/home</code>, swap</li>
-          <li><b>UEFI počítač</b> → navíc <code>/boot/efi</code></li>
-          <li><b>Server</b> → navíc oddělit <code>/var</code></li>
-          <li><b>Datový server</b> → navíc oddělit <code>/srv</code></li>
-          <li><b>Virtualizační server</b> → navíc oddělit prostor pro virtuální stroje</li>
+          <li><b>X server</b> — jediná vrstva, která přímo mluví s grafickou kartou, klávesnicí a myší.</li>
+          <li><b>Display manager</b> — stará se jen o přihlašovací obrazovku a spuštění zvolené session.</li>
+          <li><b>Window manager / desktop environment</b> — určuje, jak vypadají a chovají se okna po přihlášení.</li>
         </ul>
-        <p style="margin-top:.6rem;">Hlavní důvod: když se jeden oddíl zaplní (typicky <code>/var</code> zaplněný logy), zbytek systému zůstane funkční a přístupný přes SSH — nezhroutí se vám celý server.</p>
       </div>
 
-      <div class="horizon-box">
-        <h3>Za horizontem dnešní kapitoly</h3>
-        <div class="horizon-grid">
-          <div class="horizon-item"><b>LVM (Logical Volume Manager)</b>umožňuje oddíly za provozu zvětšovat, aniž byste museli disk přepartitovat od nuly.</div>
-          <div class="horizon-item"><b>RAID</b>zrcadlení nebo rozložení dat na víc disků kvůli odolnosti proti výpadku disku.</div>
-          <div class="horizon-item"><b>Šifrování disku (LUKS)</b>ochrana dat, pokud se fyzický disk nebo server dostane do nepovolaných rukou.</div>
-          <div class="horizon-item"><b>Automatizovaná instalace</b>Kickstart/preseed nebo Ansible dovolí nainstalovat desítky serverů stejně a bez klikání.</div>
-        </div>
-      </div>
+      <h3>Architektura X Window Systému — kdo je server a kdo klient</h3>
+      <p class="lede" style="margin-bottom:.9rem;">V X Window Systému je vztah server–klient obrácený, než by čekal. X server běží přímo na počítači uživatele a obsluhuje hardware. Aplikace (terminál, editor, prohlížeč souborů) jsou jeho <b>klienti</b> — posílají mu požadavky na vykreslení oken a odebírají od něj události z klávesnice a myši. Protokol je navíc síťově transparentní: klient může běžet i na jiném počítači v síti a stále kreslit do X serveru na vaší obrazovce.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 760 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg1title svg1desc">
+          <title id="svg1title">Klient-server architektura X Window System</title>
+          <desc id="svg1desc">Aplikace nahoře (X klienti) a hardware dole se přes X11 protokol propojují s X serverem uprostřed, který kreslí okna a čte vstup z klávesnice a myši.</desc>
+
+          <rect x="30" y="10" width="210" height="60" rx="12" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2"/>
+          <text x="135" y="36" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Terminál</text>
+          <text x="135" y="54" text-anchor="middle" font-size="11" fill="#54666F">X klient</text>
+
+          <rect x="270" y="10" width="220" height="60" rx="12" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2"/>
+          <text x="380" y="36" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Textový editor</text>
+          <text x="380" y="54" text-anchor="middle" font-size="11" fill="#54666F">X klient</text>
+
+          <rect x="520" y="10" width="210" height="60" rx="12" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2"/>
+          <text x="625" y="36" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Prohlížeč souborů</text>
+          <text x="625" y="54" text-anchor="middle" font-size="11" fill="#54666F">X klient</text>
+
+          <path d="M135 70 L135 120 M380 70 L380 120 M625 70 L625 120" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M135 120 L625 120" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M380 120 L380 150" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M373 142 L380 150 L387 142" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="380" y="106" text-anchor="middle" font-size="11" fill="#71801A">X11 protokol · aplikace jsou „klienti“</text>
+          <circle class="flow-dot down" cx="380" cy="122" r="4.5" fill="#DBF02A"/>
+
+          <rect x="280" y="150" width="200" height="80" rx="16" fill="#EAF0F3" stroke="#47657D" stroke-width="2.2"/>
+          <text x="380" y="182" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">X server</text>
+          <text x="380" y="202" text-anchor="middle" font-size="11" fill="#54666F">kreslí okna, čte klávesnici a myš</text>
+
+          <path d="M380 230 L380 280" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M373 272 L380 280 L387 272" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M135 280 L625 280" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M135 280 L135 330 M380 280 L380 330 M625 280 L625 330" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <text x="380" y="266" text-anchor="middle" font-size="11" fill="#54666F">vstup / obraz · hardware</text>
+          <circle class="flow-dot" cx="380" cy="252" r="4.5" fill="#47657D"/>
+
+          <rect x="30" y="330" width="210" height="60" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="135" y="356" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Klávesnice</text>
+          <text x="135" y="374" text-anchor="middle" font-size="11" fill="#54666F">hardware</text>
+
+          <rect x="270" y="330" width="220" height="60" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="380" y="356" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Myš</text>
+          <text x="380" y="374" text-anchor="middle" font-size="11" fill="#54666F">hardware</text>
+
+          <rect x="520" y="330" width="210" height="60" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="625" y="356" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Monitor</text>
+          <text x="625" y="374" text-anchor="middle" font-size="11" fill="#54666F">obraz</text>
+        </svg>
+        <figcaption>Obr. 2 — X server obsluhuje hardware a kreslí okna, aplikace jsou jeho klienti. Tečky animují tok požadavků a vstupu.</figcaption>
+      </figure>
+
+      <h3>IceWM vs. XFCE4 — dva přístupy k pracovní ploše</h3>
+      <p class="lede" style="margin-bottom:.9rem;"><b>icewm</b> je minimalistický window manager — jeho autoři cílí na rychlost, jednoduchost a to, aby uživateli „nepřekážel v cestě". Nabízí jen okna, lištu úkolů a přepínání pomocí klávesnice. <b>XFCE4</b> je naproti tomu plnohodnotný desktop environment — má vlastní správce souborů, panel, nastavení vzhledu i správce session — a přitom zůstává výrazně odlehčenější než GNOME nebo KDE Plasma.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 700 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg3title svg3desc">
+          <title id="svg3title">Orientační srovnání IceWM a XFCE4</title>
+          <desc id="svg3desc">IceWM má nižší nároky na zdroje a nabízí minimum nástrojů, XFCE4 potřebuje víc paměti, ale nabízí kompletnější výbavu.</desc>
+
+          <text x="20" y="50" font-size="13" font-weight="700" fill="#1E2E38">Nároky na zdroje (paměť, procesor)</text>
+          <text x="20" y="79" font-size="11" fill="#54666F">IceWM</text>
+          <rect x="200" y="68" width="460" height="14" rx="7" fill="#E6EEF1"/>
+          <rect x="200" y="68" width="92" height="14" rx="7" fill="#47657D"/>
+          <text x="20" y="99" font-size="11" fill="#54666F">XFCE4</text>
+          <rect x="200" y="88" width="460" height="14" rx="7" fill="#E6EEF1"/>
+          <rect x="200" y="88" width="230" height="14" rx="7" fill="#71801A"/>
+
+          <text x="20" y="128" font-size="13" font-weight="700" fill="#1E2E38">Výbava — počet vestavěných nástrojů</text>
+          <text x="20" y="157" font-size="11" fill="#54666F">IceWM</text>
+          <rect x="200" y="146" width="460" height="14" rx="7" fill="#E6EEF1"/>
+          <rect x="200" y="146" width="69" height="14" rx="7" fill="#47657D"/>
+          <text x="20" y="177" font-size="11" fill="#54666F">XFCE4</text>
+          <rect x="200" y="166" width="460" height="14" rx="7" fill="#E6EEF1"/>
+          <rect x="200" y="166" width="299" height="14" rx="7" fill="#71801A"/>
+
+          <text x="20" y="200" font-size="10.5" fill="#8698A1">Orientační srovnání pro výukové účely — přesné hodnoty závisí na konfiguraci a použitých pluginech.</text>
+        </svg>
+        <figcaption>Obr. 3 — IceWM cílí na minimum, XFCE4 na rovnováhu mezi výbavou a nároky.</figcaption>
+      </figure>
 
       <div id="resources"></div>
 
@@ -429,7 +461,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     <section id="reseni">
       <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
       <h2>Návrh a realizace řešení</h2>
-      <p class="lede">Čtyři fáze: příprava VM ve VMware → instalace Debianu → ověření přípojných bodů → instalace Guest Additions. Síťová konfigurace (IP adresa) se v této kapitole ještě nenastavuje — přijde až v kapitole 1.3.</p>
+      <p class="lede">Tři fáze na 2 vyučovací hodiny: X server → dva display manažéry → dva desktop environmenty. Vše se instaluje a testuje na <b>Serveru</b> z kapitoly 2 — klient zůstává i nadále bez grafického rozhraní, ovládaný jen přes terminál.</p>
       <div id="act-phases"></div>
       <div class="progress-row">
         <div class="progress-track"><span id="act-bar"></span></div>
@@ -454,28 +486,28 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
         <div class="rubric-card">
           <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
           <ul class="level-list">
-            <li><b>Začínající</b> — nerozumí, proč se disk dělí na víc oddílů.</li>
-            <li><b>Rozvíjející se</b> — zná pár mount pointů, ale neumí zdůvodnit volbu pro konkrétní typ serveru.</li>
-            <li><b>Očekávaná úroveň</b> — jasně rozumí FHS a umí vybrat vhodné rozdělení disku podle účelu počítače.</li>
-            <li><b>Nad rámec</b> — diskutuje i pokročilá témata: LVM, RAID, šifrování disku.</li>
+            <li><b>Začínající</b> — neumí popsat, co dělá X server.</li>
+            <li><b>Rozvíjející se</b> — zná pojmy X server / display manager / desktop environment, ale plete si jejich role.</li>
+            <li><b>Očekávaná úroveň</b> — jasně vysvětlí vztah X server → display manager → window manager/desktop environment a rozdíl mezi icewm a XFCE4.</li>
+            <li><b>Nad rámec</b> — vysvětlí klient-server model X Window Systému a síťovou transparentnost X11 protokolu.</li>
           </ul>
         </div>
         <div class="rubric-card">
           <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
           <ul class="level-list">
-            <li><b>Začínající</b> — instalace selhala nebo je nekompletní.</li>
-            <li><b>Rozvíjející se</b> — server funguje, ale s chybami (síť, oddíly, uživatel).</li>
-            <li><b>Očekávaná úroveň</b> — server správně nainstalován přesně podle zadání, přípojné body vypsané a doložené screenshotem, Guest Additions funkční.</li>
-            <li><b>Nad rámec</b> — navíc zdokumentováno a připraveno k rozšíření o další služby.</li>
+            <li><b>Začínající</b> — X server nefunguje nebo instalace selhala.</li>
+            <li><b>Rozvíjející se</b> — X server funguje, ale přepínání display manažérů nebo desktopů není spolehlivé.</li>
+            <li><b>Očekávaná úroveň</b> — X server, oba display manažéry i oba desktop environmenty fungují a lze mezi nimi spolehlivě přepínat, doloženo screenshoty.</li>
+            <li><b>Nad rámec</b> — navíc vyzkoušen další display manager nebo desktop environment nad rámec zadání.</li>
           </ul>
         </div>
         <div class="rubric-card">
           <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
           <ul class="level-list">
-            <li><b>Začínající</b> — neví, jak bude server dál rozšiřovat.</li>
-            <li><b>Rozvíjející se</b> — vidí spojitost s dalšími kapitolami jen obecně.</li>
-            <li><b>Očekávaná úroveň</b> — umí říct, co konkrétně přibude v 1.3 (síť), 1.5 (DNS) apod.</li>
-            <li><b>Nad rámec</b> — kriticky zhodnotí, jestli zvolené rozdělení disku vydrží i po přidání služeb.</li>
+            <li><b>Začínající</b> — neví, k čemu je grafické rozhraní na serveru dobré.</li>
+            <li><b>Rozvíjející se</b> — obecně tuší rozdíl mezi serverem a pracovní stanicí.</li>
+            <li><b>Očekávaná úroveň</b> — umí zdůvodnit, kdy dává smysl lehké prostředí (icewm) a kdy plnější (XFCE4).</li>
+            <li><b>Nad rámec</b> — kriticky zhodnotí bezpečnostní a výkonové dopady instalace GUI na server.</li>
           </ul>
         </div>
         <div class="rubric-card">
@@ -484,23 +516,24 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
             <li><b>Začínající</b> — závislý na pomoci u každého kroku.</li>
             <li><b>Rozvíjející se</b> — poradí si se základní instalací, u chyb potřebuje pomoc.</li>
             <li><b>Očekávaná úroveň</b> — pracuje samostatně, chyby si dohledá v dokumentaci.</li>
-            <li><b>Nad rámec</b> — experimentuje (jiné rozdělení, jiné parametry VM), pomáhá spolužákům.</li>
+            <li><b>Nad rámec</b> — experimentuje (další display manager/desktop), pomáhá spolužákům.</li>
           </ul>
         </div>
       </div>
 
       <h3>Sebehodnocení před odevzdáním</h3>
-      <p class="lede" style="margin-bottom:.8rem;">Než server odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
       <ul class="checklist" id="eval-checklist">
-        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit, proč se disk dělí na víc oddílů místo jednoho velkého.</label></li>
-        <li><input type="checkbox" id="ev-2"><label for="ev-2">Disk je ručně rozdělený přesně podle zadání: / (EXT4, 7 GB) + swap (cca 1,6 GB).</label></li>
-        <li><input type="checkbox" id="ev-3"><label for="ev-3">Přihlásil/a jsem se pod uživatelem s plnými oprávněními a příkazem jsem vypsal/a přípojné body.</label></li>
-        <li><input type="checkbox" id="ev-4"><label for="ev-4">Mám pořízený a uložený screenshot jako důkaz splnění úkolu.</label></li>
-        <li><input type="checkbox" id="ev-5"><label for="ev-5">Guest Additions jsou nainstalované a funkční (rozlišení, schránka, případně sdílená složka).</label></li>
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit rozdíl mezi X serverem, display managerem a desktop environmentem.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">X server je nainstalovaný a funkční — ověřil/a jsem to testovací aplikací (např. <code>xeyes</code>).</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Mám nainstalované a funkční oba display manažéry (xdm, lightdm) a umím mezi nimi přepnout.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Mám nainstalované oba desktop environmenty (icewm, XFCE4) a umím mezi nimi přepnout při přihlášení.</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Mám pořízené screenshoty jako důkaz splnění úkolu.</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Vím, že klient zůstává bez GUI, a umím vysvětlit proč.</label></li>
       </ul>
       <div class="progress-row">
         <div class="progress-track"><span id="eval-bar"></span></div>
-        <div class="progress-label" id="eval-label">0 / 5 zvládnuto</div>
+        <div class="progress-label" id="eval-label">0 / 6 zvládnuto</div>
       </div>
     </section>
 
@@ -510,14 +543,14 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
       <h2>Reflexe a sdílení</h2>
       <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
       <div class="reflect-grid" id="reflect-grid"></div>
-      <div class="share-note">📎 Screenshot s výpisem přípojných bodů a zdůvodnění zvoleného rozdělení disku ukládejte do sdílené složky týmu.</div>
+      <div class="share-note">📎 Screenshoty obou přihlašovacích obrazovek, obou pracovních ploch a krátké srovnání icewm vs. XFCE4 ukládejte do sdílené složky týmu.</div>
     </section>
 
     <!-- SOURCES -->
     <section id="zdroje">
       <span class="eyebrow">Ověřené zdroje</span>
       <h2>Zdroje</h2>
-      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky (kap. 7) — oficiální dokumentace Debianu, standard FHS, dokumentace VirtualBoxu a materiály školy.</p>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky (kap. 7) — oficiální dokumentace Debianu, projektů IceWM a Xfce a materiály školy.</p>
       <div style="overflow-x:auto;">
         <table class="src-table">
           <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
@@ -527,7 +560,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     </section>
 
     <footer class="pagefoot">
-      <span>Edu-Linux · Kapitola 1.2 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span>Edu-Linux · Kapitola 3 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
       <span id="foot-num"></span>
     </footer>
   </div>
@@ -537,61 +570,69 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
 (function(){
 
 /* ==========================================================================
-   OBSAH KAPITOLY 1.2 — Instalace a konfigurace OS
+   OBSAH KAPITOLY 3 — X server, display manažéry a desktopy
    ========================================================================== */
 
   var TOPIC = {
-    num: "1.2",
-    title: "Instalace a konfigurace OS",
-    hours: "8 h",
+    num: "3",
+    title: "X server, display manažéry a desktopy",
+    hours: "2 h",
     ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
   };
 
   var ENGAGE = {
-    bigIdea: "Prvním krokem k funkčnímu serveru je jeho virtuální zřízení a promyšlená konfigurace základního operačního systému — včetně rozdělení disku, které se později těžko mění.",
-    eq: "Jak nainstalovat a nakonfigurovat OS tak, aby v dalších kapitolách spolehlivě poskytoval služby (síť, DNS, DHCP, web…)?",
-    challenge: "Ve VMware vytvořte virtuální server, nainstalujte Debian s ručním rozdělením disku (7 GB EXT4 pro / + cca 1,6 GB swap) a doinstalujte VirtualBox Guest Additions. Počítač pojmenujte <b>Server</b> a zařaďte do domény <b>vyuka.cz</b> — síťová konfigurace (IP adresa) přijde až v kapitole 1.3. Tento server se stane základem pro všechny následující kapitoly."
+    bigIdea: "Grafické rozhraní Linuxu není jeden program, ale několik nezávislých vrstev nad sebou — X server obsluhuje hardware, display manager řeší přihlášení a window manager/desktop environment dává uživateli pracovní plochu. Každou vrstvu lze vyměnit samostatně.",
+    eq: "Z čeho se skládá grafické rozhraní Linuxu a proč můžeme mít na jednom serveru nainstalováno víc přihlašovacích obrazovek i víc pracovních ploch najednou?",
+    challenge: "Na svém <b>Serveru</b> z kapitoly 2 nainstalujte X server a ověřte jeho funkčnost, poté nainstalujte dva display manažéry (<b>xdm</b> a <b>lightdm</b>) a naučte se mezi nimi přepínat, a nakonec dva desktop environmenty (<b>icewm</b> a <b>XFCE4</b>), mezi kterými budete umět přepínat při přihlášení. Klient zůstává i nadále bez grafického rozhraní — obsluhujete ho jen přes terminál."
   };
 
   var INVESTIGATE = {
     guidingQuestions: [
-      "Jaké jsou různé druhy instalace Debianu (minimální, desktopová, serverová) a kdy se která hodí?",
-      "Co je Linux Filesystem Hierarchy Standard (FHS) a proč se disk při instalaci rozděluje na víc oddílů místo jednoho velkého?",
-      "Které připojovací body (mount points) jsou na serveru klíčové a co se do nich ukládá?",
-      "Jak probíhá instalátor Debianu krok za krokem a co se v něm volí?",
-      "K čemu slouží VirtualBox Guest Additions a proč se instalují až po dokončené instalaci OS?"
+      "Co je X Window System a proč se v jeho architektuře aplikace nazývají „klienti“, přestože běží na stejném počítači jako uživatel?",
+      "K čemu slouží display manager a co dělá mezi zapnutím počítače a zobrazením přihlašovací obrazovky?",
+      "Jaký je rozdíl mezi window managerem (icewm) a plnohodnotným desktop environmentem (XFCE4)?",
+      "Jak Debian pozná, který z více nainstalovaných display manažérů se má spustit po startu?",
+      "Proč dává smysl mít na serveru nainstalované grafické rozhraní, i když se běžně ovládá přes terminál?"
     ],
     resources: [
       {
-        title: "Debian Administrator's Handbook — Installation",
+        title: "Debian Administrator's Handbook — Configuring the X11 Server (13.1)",
         tag: "official",
         items: [
-          "Detailní popis instalačního procesu, jednotlivých voleb a ručního partitionování.",
-          "<a href='https://debian-handbook.info/browse/stable/installation-steps.html' target='_blank' rel='noopener'>debian-handbook.info/browse/stable/installation-steps.html</a>"
+          "Instalace balíčků <code>xserver-xorg-core</code> a <code>xserver-xorg</code>, automatická detekce hardwaru, umístění logů.",
+          "<a href='https://debian-handbook.info/browse/stable/workstation.html' target='_blank' rel='noopener'>debian-handbook.info/browse/stable/workstation.html</a>"
         ]
       },
       {
-        title: "Debian Installation Guide",
+        title: "Debian Administrator's Handbook — Customizing the Graphical Interface (13.2)",
         tag: "official",
         items: [
-          "Oficiální instalační průvodce Debian projektu pro aktuální stabilní verzi.",
-          "<a href='https://www.debian.org/releases/stable/installmanual' target='_blank' rel='noopener'>debian.org/releases/stable/installmanual</a>"
+          "Přehled display manažérů (xdm, gdm3, lightdm, sddm) a virtuálního balíčku <code>x-display-manager</code>.",
+          "<a href='https://debian-handbook.info/browse/stable/sect.customizing-graphical-interface.html' target='_blank' rel='noopener'>debian-handbook.info/browse/stable/sect.customizing-graphical-interface.html</a>"
         ]
       },
       {
-        title: "Filesystem Hierarchy Standard 3.0",
+        title: "Debian Administrator's Handbook — Graphical Desktops (13.3)",
         tag: "official",
         items: [
-          "Standard adresářové struktury Linuxu — definuje význam /var, /srv, /home, /boot a dalších.",
-          "<a href='https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html' target='_blank' rel='noopener'>refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html</a>"
+          "Xfce jako lehké prostředí, LXDE/LXQt jako ještě jednodušší alternativy, srovnání s GNOME/KDE.",
+          "<a href='https://debian-handbook.info/browse/stable/sect.graphical-desktops.html' target='_blank' rel='noopener'>debian-handbook.info/browse/stable/sect.graphical-desktops.html</a>"
         ]
       },
       {
-        title: "VirtualBox User Manual — Guest Additions",
+        title: "IceWM — oficiální stránky projektu",
         tag: "official",
         items: [
-          "Oficiální kapitola manuálu k instalaci a funkcím Guest Additions na Linux hostech.",
-          "<a href='https://www.virtualbox.org/manual/ch04.html' target='_blank' rel='noopener'>virtualbox.org/manual/ch04.html</a>"
+          "Cíl projektu: „speed, simplicity, and not getting in the user's way“ — rychlost, jednoduchost, nenápadnost.",
+          "<a href='https://ice-wm.org/' target='_blank' rel='noopener'>ice-wm.org</a>"
+        ]
+      },
+      {
+        title: "Xfce Documentation — oficiální dokumentace projektu",
+        tag: "official",
+        items: [
+          "Uživatelská dokumentace k aktuální stabilní verzi Xfce desktop environmentu.",
+          "<a href='https://docs.xfce.org/' target='_blank' rel='noopener'>docs.xfce.org</a>"
         ]
       },
       {
@@ -607,98 +648,82 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
 
   var QUIZ = [
     {
-      q: "Která varianta instalace Debianu je nejvhodnější pro server bez grafického rozhraní?",
-      opts: ["Desktopová instalace (GNOME)", "Minimální instalace — jen standardní systémové nástroje", "Live systém spouštěný z USB", "Instalace přes grafický App Store"],
+      q: "Ve zdánlivě obráceném vztahu X Window Systému běží X server na počítači uživatele. Co přesně dělá?",
+      opts: ["Ukládá a zálohuje soubory uživatelů", "Obsluhuje grafický hardware (obrazovku, klávesnici, myš) a kreslí okna podle požadavků aplikací", "Přiděluje uživatelům IP adresy v síti", "Kompiluje zdrojový kód aplikací"],
       correct: 1,
-      explain: "Minimální instalace šetří prostor i útočnou plochu — na serveru bez grafického rozhraní nemá desktopové prostředí smysl."
+      explain: "X server spravuje grafický výstup a vstupní zařízení. Aplikace (např. terminál nebo textový editor) mu posílají požadavky na vykreslení — proto jsou to jeho „klienti“, přestože běží na tomtéž počítači."
     },
     {
-      q: "K čemu především slouží oddíl /var na serveru?",
-      opts: ["Domovské adresáře uživatelů", "Logy, cache a databáze — data, která se mění za provozu", "Zdrojový kód jádra systému", "Zaváděcí soubory GRUBu"],
+      q: "K čemu slouží display manager, například xdm nebo lightdm?",
+      opts: ["Spravuje diskové oddíly a souborové systémy", "Zobrazuje přihlašovací obrazovku, po ověření uživatele spustí zvolenou pracovní plochu", "Je to firewall chránící server před útoky ze sítě", "Překládá doménová jména na IP adresy"],
       correct: 1,
-      explain: "/var obsahuje proměnná data (logy, cache, databáze). Když se zaplní, oddělený oddíl ochrání zbytek systému před výpadkem."
+      explain: "Display manager je vrstva mezi X serverem a pracovní plochou — zobrazí přihlašovací dialog, ověří uživatele a podle jeho volby spustí zvolený window manager nebo desktop environment."
     },
     {
-      q: "Jaký zavaděč Debian standardně používá?",
-      opts: ["LILO", "GRUB", "Windows Boot Manager", "systemd-boot"],
+      q: "Čím se icewm zásadně liší od XFCE4?",
+      opts: ["icewm je jen textový editor, XFCE4 je window manager", "icewm je minimalistický window manager s důrazem na rychlost, XFCE4 je kompletní desktop environment se správcem souborů, panelem a nastavením", "Oba dva jsou totéž, liší se jen jménem", "icewm běží jen na klientovi, XFCE4 jen na serveru"],
       correct: 1,
-      explain: "GRUB2 je výchozí zavaděč Debianu s podporou multibootu; LILO je zastaralý a dnes se nepoužívá."
+      explain: "icewm cílí na minimalismus a nízké nároky — poskytuje jen okna a lištu úkolů. XFCE4 je plnohodnotné, i když stále odlehčené prostředí s vlastním správcem souborů, panelem a nastavením."
     }
   ];
 
   var ACT = [
     {
-      num: 1, en: "VM Preparation", title: "Příprava virtuálního stroje",
-      body: "<p>Stáhněte poslední verzi OS Debian pro 64bitovou architekturu a ve VMware vytvořte nový virtuální počítač.</p>",
+      num: 1, en: "X Server Setup", title: "Instalace a test X serveru",
+      body: "<p>⏱ orientačně 25 min. Na serveru aktualizujte systém a nainstalujte X server. Protože server od instalace v kapitole 2 nemá grafické rozhraní, ověřte funkčnost pomocí jednoduché testovací aplikace spuštěné příkazem <code>startx</code>.</p>",
       checklist: [
-        "Stažena poslední verze OS Debian pro 64bitovou architekturu",
-        "Ve VMware vytvořen nový virtuální počítač v umístění <code>D:\\%USERNAME%\\Server</code>",
-        "Zvolena správná architektura (64bitová)",
-        "Přidělena operační paměť 1024 MB",
-        "Vytvořen nový dynamický disk VDI o velikosti 8 GB",
-        "Stažený instalační obraz vložen do virtuální CD mechaniky virtuálního počítače"
-      ]
-    },
-    {
-      num: 2, en: "Debian Installation", title: "Instalace Debianu",
-      body: "<p>Spusťte instalaci Debianu na virtuální stanici. Pro opuštění focusu z okna virtuální stanice používejte <code>Ctrl+Alt</code>.</p>",
-      checklist: [
-        "Spuštěna instalace Debianu na virtuální stanici",
-        "Počítač pojmenován <code>Server</code>",
-        "Nastavena doména <code>vyuka.cz</code>",
-        "Zvoleno heslo pro uživatele root",
-        "Vytvořen uživatel s vlastním jménem",
-        "Ručně rozdělen disk — 1. primární oddíl připojen ke kořeni <code>/</code>, souborový systém EXT4, velikost 7 GB",
-        "Ručně rozdělen disk — 2. primární oddíl jako odkládací prostor (swap) o zbylé velikosti cca 1,6 GB",
-        "Při výběru programů zvolena pouze instalace standardních systémových nástrojů, ostatní volby zrušeny",
-        "Povolena instalace zavaděče GRUB"
-      ]
-    },
-    {
-      num: 3, en: "Post-Install Verification", title: "Ověření po instalaci",
-      body: "<p>Restartujte virtuální PC a přihlaste se poprvé do nového stroje pod uživatelem, který má všechna oprávnění. V bashi zjistěte přípojné body a výsledek doložte screenshotem.</p>",
-      checklist: [
-        "Proveden restart virtuálního PC",
-        "Provedeno první přihlášení pod uživatelem, který má všechna oprávnění",
-        "Příkazem v bashi vypsány přípojné body — seznam všech automaticky připojovaných diskových oddílů a místo jejich připojení do souborového systému (např. <code>df -h</code> nebo <code>mount</code>)",
-        "Pořízen snímek obrazovky (screenshot) jako důkaz splnění úkolu",
-        "Screenshot odevzdán ke kontrole splnění úkolu"
-      ]
-    },
-    {
-      num: 4, en: "VirtualBox Guest Additions", title: "Instalace VirtualBox Guest Additions",
-      body: "<p><b>Cíl:</b> Naučit se nainstalovat a otestovat VirtualBox Guest Additions v čisté instalaci Debianu.</p>",
-      checklist: [
-        "1. Aktualizován systém Debian",
-        "2. Nainstalovány potřebné balíčky pro kompilaci kernel modulů: <code>build-essential</code>, <code>dkms</code>, <code>linux-headers</code>",
-        "3. Připojeno ISO s Guest Additions přes menu VirtualBoxu",
-        "4. Zkontrolováno, zda se CD připojilo (v adresáři <code>/media/cdrom</code> nebo <code>/mnt</code>)",
-        "5. Spuštěn instalační skript <code>VBoxLinuxAdditions.run</code>",
-        "6. Restartován systém",
-        "7. Ověřeno, že se načetly moduly <code>vboxguest</code>, <code>vboxsf</code>, <code>vboxvideo</code>",
-        "8a. Ověřena funkce Guest Additions — automatická změna rozlišení obrazovky",
-        "8b. Ověřena funkce Guest Additions — sdílená schránka (copy-paste mezi hostem a hostitelem)",
-        "8c. Ověřena funkce Guest Additions — sdílené složky (pokud nastaveny ve VirtualBoxu)"
+        "Aktualizován seznam balíčků a systém (<code>apt update && apt upgrade</code>)",
+        "Nainstalován balíček <code>xserver-xorg</code> (X server a ovladač grafické karty)",
+        "Nainstalován balíček <code>xinit</code> (nástroje pro ruční spuštění X serveru)",
+        "Nainstalována sada testovacích aplikací <code>x11-apps</code> (obsahuje např. <code>xeyes</code>, <code>xclock</code>)",
+        "X server spuštěn příkazem <code>startx</code> a ověřen chod testovací aplikace <code>xeyes</code>",
+        "Zkontrolován log <code>/var/log/Xorg.0.log</code> (nebo <code>~/.local/share/xorg/Xorg.0.log</code>), případné chyby zapsány do poznámek"
       ],
-      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># shrnutí příkazů pro instalaci Guest Additions</span>\nsudo apt update &amp;&amp; sudo apt upgrade -y\nsudo apt install -y build-essential dkms linux-headers-$(uname -r)\n<span class=\"c\"># menu VirtualBoxu: Zařízení → Vložit obraz Guest Additions CD</span>\nsudo /media/cdrom/VBoxLinuxAdditions.run\nsudo reboot\nlsmod | grep vbox</code></pre>"
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># instalace a test X serveru</span>\nsudo apt update && sudo apt upgrade -y\nsudo apt install -y xserver-xorg xinit x11-apps\nstartx\n<span class=\"c\"># v otevřeném X prostředí:</span>\nxeyes</code></pre>"
+    },
+    {
+      num: 2, en: "Display Managers", title: "Display manažéry — xdm a lightdm",
+      body: "<p>⏱ orientačně 40 min. Display manager nahrazuje ruční spouštění X serveru přihlašovací obrazovkou. Nainstalujte oba display manažéry a naučte se mezi nimi přepínat pomocí <code>dpkg-reconfigure</code>.</p>",
+      checklist: [
+        "Nainstalován balíček <code>xdm</code>",
+        "Po instalaci ověřeno zobrazení přihlašovací obrazovky xdm (přihlášení a odhlášení)",
+        "Nainstalován balíček <code>lightdm</code>",
+        "Příkazem <code>sudo dpkg-reconfigure lightdm</code> (nebo <code>xdm</code>) zobrazen výběr výchozího display manageru",
+        "Zkontrolován obsah souboru <code>/etc/X11/default-display-manager</code> před a po přepnutí",
+        "Systém restartován a ověřen rozdíl mezi přihlašovací obrazovkou xdm a lightdm"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># instalace obou display manažérů</span>\nsudo apt install -y xdm\nsudo apt install -y lightdm\n<span class=\"c\"># přepnutí výchozího display manageru</span>\nsudo dpkg-reconfigure lightdm\ncat /etc/X11/default-display-manager\nsudo reboot</code></pre>"
+    },
+    {
+      num: 3, en: "Desktop Environments", title: "Desktop environmenty — icewm a XFCE4",
+      body: "<p>⏱ orientačně 45 min. Nainstalujte dva desktop environmenty s velmi odlišnou filozofií — minimalistický icewm a kompletnější XFCE4. Při přihlášení pomocí display manageru zvolte v nabídce session, kterou z ploch chcete spustit.</p>",
+      checklist: [
+        "Nainstalován balíček <code>icewm</code>",
+        "Nainstalován balíček <code>xfce4</code>",
+        "Při přihlášení do display manageru vybrána v nabídce session <b>IceWM</b> a ověřen vzhled a ovládání (lišta úkolů, přepínání oken)",
+        "Provedeno odhlášení a opětovné přihlášení se session <b>Xfce Session</b>",
+        "Porovnány obě prostředí — rychlost startu, počet dostupných nástrojů, náročnost na ovládání — a závěr zapsán do poznámek",
+        "Ověřeno, že klient (z kapitoly 2) zůstává bez grafického rozhraní — přístupný jen přes terminál/SSH"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># instalace obou desktop environmentů</span>\nsudo apt install -y icewm\nsudo apt install -y xfce4</code></pre>"
     }
   ];
 
-  var ARTIFACT_TEXT = "Nainstalovaný Debian server (hostname Server, doména vyuka.cz) s ručně rozděleným diskem (7 GB EXT4 pro / + cca 1,6 GB swap) a funkčními Guest Additions. Odevzdejte screenshot s výpisem přípojných bodů (df -h / mount) a zdůvodnění zvoleného rozdělení disku.";
+  var ARTIFACT_TEXT = "Server s funkčním X serverem, dvěma nainstalovanými a otestovanými display manažéry (xdm, lightdm), mezi kterými umíte přepnout příkazem dpkg-reconfigure, a dvěma desktop environmenty (icewm, XFCE4) dostupnými k výběru v přihlašovací obrazovce. Odevzdejte: screenshot obou přihlašovacích obrazovek, screenshot obou pracovních ploch po přihlášení a krátké srovnání icewm vs. XFCE4 (50–100 slov).";
 
   var REFLECT = [
-    "Co bylo při instalaci nejtěžší a jak jste to vyřešili?",
-    "Jak souvisí rozdělení disku, které jste dnes zvolili, s rolí, kterou bude server plnit v dalších kapitolách?",
-    "Jaké otázky vám zůstávají před kapitolou 1.3 (konfigurace síťového rozhraní)?"
+    "Co vás překvapilo na tom, že grafické rozhraní Linuxu je poskládané z několika nezávislých, vzájemně zaměnitelných vrstev?",
+    "Kdy byste v praxi zvolili minimalistický icewm a kdy plnější XFCE4?",
+    "Proč dává smysl, že klient v naší úloze zůstává bez grafického rozhraní, zatímco server ho má?"
   ];
 
   var SOURCES = [
-    {title:"Debian Administrator's Handbook — Installation", url:"https://debian-handbook.info/browse/stable/installation-steps.html", tag:"official", note:"Detailní průvodce instalací a ručním partitionováním."},
-    {title:"Debian Installation Guide", url:"https://www.debian.org/releases/stable/installmanual", tag:"official", note:"Oficiální instalační průvodce Debian projektu."},
-    {title:"Filesystem Hierarchy Standard 3.0", url:"https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html", tag:"official", note:"Standard adresářové struktury a mount pointů."},
-    {title:"VirtualBox User Manual — Guest Additions", url:"https://www.virtualbox.org/manual/ch04.html", tag:"official", note:"Instalace a funkce Guest Additions na Linux hostech."},
-    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."},
-    {title:"Metodika CBL — Serverové služby", url:"../Metodika_CBL_Serverove_sluzby.docx", tag:"doc", note:"Pedagogický rámec Challenge-Based Learning, ze kterého kapitola vychází."}
+    {title:"Debian Administrator's Handbook — Configuring the X11 Server", url:"https://debian-handbook.info/browse/stable/workstation.html", tag:"official", note:"Instalace a automatická detekce hardwaru pro X server."},
+    {title:"Debian Administrator's Handbook — Customizing the Graphical Interface", url:"https://debian-handbook.info/browse/stable/sect.customizing-graphical-interface.html", tag:"official", note:"Přehled display manažérů a virtuálního balíčku x-display-manager."},
+    {title:"Debian Administrator's Handbook — Graphical Desktops", url:"https://debian-handbook.info/browse/stable/sect.graphical-desktops.html", tag:"official", note:"Xfce a další lehká prostředí ve srovnání s GNOME/KDE."},
+    {title:"IceWM — oficiální stránky projektu", url:"https://ice-wm.org/", tag:"official", note:"Filozofie a charakteristika minimalistického window manageru."},
+    {title:"Xfce Documentation", url:"https://docs.xfce.org/", tag:"official", note:"Oficiální uživatelská dokumentace Xfce desktop environmentu."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
   ];
 
 /* ==========================================================================
@@ -804,6 +829,13 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     updateQuizProgress();
   });
 
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
   // ACT phases
   var actEl = document.getElementById("act-phases");
   ACT.forEach(function(phase){
@@ -815,7 +847,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     }).join("");
     div.innerHTML =
       '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
-      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+(phase.extra||'')+'</div>';
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
     actEl.appendChild(div);
   });
 

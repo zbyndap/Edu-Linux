@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>4 Správa procesů v operačních systémech · Operační systém Linux</title>
+<meta name="description" content="Stavový model procesu, vlastnosti procesu, příkazy top/ps/bg/fg/nice/renice/kill/killall/pkill/pgrep/pstree a démon systemd (služby, targety) na Debian serveru. Kapitola 4, 4 vyučovací hodiny.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 4 — Správa procesů v operačních systémech — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf). Oproti šabloně navíc
+   obsahuje statický obsah (3 SVG diagramy, referenční tabulka příkazů, sekce
+   Hodnocení) — stejný vzor rozšíření jako kapitoly 02 a 03.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Správa procesů v operačních systémech</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Tato kapitola je stavební kámen celoroční výzvy <b>Škola X</b> — server dnes získá nástroje pro dohled nad běžícími procesy a spolehlivé řízení služeb, na kterých budou stavět všechny další kapitoly.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>Procesy a démon systemd</h2>
+      <p class="lede">Než začnete procesy řídit, projděte si, jakými stavy proces v systému prochází, jaké má vlastnosti a jak jeho spouštění a běh na pozadí řídí démon systemd.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <h3>Stavový model procesu</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Proces není totéž co program — program je nespuštěný soubor na disku, proces je jeho běžící instance se svým stavem, pamětí a identifikátorem. Během svého života prochází proces několika stavy, mezi kterými přepíná plánovač (scheduler) operačního systému.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 700 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg1title svg1desc">
+          <title id="svg1title">Stavový model procesu</title>
+          <desc id="svg1desc">Proces prochází stavy Nový, Připravený, Běžící, Čekající a Ukončený. Plánovač přepíná procesy mezi Připraveným a Běžícím stavem, běžící proces může čekat na I/O a vrátit se zpět do fronty připravených procesů.</desc>
+
+          <!-- Boxy (kresleny první, aby je nepřekryly popisky šipek) -->
+          <rect x="15" y="190" width="115" height="66" rx="14" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="72" y="214" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">Nový (New)</text>
+          <text x="72" y="230" text-anchor="middle" font-size="9.5" fill="#54666F">proces vytvořen</text>
+          <text x="72" y="243" text-anchor="middle" font-size="9" fill="#8698A1">(fork/exec)</text>
+
+          <rect x="170" y="190" width="130" height="66" rx="14" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="235" y="214" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">Připravený</text>
+          <text x="235" y="230" text-anchor="middle" font-size="9.5" fill="#54666F">čeká na přidělení CPU</text>
+          <text x="235" y="243" text-anchor="middle" font-size="9" fill="#8698A1">ps/top: R (runnable)</text>
+
+          <rect x="340" y="190" width="150" height="66" rx="14" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2.2"/>
+          <text x="415" y="214" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">Běžící (Running)</text>
+          <text x="415" y="230" text-anchor="middle" font-size="9.5" fill="#54666F">vykonává instrukce na CPU</text>
+          <text x="415" y="243" text-anchor="middle" font-size="9" fill="#71801A">ps/top: R (running)</text>
+
+          <rect x="530" y="190" width="150" height="66" rx="14" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="605" y="214" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">Ukončený</text>
+          <text x="605" y="230" text-anchor="middle" font-size="9.5" fill="#54666F">doběhl, čeká na rodiče</text>
+          <text x="605" y="243" text-anchor="middle" font-size="9" fill="#8698A1">ps/top: Z (zombie)</text>
+
+          <rect x="310" y="345" width="200" height="72" rx="14" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="410" y="370" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">Čekající (Waiting)</text>
+          <text x="410" y="386" text-anchor="middle" font-size="9.5" fill="#54666F">čeká na I/O nebo událost</text>
+          <text x="410" y="401" text-anchor="middle" font-size="9" fill="#8698A1">ps/top: S nebo D</text>
+
+          <!-- Šipky a popisky přechodů (kresleny nad boxy, aby nebyly zaříznuté) -->
+          <path d="M415 188 Q 325 122 240 188" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>
+          <path d="M248 180 L238 188 L250 194" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="325" y="112" text-anchor="middle" font-size="10" fill="#8698A1">časový výpadek (time slice) — plánovač vrátí proces do fronty</text>
+
+          <path d="M133 223 L163 223" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M155 216 L163 223 L155 230" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="148" y="277" text-anchor="middle" font-size="9.5" fill="#8698A1">naplánován</text>
+
+          <path d="M303 223 L333 223" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M325 216 L333 223 L325 230" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="318" y="277" text-anchor="middle" font-size="9.5" fill="#8698A1">scheduler</text>
+          <text x="318" y="289" text-anchor="middle" font-size="9.5" fill="#8698A1">vybral</text>
+
+          <path d="M493 223 L523 223" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M515 216 L523 223 L515 230" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="508" y="212" text-anchor="middle" font-size="9.5" fill="#8698A1">exit()</text>
+
+          <path d="M420 256 L412 345" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M403 336 L412 345 L421 336" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="432" y="300" font-size="9.5" fill="#8698A1">čeká na I/O</text>
+          <text x="432" y="313" font-size="9.5" fill="#8698A1">nebo událost</text>
+          <circle class="flow-dot down" cx="416" cy="290" r="4.5" fill="#47657D"/>
+
+          <path d="M310 377 Q 250 345 238 258" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>
+          <path d="M230 267 L238 258 L246 268" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="215" y="330" font-size="9.5" fill="#8698A1">I/O dokončeno</text>
+        </svg>
+        <figcaption>Obr. 1 — Stavový model procesu: Nový → Připravený → Běžící → Ukončený, s možnou odbočkou do Čekajícího stavu a návratem zpět. Popisky „ps/top“ ukazují, jak se který stav promítne do výpisu příkazů <code>ps</code> a <code>top</code>.</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p><b>Proč to Linux vidí jinak než učebnicový model:</b> příkazy <code>ps</code> a <code>top</code> nerozlišují Připravený a Běžící stav zvlášť — o výběr, který z připravených procesů poběží, se transparentně stará plánovač, a oba tyto stavy proto vidíte pod jedním písmenem <code>R</code> (running or runnable).</p>
+        <ul>
+          <li><b>S</b> — přerušitelné čekání (např. na klávesnici), <b>D</b> — nepřerušitelné čekání (obvykle na disk I/O).</li>
+          <li><b>T</b> — proces zastavený signálem pro řízení úloh (job control), např. po <code>Ctrl+Z</code>.</li>
+          <li><b>Z</b> — „zombie“: proces doběhl, ale rodič si zatím nevyzvedl jeho návratový kód; jakmile ho rodič převezme, zmizí z tabulky procesů úplně.</li>
+        </ul>
+      </div>
+
+      <h3>Vlastnosti procesu</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Každý proces v Linuxu má sadu vlastností, které si operační systém vede v jádrové struktuře a zpřístupňuje přes virtuální souborový systém <code>/proc</code>. Nejdůležitější z nich vidíte i ve výstupu <code>ps</code> nebo <code>top</code>.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg2title svg2desc">
+          <title id="svg2title">Vlastnosti procesu a vztah rodič–potomek</title>
+          <desc id="svg2desc">Proces sshd s PID 874 má rodičovský proces systemd s PID 1. Karta vpravo ukazuje typické vlastnosti procesu: PID, PPID, UID/GID, stav, prioritu a nice hodnotu, paměť a počet vláken.</desc>
+
+          <rect x="20" y="120" width="220" height="70" rx="14" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="130" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">systemd</text>
+          <text x="130" y="170" text-anchor="middle" font-size="10" fill="#54666F">PID 1 — rodičovský proces (init)</text>
+
+          <path d="M240 155 L296 155" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M288 148 L296 155 L288 162" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="268" y="144" text-anchor="middle" font-size="9.5" fill="#8698A1">PPID = 1</text>
+
+          <rect x="300" y="15" width="380" height="285" rx="16" fill="#FFFFFF" stroke="#47657D" stroke-width="2"/>
+          <text x="320" y="42" font-size="14" font-weight="700" fill="#1E2E38">Proces — příklad ze sshd</text>
+          <line x1="300" y1="55" x2="680" y2="55" stroke="#D7E3E8" stroke-width="1.5"/>
+
+          <text x="320" y="80" font-size="12" fill="#54666F">PID</text>
+          <text x="520" y="80" font-size="12" font-weight="700" fill="#1E2E38">874</text>
+
+          <text x="320" y="110" font-size="12" fill="#54666F">PPID (rodič)</text>
+          <text x="520" y="110" font-size="12" font-weight="700" fill="#1E2E38">1 (systemd)</text>
+
+          <text x="320" y="140" font-size="12" fill="#54666F">UID / GID</text>
+          <text x="520" y="140" font-size="12" font-weight="700" fill="#1E2E38">0 / 0 (root)</text>
+
+          <text x="320" y="170" font-size="12" fill="#54666F">Stav (STAT)</text>
+          <text x="520" y="170" font-size="12" font-weight="700" fill="#1E2E38">S — interrupt. sleep</text>
+
+          <text x="320" y="200" font-size="12" fill="#54666F">Priorita / Nice</text>
+          <text x="520" y="200" font-size="12" font-weight="700" fill="#1E2E38">PR 20 / NI 0</text>
+
+          <text x="320" y="230" font-size="12" fill="#54666F">Paměť (RSS)</text>
+          <text x="520" y="230" font-size="12" font-weight="700" fill="#1E2E38">4 216 kB</text>
+
+          <text x="320" y="260" font-size="12" fill="#54666F">Vlákna (Threads)</text>
+          <text x="520" y="260" font-size="12" font-weight="700" fill="#1E2E38">1</text>
+
+          <text x="320" y="279" font-size="9" fill="#8698A1">Zdroj: ps -o pid,ppid,stat,pri,ni,rss -p &lt;PID&gt;</text>
+          <text x="320" y="295" font-size="9" fill="#8698A1">nebo /proc/&lt;PID&gt;/status</text>
+        </svg>
+        <figcaption>Obr. 2 — Vybrané vlastnosti jednoho procesu (příklad <code>sshd</code>) a jeho vztah k rodičovskému procesu <code>systemd</code> (PID 1). Stejná data najdete v <code>/proc/&lt;PID&gt;/status</code>.</figcaption>
+      </figure>
+
+      <h3>Přehled příkazů pro sledování a řízení procesů</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Rychlá orientační reference — podrobné postupy si vyzkoušíte v části Řešení.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz</th><th>Co dělá</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>ps</b></td><td>Vypíše aktuální snímek běžících procesů (PID, stav, vlastník…)</td><td>Nejčastěji <code>ps aux</code> nebo <code>ps -ef</code></td></tr>
+            <tr><td><b>top</b></td><td>Dynamický, průběžně se aktualizující přehled procesů a zátěže</td><td>Interaktivní: <code>k</code> kill, <code>r</code> renice, <code>q</code> konec</td></tr>
+            <tr><td><b>pstree</b></td><td>Zobrazí procesy jako strom podle vztahu rodič–potomek</td><td><code>-p</code> přidá PID k názvům</td></tr>
+            <tr><td><b>bg</b></td><td>Pozastavenou úlohu (po <code>Ctrl+Z</code>) pošle běžet na pozadí</td><td>Součást řízení úloh (job control) shellu</td></tr>
+            <tr><td><b>fg</b></td><td>Vrátí úlohu z pozadí zpět do popředí</td><td>Podobně součást job control</td></tr>
+            <tr><td><b>nice</b></td><td>Spustí nový proces se změněnou prioritou</td><td>Rozsah -20 (nejvyšší) až 19 (nejnižší); zápor jen root</td></tr>
+            <tr><td><b>renice</b></td><td>Změní prioritu už běžícího procesu</td><td>Podle PID (výchozí), skupiny <code>-g</code> nebo uživatele <code>-u</code></td></tr>
+            <tr><td><b>kill</b></td><td>Pošle signál konkrétnímu PID, výchozí SIGTERM (15)</td><td><code>kill -9</code> = SIGKILL, okamžité ukončení</td></tr>
+            <tr><td><b>killall</b></td><td>Totéž co kill, ale podle jména procesu, ne PID</td><td>Ukončí všechny instance najednou</td></tr>
+            <tr><td><b>pgrep</b></td><td>Vyhledá PID procesů podle jména/vzoru</td><td><code>-u</code> podle uživatele, <code>-f</code> podle celé příkazové řádky</td></tr>
+            <tr><td><b>pkill</b></td><td>Vyhledá procesy podle vzoru a rovnou jim pošle signál</td><td>Kombinace pgrep + kill v jednom kroku</td></tr>
+            <tr><td><b>systemctl</b></td><td>Ovládá démona systemd — služby i cílové stavy (targets)</td><td><code>status</code>, <code>start</code>, <code>stop</code>, <code>enable</code>, <code>disable</code>…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Systemd — služby a cílové stavy (targets)</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Systemd je démon s PID 1 — první proces, který jádro po startu spustí a který pak spouští a hlídá všechny ostatní procesy a služby. Jeho konfigurační jednotky (<code>.service</code>, <code>.target</code>…) nahrazují starší systém SysV init skriptů a runlevelů.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svg3title svg3desc">
+          <title id="svg3title">Architektura systemd — targets a služby</title>
+          <desc id="svg3desc">systemd s PID 1 spustí výchozí target, ten odkazuje na multi-user.target nebo graphical.target, přičemž graphical.target zahrnuje multi-user.target. Multi-user.target dále spouští jednotlivé služby.</desc>
+
+          <rect x="270" y="10" width="160" height="50" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="350" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">systemd (PID 1)</text>
+
+          <path d="M350 60 L350 86" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M343 78 L350 86 L357 78" stroke="#8698A1" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <rect x="250" y="90" width="200" height="60" rx="12" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2.2"/>
+          <text x="350" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">default.target</text>
+          <text x="350" y="132" text-anchor="middle" font-size="9" fill="#71801A">symlink → multi-user nebo graphical</text>
+
+          <path d="M305 150 L215 188" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M215 178 L215 188 L225 184" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M395 150 L495 188" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M485 184 L495 188 L495 178" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <rect x="70" y="190" width="220" height="55" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="180" y="215" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1E2E38">multi-user.target</text>
+          <text x="180" y="231" text-anchor="middle" font-size="9" fill="#54666F">nastartovaný víceuživatelský systém</text>
+
+          <rect x="410" y="190" width="220" height="55" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="520" y="215" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1E2E38">graphical.target</text>
+          <text x="520" y="231" text-anchor="middle" font-size="9" fill="#54666F">grafická přihlašovací obrazovka</text>
+
+          <path d="M410 217 L294 217" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>
+          <path d="M302 210 L294 217 L302 224" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="350" y="207" text-anchor="middle" font-size="9" fill="#71801A">Wants= (pulls in)</text>
+
+          <path d="M150 245 L100 288" stroke="#8698A1" stroke-width="1.5" fill="none"/>
+          <path d="M99 278 L100 288 L109 284" stroke="#8698A1" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M185 245 L255 288" stroke="#8698A1" stroke-width="1.5" fill="none"/>
+          <path d="M250 279 L255 288 L246 286" stroke="#8698A1" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M220 245 L420 288" stroke="#8698A1" stroke-width="1.5" fill="none"/>
+          <path d="M414 280 L420 288 L410 288" stroke="#8698A1" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="180" y="268" text-anchor="middle" font-size="9" fill="#8698A1">Wants= ssh.service, cron.service, …</text>
+
+          <rect x="20" y="290" width="150" height="50" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="95" y="320" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">ssh.service</text>
+
+          <rect x="190" y="290" width="150" height="50" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="265" y="320" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">cron.service</text>
+
+          <rect x="360" y="290" width="150" height="50" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="2"/>
+          <text x="435" y="320" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">…další .service</text>
+        </svg>
+        <figcaption>Obr. 3 — Zjednodušená ukázka: systemd (PID 1) spustí <code>default.target</code>, ten odkazuje na <code>multi-user.target</code> nebo <code>graphical.target</code> (který <code>multi-user.target</code> „pulls in“ přes <code>Wants=</code>), a ten dále spouští jednotlivé služby.</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p><b>Základní pojmy systemd:</b></p>
+        <ul>
+          <li><b>Unit (jednotka)</b> — cokoli, co systemd spravuje: služba (<code>.service</code>), cílový stav (<code>.target</code>), přípojný bod (<code>.mount</code>) a další.</li>
+          <li><b>Target</b> — jednotka, která pouze seskupuje jiné jednotky a slouží jako pojmenovaný synchronizační bod; moderní náhrada za staré SysV runlevely.</li>
+          <li><b>Wants= / WantedBy=</b> — deklarace „měkké“ závislosti mezi jednotkami; po úpravě souboru jednotky je potřeba načíst změny příkazem <code>systemctl daemon-reload</code>.</li>
+        </ul>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>Návrh a realizace řešení</h2>
+      <p class="lede">Čtyři fáze na 4 vyučovací hodiny: sledování procesů → řízení popředí/pozadí a priority → bezpečné ukončování → systemd služby a targety. Časové odhady u jednotlivých fází jsou orientační a zahrnují i doplňkové příklady navíc — pokud na vše nezbude čas, dokončete aspoň první položky checklistu v každé fázi a zbytek si vyzkoušejte samostatně. Vše se provádí na <b>Serveru</b> z kapitoly 2.</p>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí popsat, co je proces a jaké má stavy.</li>
+            <li><b>Rozvíjející se</b> — zná pojmy PID/PPID a základní stavy, ale plete si je s příkazy, které je zobrazují.</li>
+            <li><b>Očekávaná úroveň</b> — jasně vysvětlí stavový model procesu, jeho vlastnosti a rozdíl mezi jednotkou typu service a target v systemd.</li>
+            <li><b>Nad rámec</b> — vysvětlí rozdíl mezi SIGTERM a SIGKILL na úrovni chování procesu a zdůvodní, proč <code>graphical.target</code> „pulls in“ <code>multi-user.target</code>.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — základní příkazy pro sledování procesů nefungují nebo jsou použity chybně.</li>
+            <li><b>Rozvíjející se</b> — sledování procesů funguje, ale řízení priority/ukončování nebo práce se systemd je nespolehlivá.</li>
+            <li><b>Očekávaná úroveň</b> — všechny příkazy (ps, top, pstree, bg/fg, nice/renice, kill/killall/pkill/pgrep) i systemctl fungují a jsou doloženy screenshoty.</li>
+            <li><b>Nad rámec</b> — navíc funkční vlastní systemd služba zapojená do <code>multi-user.target</code>.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neví, kdy použít který příkaz.</li>
+            <li><b>Rozvíjející se</b> — obecně tuší rozdíl mezi jednorázovým a průběžným sledováním procesů.</li>
+            <li><b>Očekávaná úroveň</b> — umí zdůvodnit volbu příkazu podle situace (např. kdy killall, kdy pkill; kdy SIGTERM, kdy SIGKILL).</li>
+            <li><b>Nad rámec</b> — kriticky zhodnotí rizika tvrdého ukončení procesu (SIGKILL) a nesprávně nastavené priority na produkčním serveru.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — závislý na pomoci u každého kroku.</li>
+            <li><b>Rozvíjející se</b> — poradí si se základními příkazy, u systemd potřebuje pomoc.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, chyby si dohledá v manuálových stránkách (<code>man</code>).</li>
+            <li><b>Nad rámec</b> — experimentuje nad rámec zadání, pomáhá spolužákům.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit stavový model procesu a jak se mapuje na stavy R/S/D/T/Z ve výpisu <code>ps</code>/<code>top</code>.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím vyjmenovat základní vlastnosti procesu (PID, PPID, UID/GID, stav, priorita, paměť) a najít je příkazem <code>ps</code> nebo v <code>/proc</code>.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Umím použít <code>ps</code>, <code>top</code> a <code>pstree</code> ke zjištění, co v systému běží a v jaké je to hierarchii.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím poslat proces na pozadí a zpět (<code>bg</code>/<code>fg</code>) a změnit jeho prioritu (<code>nice</code>/<code>renice</code>).</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Umím proces bezpečně ukončit (<code>kill</code>, <code>killall</code>, <code>pkill</code>/<code>pgrep</code>) a vysvětlit rozdíl mezi SIGTERM a SIGKILL.</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím zjistit stav služby, spustit/zastavit ji a nastavit její automatické spouštění pomocí <code>systemctl</code>.</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím vysvětlit, co je systemd target, a vypsat výchozí target i jeho závislosti.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Vytvořil/a jsem vlastní jednoduchou systemd službu a ověřil/a jsem její funkčnost.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty výstupů ps/top/pstree, ukázku job control a ukončování procesů i stav vlastní systemd služby ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky (kap. 7) — oficiální manuálové stránky Linuxu a systemd, Debian Administrator's Handbook a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 4 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 4 — Správa procesů v operačních systémech
+   ========================================================================== */
+
+  var TOPIC = {
+    num: "4",
+    title: "Správa procesů v operačních systémech",
+    hours: "4 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "Každý spuštěný program je v systému reprezentován procesem s vlastním identifikátorem, stavem a prioritou — a démon systemd je ten, kdo procesy jednotlivých služeb na serveru spouští, hlídá jejich běh a řadí je do závislých cílových stavů (targets).",
+    eq: "Jak operační systém sleduje stovky současně běžících procesů, řídí jejich prioritu a životní cyklus — a jak jejich spouštění a závislosti řídí démon systemd?",
+    challenge: "Na svém <b>Serveru</b> se naučte sledovat, řídit a bezpečně ukončovat procesy příkazy <b>top, ps, bg, fg, nice, renice, kill, killall, pkill, pgrep</b> a <b>pstree</b>, a naučte se spravovat běh služeb i definovat cílové stavy systému pomocí <b>systemctl</b> — services a targets."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Čím se liší proces od programu a jakými stavy (Nový/Připravený/Běžící/Čekající/Ukončený) může v průběhu svého života procházet?",
+      "Jaké základní vlastnosti má každý proces v Linuxu (PID, PPID, vlastník, stav, priorita, paměť) a kde je najdu?",
+      "Jak zjistím, co v systému právě běží, a jak poznám vztah rodič–potomek mezi procesy?",
+      "Jak ovlivním prioritu běžícího procesu a jak ho bezpečně ukončím, aniž bych přišel o neuložená data?",
+      "Co je systemd, čím nahradil starší init systém, a co znamená „target“ — cílový stav systému?"
+    ],
+    resources: [
+      {
+        title: "Linux manuál — stavy a vlastnosti procesu: ps(1), proc_pid_status(5)",
+        tag: "official",
+        items: [
+          "Přesné definice písmenových kódů stavu procesu (R, S, D, T, Z…) používaných příkazy <code>ps</code> a <code>top</code>.",
+          "<a href='https://www.man7.org/linux/man-pages/man1/ps.1.html' target='_blank' rel='noopener'>man7.org/…/ps.1.html</a>",
+          "Popis polí <code>/proc/[pid]/status</code> — PID, PPID, State, Uid/Gid, VmRSS, Threads.",
+          "<a href='https://man7.org/linux/man-pages/man5/proc_pid_status.5.html' target='_blank' rel='noopener'>man7.org/…/proc_pid_status.5.html</a>"
+        ]
+      },
+      {
+        title: "Linux manuál — sledování procesů: top(1), pstree(1)",
+        tag: "official",
+        items: [
+          "top — dynamický, průběžně se aktualizující přehled procesů (na rozdíl od jednorázového snímku <code>ps</code>).",
+          "<a href='https://man7.org/linux/man-pages/man1/top.1.html' target='_blank' rel='noopener'>man7.org/…/top.1.html</a>",
+          "pstree — zobrazí procesy jako strom rodič–potomek, volitelně s PID (<code>-p</code>).",
+          "<a href='https://man7.org/linux/man-pages/man1/pstree.1.html' target='_blank' rel='noopener'>man7.org/…/pstree.1.html</a>"
+        ]
+      },
+      {
+        title: "Linux manuál — priorita procesu: nice(1), renice(1)",
+        tag: "official",
+        items: [
+          "Rozsah hodnoty „nice“ je -20 (nejvyšší priorita) až 19 (nejnižší priorita); zápornou hodnotu smí nastavit jen root.",
+          "<a href='https://man7.org/linux/man-pages/man1/nice.1.html' target='_blank' rel='noopener'>man7.org/…/nice.1.html</a>",
+          "renice mění prioritu už běžícího procesu podle PID, skupiny (<code>-g</code>) nebo uživatele (<code>-u</code>).",
+          "<a href='https://man7.org/linux/man-pages/man1/renice.1.html' target='_blank' rel='noopener'>man7.org/…/renice.1.html</a>"
+        ]
+      },
+      {
+        title: "Linux manuál — ukončování procesů: kill(1), killall(1), pgrep/pkill(1)",
+        tag: "official",
+        items: [
+          "kill posílá signál konkrétnímu PID, výchozí je SIGTERM (15); killall totéž podle jména procesu.",
+          "<a href='https://man7.org/linux/man-pages/man1/kill.1.html' target='_blank' rel='noopener'>man7.org/…/kill.1.html</a> · <a href='https://man7.org/linux/man-pages/man1/killall.1.html' target='_blank' rel='noopener'>killall.1.html</a>",
+          "pgrep vyhledá PID podle jména/vzoru, pkill rovnou pošle signál nalezeným procesům.",
+          "<a href='https://man7.org/linux/man-pages/man1/pgrep.1.html' target='_blank' rel='noopener'>man7.org/…/pgrep.1.html</a>"
+        ]
+      },
+      {
+        title: "Debian Administrator's Handbook — kap. 9 Unix Services (systemd)",
+        tag: "official",
+        items: [
+          "Jednotky <code>.service</code> a <code>.target</code>, sekce [Unit]/[Service]/[Install], práce s <code>systemctl</code> a <code>journalctl</code>.",
+          "<a href='https://debian-handbook.info/browse/stable/unix-services.html' target='_blank' rel='noopener'>debian-handbook.info/browse/stable/unix-services.html</a>"
+        ]
+      },
+      {
+        title: "systemd manuál — systemd.target(5), systemd.special(7)",
+        tag: "official",
+        items: [
+          "Target je jednotka, která seskupuje ostatní jednotky a nahrazuje starý koncept SysV runlevelů.",
+          "<a href='https://www.man7.org/linux/man-pages/man5/systemd.target.5.html' target='_blank' rel='noopener'>man7.org/…/systemd.target.5.html</a>",
+          "Standardní targety: <code>multi-user.target</code>, <code>graphical.target</code> (zahrnuje multi-user.target), <code>rescue.target</code>, <code>reboot.target</code>…",
+          "<a href='https://www.man7.org/linux/man-pages/man7/systemd.special.7.html' target='_blank' rel='noopener'>man7.org/…/systemd.special.7.html</a>"
+        ]
+      },
+      {
+        title: "Linux manuál — pokročilé ovládání: systemctl(1), signal(7), systemd-run(1)",
+        tag: "official",
+        items: [
+          "Podpříkazy <code>show</code>, <code>cat</code>, <code>kill</code>, <code>is-active</code>, <code>isolate</code>, <code>set-default</code>, <code>list-timers</code>, filtry <code>--type=</code>/<code>--state=</code>.",
+          "<a href='https://www.man7.org/linux/man-pages/man1/systemctl.1.html' target='_blank' rel='noopener'>man7.org/…/systemctl.1.html</a>",
+          "Přesná čísla signálů na Linuxu (x86/ARM): SIGINT 2, SIGCHLD 17, SIGCONT 18, SIGSTOP 19, SIGTERM 15, SIGKILL 9.",
+          "<a href='https://man7.org/linux/man-pages/man7/signal.7.html' target='_blank' rel='noopener'>man7.org/…/signal.7.html</a>",
+          "systemd-run spustí příkaz jako přechodnou (transientní) jednotku ve vlastním cgroupu — náhrada za neexistující „systemctl exec“.",
+          "<a href='https://man7.org/linux/man-pages/man1/systemd-run.1.html' target='_blank' rel='noopener'>man7.org/…/systemd-run.1.html</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Proces čeká na dokončení diskové operace a nemůže běžet dál. Jaký stav uvidíte u tohoto procesu ve výpisu ps/top?",
+      opts: ["R — running or runnable", "D — nepřerušitelné čekání (obvykle na I/O)", "Z — zombie", "T — zastaven job control signálem"],
+      correct: 1,
+      explain: "Stav D (uninterruptible sleep) znamená, že proces čeká na dokončení operace, typicky diskového I/O, a v tuto chvíli ho nelze ani přerušit signálem."
+    },
+    {
+      q: "Proces doběhl (skončil), ale jeho rodič si zatím nevyzvedl jeho návratový kód. Jak se tento proces označuje?",
+      opts: ["Připravený (Ready)", "Démon (daemon)", "Zombie (Z)", "Sirotek (orphan)"],
+      correct: 2,
+      explain: "Dokud rodičovský proces nezavolá wait() a nepřevezme návratovou hodnotu, ukončený proces zůstává v tabulce procesů jako „zombie“ (stav Z)."
+    },
+    {
+      q: "Jaký je hlavní rozdíl mezi signály SIGTERM (výchozí u kill) a SIGKILL (kill -9)?",
+      opts: ["SIGTERM okamžitě a natvrdo ukončí proces, SIGKILL dá procesu čas na úklid", "Oba dělají přesně totéž, liší se jen číslem", "SIGTERM dá procesu šanci se korektně ukončit a uklidit po sobě, SIGKILL ho ukončí okamžitě bez možnosti reakce", "SIGKILL proces jen pozastaví, neukončí ho"],
+      correct: 2,
+      explain: "SIGTERM lze v aplikaci zachytit a použít k čistému ukončení (uzavření souborů, uložení stavu). SIGKILL proces ukončí okamžitě a nelze ho zachytit ani ignorovat."
+    },
+    {
+      q: "Co je to systemd „target“?",
+      opts: ["Konfigurační soubor jedné konkrétní služby", "Jednotka, která seskupuje jiné jednotky a nahrazuje starý koncept SysV runlevelů", "Log soubor démona systemd", "Příkaz pro restart celého serveru"],
+      correct: 1,
+      explain: "Target je typ jednotky systemd, která slouží jako pojmenovaný synchronizační bod a seskupuje závislé jednotky (services, mounty, jiné targety) — modernější a flexibilnější náhrada za staré SysV runlevely."
+    }
+  ];
+
+  var ACT = [
+    {
+      num: 1, en: "Process Monitoring", title: "Monitorování procesů",
+      body: "<p>⏱ orientačně 40 min. Na Serveru zjistěte, co v systému aktuálně běží, a naučte se číst sloupce s vlastnostmi procesu.</p>",
+      checklist: [
+        "Spuštěn příkaz <code>ps aux</code> (nebo <code>ps -ef</code>) a identifikovány sloupce PID, PPID, USER, STAT, %CPU, %MEM",
+        "Nalezen PID vlastního shellu (proměnná <code>$$</code>) a zjištěn jeho rodičovský proces (PPID)",
+        "Vyzkoušeny přepínače <code>ps -u &lt;uživatel&gt;</code> (procesy konkrétního uživatele), <code>ps -f</code> (formát fork-tree) a <code>ps -l</code> (dlouhý formát s dalšími sloupci)",
+        "Spuštěn <code>top</code> a min. 2 minuty pozorováno dynamické řazení procesů podle zátěže CPU",
+        "V <code>top</code> vyzkoušeny klávesy pro řazení podle paměti/CPU a bezpečné ukončení (<code>q</code>)",
+        "Ověřeno, že je nainstalován balíček <code>psmisc</code> (obsahuje <code>pstree</code>, <code>killall</code>, <code>pgrep</code>/<code>pkill</code>), případně doinstalován",
+        "Vypsán strom procesů příkazem <code>pstree -p</code> a nalezena pozice procesu PID 1 (systemd) jako kořen stromu",
+        "Do poznámek zapsán stav (STAT) alespoň tří různých procesů a jeho význam (R/S/Z…)"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># snímek běžících procesů</span>\nps aux\n<span class=\"c\"># PID a rodič vlastního shellu</span>\nps -p $$ -o pid,ppid,stat,cmd\n<span class=\"c\"># filtrování a formáty výstupu</span>\nps -u $(whoami)\nps -f\nps -l\n<span class=\"c\"># dynamický přehled</span>\ntop\n<span class=\"c\"># pstree/killall/pgrep bývají v balíčku psmisc</span>\nsudo apt install -y psmisc\n<span class=\"c\"># strom procesů s PID</span>\npstree -p</code></pre>"
+    },
+    {
+      num: 2, en: "Foreground / Background & Priority", title: "Popředí, pozadí a priorita procesu",
+      body: "<p>⏱ orientačně 40 min. Vyzkoušejte, jak shell řídí úlohy na popředí a pozadí (job control) a jak ovlivnit prioritu procesu.</p>",
+      checklist: [
+        "Spuštěn dlouhotrvající příkaz na popředí (např. <code>sleep 300</code>) a pozastaven kombinací <code>Ctrl+Z</code>",
+        "Vyzkoušen a do poznámek zapsán rozdíl mezi <code>Ctrl+Z</code> (proces se jen pozastaví) a <code>Ctrl+C</code> (proces se rovnou ukončí signálem SIGINT)",
+        "Příkazem <code>jobs</code> ověřen seznam úloh a jejich stav (Stopped/Running)",
+        "Pozastavená úloha přepnuta na běh na pozadí příkazem <code>bg</code>",
+        "Úloha z pozadí vrácena zpět do popředí příkazem <code>fg</code>",
+        "Proces spuštěn rovnou na pozadí zápisem <code>&amp;</code> na konci příkazu, bez nutnosti nejdřív <code>Ctrl+Z</code> a <code>bg</code>",
+        "Spuštěn nový proces se sníženou prioritou příkazem <code>nice</code>",
+        "Běžícímu procesu změněna priorita za chodu příkazem <code>renice</code> a hodnota NI ověřena v <code>ps</code> nebo <code>top</code>"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># pozastavení a job control</span>\nsleep 300\n<span class=\"c\"># stiskněte Ctrl+Z (pozastaví) — pro srovnání zkuste podruhé Ctrl+C (rovnou ukončí)</span>\njobs\nbg %1\nfg %1\n<span class=\"c\"># spuštění rovnou na pozadí, bez Ctrl+Z</span>\nsleep 300 &amp;\njobs\n<span class=\"c\"># nový proces se sníženou prioritou (nižší nice = vyšší priorita)</span>\nnice -n 10 sleep 300 &amp;\n<span class=\"c\"># změna priority za chodu</span>\nrenice -n 5 -p &lt;PID&gt;\nps -o pid,ni,cmd -p &lt;PID&gt;</code></pre>"
+    },
+    {
+      num: 3, en: "Terminating Processes", title: "Ukončování procesů",
+      body: "<p>⏱ orientačně 32 min. Naučte se procesy bezpečně ukončit — nejdřív slušně (SIGTERM), pak i natvrdo (SIGKILL), podle PID i podle jména/vzoru.</p>",
+      checklist: [
+        "Vyhledán PID konkrétního procesu podle jména příkazem <code>pgrep -l &lt;jméno&gt;</code>",
+        "Proces ukončen „slušně“ příkazem <code>kill &lt;PID&gt;</code> (výchozí signál SIGTERM) a ukončení ověřeno",
+        "Spuštěno několik instancí stejného procesu a všechny naráz ukončeny příkazem <code>killall</code>",
+        "Proces vyhledán a rovnou ukončen v jednom kroku příkazem <code>pkill -f &lt;vzor&gt;</code>",
+        "Proces ukončen natvrdo přímo podle čísla signálu příkazem <code>kill -9 &lt;PID&gt;</code> a porovnán s ukončením přes <code>Ctrl+C</code> (SIGINT, signál 2) z fáze 2",
+        "Vypsány dostupné signály příkazem <code>kill -l</code> a do poznámek zapsán přehled aspoň 4 signálů s číslem a účelem (např. SIGTERM 15, SIGKILL 9, SIGINT 2, SIGSTOP 19, SIGCONT 18)",
+        "Do poznámek zapsáno, kdy je vhodné použít SIGKILL místo výchozího SIGTERM"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># vyhledání a slušné ukončení</span>\npgrep -l sleep\nkill &lt;PID&gt;\n<span class=\"c\"># více instancí naráz</span>\nsleep 600 &amp;\nsleep 600 &amp;\nkillall sleep\n<span class=\"c\"># vyhledání + ukončení v jednom kroku</span>\npkill -f sleep\n<span class=\"c\"># ukončení natvrdo přímo podle čísla signálu (9 = SIGKILL)</span>\nsleep 600 &amp;\nkill -9 &lt;PID&gt;\n<span class=\"c\"># přehled signálů</span>\nkill -l\n<span class=\"c\"># nejčastější signály: SIGINT=2, SIGKILL=9, SIGCHLD=17, SIGCONT=18, SIGSTOP=19, SIGTERM=15</span></code></pre>"
+    },
+    {
+      num: 4, en: "Systemd Services & Targets", title: "Systemd — služby a targety",
+      body: "<p>⏱ orientačně 90 min. Naučte se zjišťovat a řídit stav služeb, pracovat s cílovými stavy (targets) a vytvořit vlastní jednoduchou systemd službu.</p>",
+      checklist: [
+        "Zjištěn aktuální stav libovolné služby příkazem <code>systemctl status</code> (např. ssh nebo cron)",
+        "Služba zastavena a znovu spuštěna příkazy <code>systemctl stop</code>/<code>systemctl start</code>, změna ověřena statusem",
+        "Nastaveno automatické spouštění služby při startu systému příkazem <code>systemctl enable</code> a ověřeno <code>systemctl is-enabled</code>",
+        "Automatické spouštění zakázáno příkazem <code>systemctl disable</code>",
+        "Vypsán seznam aktivních service jednotek i všech target jednotek příkazem <code>systemctl list-units</code>, a vyzkoušeno filtrování stavu příkazem <code>systemctl list-units --state=inactive</code>",
+        "Zjištěn výchozí target systému příkazem <code>systemctl get-default</code> a vypsány jeho závislosti příkazem <code>systemctl list-dependencies</code>",
+        "Porovnány závislosti dvou různých cílů příkazy <code>systemctl list-dependencies multi-user.target</code> a <code>systemctl list-dependencies graphical.target</code> a do poznámek zapsán rozdíl",
+        "Zobrazeny podrobné vlastnosti jednotky příkazem <code>systemctl show &lt;unit&gt;</code> a obsah její definice (backing file) příkazem <code>systemctl cat &lt;unit&gt;</code>",
+        "Ověřeno, zda je konkrétní jednotka aktivní příkazem <code>systemctl is-active &lt;unit&gt;</code>",
+        "Vyzkoušeno bezpečné přepnutí aktivního cíle příkazem <code>systemctl isolate</code> zpět na <code>multi-user.target</code> a vysvětlen rozdíl oproti <code>systemctl set-default</code> (okamžitá změna vs. změna pro příští start)",
+        "Spuštěn jednoduchý příkaz jako samostatná přechodná (transientní) jednotka příkazem <code>systemd-run</code> a jeho běh ověřen v žurnálu příkazem <code>journalctl</code>",
+        "Vytvořena vlastní jednoduchá <code>.service</code> jednotka v <code>/etc/systemd/system/</code>, načtena příkazem <code>systemctl daemon-reload</code> a spuštěna",
+        "Do poznámek zapsáno, jaký je rozdíl mezi <code>systemctl stop</code> a <code>systemctl disable</code>"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># stav, start, stop</span>\nsystemctl status ssh\nsudo systemctl stop ssh\nsudo systemctl start ssh\n<span class=\"c\"># automatické spouštění při startu</span>\nsudo systemctl enable ssh\nsystemctl is-enabled ssh\nsudo systemctl disable ssh\n<span class=\"c\"># přehled jednotek a targetů, filtrování podle stavu</span>\nsystemctl list-units --type=service\nsystemctl list-units --type=target\nsystemctl list-units --all --state=inactive\nsystemctl get-default\n<span class=\"c\"># porovnání závislostí dvou cílů</span>\nsystemctl list-dependencies multi-user.target\nsystemctl list-dependencies graphical.target\n<span class=\"c\"># podrobnosti a definice jednotky</span>\nsystemctl show cron.service\nsystemctl cat cron.service\nsystemctl is-active cron.service\n<span class=\"c\"># přepnutí aktivního cíle (na Serveru bez GUI zpět na multi-user.target)</span>\nsystemctl isolate multi-user.target\n<span class=\"c\"># spuštění příkazu jako přechodná (transientní) jednotka ve vlastním cgroupu</span>\nsystemd-run --pty --same-dir --wait --collect --service-type=exec bash\njournalctl -u run-*.service\n\n<span class=\"c\"># vlastní jednoduchá služba</span>\nsudo bash -c 'cat &gt; /etc/systemd/system/moje-sluzba.service &lt;&lt;EOF\n[Unit]\nDescription=Moje testovací sluzba\n\n[Service]\nExecStart=/usr/bin/echo \"Ahoj ze systemd\"\n\n[Install]\nWantedBy=multi-user.target\nEOF'\n\nsudo systemctl daemon-reload\nsudo systemctl start moje-sluzba\nsystemctl status moje-sluzba</code></pre>"
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Server se zdokumentovanou správou procesů: screenshoty výstupů ps/top/pstree s popisem nalezených stavů, ukázka přepnutí procesu mezi popředím a pozadím se změněnou prioritou (nice/renice), ukázka bezpečného ukončení procesů (kill/killall/pkill) a vlastní systemd služba zapojená do multi-user.target se stavem ověřeným příkazem systemctl status. Odevzdejte: screenshoty + krátké zdůvodnění (50–100 slov), kdy použijete SIGTERM a kdy SIGKILL, a jaký je rozdíl mezi systemctl stop a systemctl disable.";
+
+  var REFLECT = [
+    "Který příkaz byste zvolili pro rychlou jednorázovou kontrolu (ps) a který pro dlouhodobé sledování zátěže (top) — a proč?",
+    "Kdy dává smysl proces ukončit příkazem kill -9 (SIGKILL) místo výchozího SIGTERM, a jaké riziko to nese?",
+    "Jak vám tvorba vlastní systemd služby pomohla pochopit, jak server spouští své služby při startu?"
+  ];
+
+  var SOURCES = [
+    {title:"ps(1) — Linux manuál", url:"https://www.man7.org/linux/man-pages/man1/ps.1.html", tag:"official", note:"Stavové kódy procesu a formát výstupu ps."},
+    {title:"proc_pid_status(5) — Linux manuál", url:"https://man7.org/linux/man-pages/man5/proc_pid_status.5.html", tag:"official", note:"Pole /proc/[pid]/status — PID, PPID, State, Uid/Gid, VmRSS."},
+    {title:"top(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/top.1.html", tag:"official", note:"Dynamický přehled procesů, interaktivní příkazy k, r, q."},
+    {title:"pstree(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/pstree.1.html", tag:"official", note:"Strom procesů podle vztahu rodič–potomek."},
+    {title:"nice(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/nice.1.html", tag:"official", note:"Spuštění procesu se změněnou prioritou."},
+    {title:"renice(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/renice.1.html", tag:"official", note:"Změna priority už běžícího procesu."},
+    {title:"kill(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/kill.1.html", tag:"official", note:"Signály, výchozí SIGTERM, rozdíl proti SIGKILL."},
+    {title:"killall(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/killall.1.html", tag:"official", note:"Ukončení procesů podle jména místo PID."},
+    {title:"pgrep/pkill(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/pgrep.1.html", tag:"official", note:"Vyhledání PID podle vzoru a hromadné ukončení."},
+    {title:"Debian Administrator's Handbook — Unix Services (systemd)", url:"https://debian-handbook.info/browse/stable/unix-services.html", tag:"official", note:"Jednotky service/target, systemctl, journalctl."},
+    {title:"systemd.target(5) — Linux manuál", url:"https://www.man7.org/linux/man-pages/man5/systemd.target.5.html", tag:"official", note:"Definice cílové jednotky (target) a náhrada SysV runlevelů."},
+    {title:"systemd.special(7) — Linux manuál", url:"https://www.man7.org/linux/man-pages/man7/systemd.special.7.html", tag:"official", note:"Standardní targety: multi-user, graphical, rescue, reboot…"},
+    {title:"systemctl(1) — Linux manuál", url:"https://www.man7.org/linux/man-pages/man1/systemctl.1.html", tag:"official", note:"Podpříkazy show, cat, kill, is-active, isolate, set-default, list-timers…"},
+    {title:"signal(7) — Linux manuál", url:"https://man7.org/linux/man-pages/man7/signal.7.html", tag:"official", note:"Přesná čísla signálů (SIGINT, SIGCHLD, SIGCONT, SIGSTOP…)."},
+    {title:"systemd-run(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/systemd-run.1.html", tag:"official", note:"Spuštění příkazu jako přechodné (transientní) jednotky."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+})();
+</script>
+</body>
+</html>

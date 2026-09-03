@@ -274,6 +274,15 @@ pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--ra
 pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
 pre.cmdblock .c{color:#9FD1C7;}
 
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
 /* Hodnocení — rubrika */
 .rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
 .rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
@@ -870,6 +879,13 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     updateQuizProgress();
   });
 
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
   // ACT phases
   var actEl = document.getElementById("act-phases");
   ACT.forEach(function(phase){
@@ -881,7 +897,7 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
     }).join("");
     div.innerHTML =
       '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
-      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+(phase.extra||'')+'</div>';
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
     actEl.appendChild(div);
   });
 
