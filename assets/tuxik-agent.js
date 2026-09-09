@@ -78,6 +78,9 @@
     ".tuxik-msg.user{align-self:flex-end;background:" + COLORS.robot + ";color:#fff;border-bottom-right-radius:4px;}" +
     ".tuxik-msg.model{align-self:flex-start;background:" + COLORS.surface + ";color:" + COLORS.ink + ";border-bottom-left-radius:4px;}" +
     ".tuxik-msg.error{align-self:flex-start;background:" + COLORS.badTint + ";color:" + COLORS.bad + ";border-bottom-left-radius:4px;}" +
+    ".tuxik-retry-btn{margin-top:.4rem;display:inline-flex;align-items:center;gap:.3rem;font-family:inherit;font-size:.78rem;font-weight:700;" +
+    "color:" + COLORS.bad + ";background:#fff;border:1px solid " + COLORS.bad + ";border-radius:999px;padding:.28rem .7rem;cursor:pointer;}" +
+    ".tuxik-retry-btn:hover{background:" + COLORS.badTint + ";}" +
     ".tuxik-typing{align-self:flex-start;display:flex;gap:4px;padding:.6rem .8rem;background:" + COLORS.surface + ";border-radius:14px;border-bottom-left-radius:4px;}" +
     ".tuxik-typing span{width:6px;height:6px;border-radius:50%;background:" + COLORS.inkSoft + ";animation:tuxik-bounce 1.1s ease-in-out infinite;}" +
     ".tuxik-typing span:nth-child(2){animation-delay:.15s;}.tuxik-typing span:nth-child(3){animation-delay:.3s;}" +
@@ -213,10 +216,22 @@
   /* ---------------------------------------------------------------------- */
   /* Vykreslování zpráv                                                     */
   /* ---------------------------------------------------------------------- */
-  function addMessageToUI(role, text, isError) {
+  function addMessageToUI(role, text, isError, onRetry) {
     var div = document.createElement("div");
     div.className = "tuxik-msg " + (isError ? "error" : role);
     div.textContent = text;
+    if (isError && typeof onRetry === "function") {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tuxik-retry-btn";
+      btn.textContent = "🔁 Zkusit znovu";
+      btn.addEventListener("click", function () {
+        div.parentNode && div.parentNode.removeChild(div);
+        onRetry();
+      });
+      div.appendChild(document.createElement("br"));
+      div.appendChild(btn);
+    }
     els.msgs.appendChild(div);
     els.msgs.scrollTop = els.msgs.scrollHeight;
     return div;
@@ -258,7 +273,16 @@
     var historyBeforeThisMessage = history.slice();
     history.push({ role: "user", text: text });
     saveHistory();
+    callChat(text, historyBeforeThisMessage);
+  }
 
+  // Zopakuje neúspěšný dotaz BEZ toho, aby se zpráva žáka objevila v chatu znovu
+  // (uživatelská bublina i historie už jsou tam z prvního pokusu).
+  function retryMessage(text, historyBeforeThisMessage) {
+    callChat(text, historyBeforeThisMessage);
+  }
+
+  function callChat(text, historyBeforeThisMessage) {
     els.send.disabled = true;
     showTyping(true);
 
@@ -280,7 +304,13 @@
         showTyping(false);
         els.send.disabled = false;
         if (!res.ok) {
-          addMessageToUI("model", "⚠️ " + (res.data.error || "Něco se pokazilo, zkus to prosím znovu."), true);
+          var canRetry = !!(res.data && res.data.retryable);
+          addMessageToUI(
+            "model",
+            "⚠️ " + (res.data.error || "Něco se pokazilo, zkus to prosím znovu."),
+            true,
+            canRetry ? function () { retryMessage(text, historyBeforeThisMessage); } : null
+          );
           return;
         }
         addMessageToUI("model", res.data.reply);
@@ -290,7 +320,12 @@
       .catch(function () {
         showTyping(false);
         els.send.disabled = false;
-        addMessageToUI("model", "⚠️ Nepodařilo se spojit se serverem. Zkontroluj připojení a zkus to znovu.", true);
+        addMessageToUI(
+          "model",
+          "⚠️ Nepodařilo se spojit se serverem. Zkontroluj připojení a zkus to znovu.",
+          true,
+          function () { retryMessage(text, historyBeforeThisMessage); }
+        );
       });
   }
 

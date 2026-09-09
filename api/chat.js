@@ -12,9 +12,15 @@
 // Volitelně lze nastavit i GEMINI_MODEL (výchozí: gemini-flash-latest —
 // alias, který Google udržuje nasměrovaný na aktuální doporučený rychlý
 // model, takže se nemusí ručně měnit při vydání nové verze Gemini).
+//
+// Free tier Gemini modelů se v špičkách umí zahltit (Google vrátí 503
+// "model is overloaded / high demand"). Proto funkce automaticky zkusí
+// požadavek zopakovat (s krátkou pauzou) a případně přepnout na záložní
+// model (GEMINI_FALLBACK_MODEL), než žákovi vrátí chybu.
 // ============================================================================
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash";
 
 const SYSTEM_PROMPT = `Jsi "Tuxík" – tučňák, maskot a průvodce výukou GNU/Linux (Debian)
 pro žáky 4. ročníku střední průmyslové školy (SPŠ EI Ostrava, předmět Serverové služby).
@@ -33,6 +39,37 @@ Pravidla, která vždy dodržuj:
   zpět k tématu.
 - Piš prostý text bez Markdown nadpisů, tabulek nebo odrážek — odpověď se zobrazuje
   v malém chatovém okně v postranním panelu.`;
+
+function sleep(ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms);
+  });
+}
+
+// Pozná, jestli šlo o dočasné přetížení modelu (503 / "overloaded" / "high demand" /
+// "UNAVAILABLE") — u těch se má cenu to zkusit znovu. U jiných chyb (špatný klíč,
+// zablokovaný obsah...) opakování nic nevyřeší.
+function isOverloadError(status, data) {
+  if (status === 503) return true;
+  var msg = (data && data.error && data.error.message) || "";
+  var statusStr = (data && data.error && data.error.status) || "";
+  return /overloaded|high demand|unavailable/i.test(msg + " " + statusStr);
+}
+
+async function callGemini(model, apiKey, payload) {
+  const url =
+    "https://generativelanguage.googleapis.com/v1beta/models/" +
+    model +
+    ":generateContent?key=" +
+    apiKey;
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await r.json();
+  return { ok: r.ok, status: r.status, data: data };
+}
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -88,26 +125,34 @@ module.exports = async (req, res) => {
     },
   };
 
+  // Až 3 pokusy: 2x hlavní model (s krátkou pauzou), pak 1x záložní model —
+  // ale jen pokud šlo o dočasné přetížení. U jiné chyby se další pokusy přeskočí.
+  const attempts = [
+    { model: MODEL, delay: 0 },
+    { model: MODEL, delay: 700 },
+    { model: FALLBACK_MODEL, delay: 400 },
+  ];
+
+  let result = null;
   try {
-    const url =
-      "https://generativelanguage.googleapis.com/v1beta/models/" +
-      MODEL +
-      ":generateContent?key=" +
-      apiKey;
+    for (let i = 0; i < attempts.length; i++) {
+      if (attempts[i].delay) await sleep(attempts[i].delay);
+      result = await callGemini(attempts[i].model, apiKey, payload);
+      if (result.ok) break;
+      if (!isOverloadError(result.status, result.data)) break; // jiná chyba, opakování nepomůže
+      console.warn(
+        "Gemini overloaded (pokus " + (i + 1) + "/" + attempts.length + ", model " + attempts[i].model + "), zkouším znovu…"
+      );
+    }
 
-    const r = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const data = result.data;
 
-    const data = await r.json();
-
-    if (!r.ok) {
+    if (!result.ok) {
       console.error("Gemini API error:", JSON.stringify(data));
-      res.status(502).json({
-        error: (data && data.error && data.error.message) || "Chyba Gemini API.",
-      });
+      const friendly = isOverloadError(result.status, data)
+        ? "Tuxíkovi se teď nedaří spojit s AI — Gemini je dočasně přetížené (velký provoz na free tier). Zkus to prosím za chvíli znovu."
+        : (data && data.error && data.error.message) || "Chyba Gemini API.";
+      res.status(502).json({ error: friendly, retryable: isOverloadError(result.status, data) });
       return;
     }
 
