@@ -1,0 +1,1000 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>5 Konfigurace síťových rozhraní příkazy · Operační systém Linux</title>
+<meta name="description" content="Nastavení sítě jen příkazy (ip, nft, dhclient, sysctl) a konfiguračními soubory (hosts, hostname, resolv.conf, nsswitch.conf) — Server jako router s NAT mezi školní sítí a intranetem, Klient za ním. Kapitola 5, 2 vyučovací hodiny.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 5 — Konfigurace síťových rozhraní příkazy — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf). Oproti šabloně navíc
+   obsahuje statický obsah (SVG schéma sítě, referenční tabulky, sekce
+   Hodnocení) — stejný vzor rozšíření jako kapitoly 02–04. Nové oproti kap. 4:
+   keyframy flowMoveRight/flowMoveLeft pro vodorovný tok paketu v síťovém
+   schématu (existující flowMove/flowMoveDown jsou svislé, pro tento diagram
+   nevhodné).
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+/* Nové pro kap. 5 — vodorovný tok paketu (klient → server → internet) */
+@keyframes flowMoveRight{
+  0%{ transform:translateX(0); opacity:.25; }
+  15%{ opacity:1; }
+  85%{ opacity:1; }
+  100%{ transform:translateX(64px); opacity:.25; }
+}
+.flow-dot.right{ animation-name: flowMoveRight; animation-duration:2.2s; animation-timing-function:ease-in-out; }
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Konfigurace síťových rozhraní příkazy</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Tato kapitola je stavební kámen celoroční výzvy <b>Škola X</b> — Server dnes poprvé ožije jako skutečná síťová brána mezi školní sítí a intranetem, na kterém budou stavět další kapitoly (DNS, DHCP server, SSH…).</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>Konfigurační soubory a příkazy sítě</h2>
+      <p class="lede">Než začnete síť nastavovat, ujasněte si dvě věci: čím se liší nastavení jen „za běhu“ od nastavení uloženého v souboru, a jak systém pozná, jestli má jméno počítače přeložit z místního souboru, nebo se zeptat DNS serveru.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <h3>Konfigurační soubory pro jméno a překlad jmen</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Čtyři soubory, které dnes na Serveru i Klientovi otevřete — všechny čte knihovna glibc (přes tzv. Name Service Switch) nebo je používá přímo systém při startu.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Soubor</th><th>K čemu slouží</th><th>Formát / příklad</th></tr></thead>
+          <tbody>
+            <tr><td><b>/etc/hostname</b></td><td>Trvalé jméno počítače, čte se při startu</td><td>jeden řádek: <code>klient</code></td></tr>
+            <tr><td><b>/etc/hosts</b></td><td>Lokální (statický) překlad jména na IP adresu</td><td><code>IP_adresa jméno [aliasy…]</code></td></tr>
+            <tr><td><b>/etc/resolv.conf</b></td><td>Které DNS servery se mají dotazovat</td><td><code>nameserver 8.8.8.8</code> (max. 3 řádky <code>nameserver</code>)</td></tr>
+            <tr><td><b>/etc/nsswitch.conf</b></td><td>V jakém pořadí se pro danou databázi (mj. <code>hosts</code>) prohledávají zdroje</td><td><code>hosts: files dns</code> — nejdřív soubor, pak DNS</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><b>Past, do které spadne skoro každý:</b> <code>ping</code>, <code>getent hosts</code> i většina běžných programů překládá jména přesně podle pořadí v <code>/etc/nsswitch.conf</code> (tedy nejdřív <code>/etc/hosts</code>). Nástroj <code>nslookup</code> (a stejně tak <code>dig</code>/<code>host</code>) ale <b>nsswitch.conf úplně obchází</b> a ptá se rovnou DNS serveru z <code>/etc/resolv.conf</code> — pokud žádný neexistuje nebo neodpovídá, <code>nslookup</code> selže, i když je jméno v <code>/etc/hosts</code> správně a <code>ping</code> ho bez problémů přeloží.</p>
+        <ul>
+          <li>Chcete otestovat lokální soubor <code>/etc/hosts</code>? Použijte <code>ping</code> nebo <code>getent hosts &lt;jméno&gt;</code>.</li>
+          <li>Chcete otestovat skutečný DNS server? Až budete mít nastavené <code>/etc/resolv.conf</code> a funkční připojení, použijte <code>nslookup</code>.</li>
+        </ul>
+      </div>
+
+      <h3>Schéma sítě — Server jako router s NAT</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Klient dnes nemá do internetu žádnou vlastní cestu — vše musí projít přes Server. Server má dvě rozhraní: jedno do školní sítě (adresu dostane přes DHCP), druhé do intranetu ke Klientovi (pevná adresa). Aby Server pakety mezi rozhraními vůbec propustil, musí mít zapnuté směrování (IP forwarding); aby internet vůbec věděl, kam odpověď poslat zpátky, musí Server navíc privátní adresu Klienta překládat na svou vlastní (NAT/masquerade).</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgnettitle svgnetdesc">
+          <title id="svgnettitle">Schéma školní sítě — Server jako router s NAT</title>
+          <desc id="svgnetdesc">Klient 192.168.1.2 posílá provoz přes bránu 192.168.1.1 na Serveru. Server má druhé rozhraní do školní sítě s adresou přidělenou přes DHCP a pomocí NAT/masquerade překládá zdrojovou adresu Klienta na svou vlastní, než paket pošle do internetu na webový server www.seznam.cz. Návrat probíhá stejnou cestou opačně, NAT provede zpětný překlad cílové adresy.</desc>
+
+          <!-- Boxy nejdřív (aby je nepřekryly popisky šipek) -->
+          <rect x="20" y="150" width="180" height="150" rx="16" fill="#F2F6F8" stroke="#47657D" stroke-width="2"/>
+          <text x="110" y="180" text-anchor="middle" font-size="15" font-weight="700" fill="#1E2E38">Klient</text>
+          <line x1="45" y1="192" x2="175" y2="192" stroke="#D7E3E8" stroke-width="1.5"/>
+          <text x="110" y="212" text-anchor="middle" font-size="11" fill="#54666F">IP: 192.168.1.2/24</text>
+          <text x="110" y="231" text-anchor="middle" font-size="11" fill="#54666F">brána: 192.168.1.1</text>
+          <text x="110" y="250" text-anchor="middle" font-size="11" fill="#54666F">DNS: 8.8.8.8 (ručně)</text>
+          <text x="110" y="273" text-anchor="middle" font-size="9.5" fill="#8698A1">/etc/hosts: klient, server</text>
+
+          <rect x="330" y="70" width="260" height="320" rx="18" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2.4"/>
+          <text x="460" y="98" text-anchor="middle" font-size="15" font-weight="700" fill="#1E2E38">Server — router + NAT</text>
+
+          <rect x="352" y="115" width="216" height="62" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="460" y="136" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">Intranet NIC (k Vám)</text>
+          <text x="460" y="153" text-anchor="middle" font-size="10.5" fill="#54666F">192.168.1.1/24 — pevná</text>
+          <text x="460" y="168" text-anchor="middle" font-size="9" fill="#8698A1">enp0s8 (příklad názvu)</text>
+
+          <rect x="352" y="308" width="216" height="62" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="460" y="329" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">NAT / školní síť NIC</text>
+          <text x="460" y="346" text-anchor="middle" font-size="10.5" fill="#54666F">adresa z DHCP (dhclient)</text>
+          <text x="460" y="361" text-anchor="middle" font-size="9" fill="#8698A1">enp0s3 (příklad názvu)</text>
+
+          <rect x="365" y="200" width="190" height="80" rx="12" fill="#FFFFFF" stroke="#71801A" stroke-width="1.6" stroke-dasharray="3 3"/>
+          <text x="460" y="222" text-anchor="middle" font-size="10.5" font-weight="700" fill="#71801A">ip_forward = 1</text>
+          <text x="460" y="240" text-anchor="middle" font-size="10" fill="#54666F">nft: table nat</text>
+          <text x="460" y="255" text-anchor="middle" font-size="10" fill="#54666F">chain postrouting</text>
+          <text x="460" y="270" text-anchor="middle" font-size="10" fill="#54666F">rule … masquerade</text>
+
+          <rect x="650" y="30" width="230" height="400" rx="20" fill="none" stroke="#8698A1" stroke-width="1.6" stroke-dasharray="5 4"/>
+          <text x="765" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="#54666F" letter-spacing="2">INTERNET</text>
+
+          <rect x="685" y="215" width="160" height="90" rx="14" fill="#F2F6F8" stroke="#47657D" stroke-width="2"/>
+          <text x="765" y="245" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1E2E38">www.seznam.cz</text>
+          <text x="765" y="263" text-anchor="middle" font-size="10" fill="#54666F">webový server</text>
+          <text x="765" y="279" text-anchor="middle" font-size="9.5" fill="#8698A1">veřejná IP</text>
+
+          <!-- Šipky a popisky (kresleny nad boxy) -->
+          <path d="M200 225 L322 225" stroke="#47657D" stroke-width="2" fill="none"/>
+          <path d="M312 217 L322 225 L312 233" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="261" y="213" text-anchor="middle" font-size="9.5" fill="#47657D">192.168.1.0/24</text>
+          <circle class="flow-dot right" cx="215" cy="225" r="5" fill="#47657D"/>
+
+          <path d="M590 240 L642 240" stroke="#71801A" stroke-width="2" fill="none"/>
+          <path d="M632 232 L642 240 L632 248" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot right" cx="600" cy="240" r="5" fill="#71801A" style="animation-delay:.5s"/>
+          <path d="M642 240 Q 665 248 685 256" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>
+
+          <rect x="330" y="398" width="260" height="40" rx="10" fill="#FFFFFF" stroke="#71801A" stroke-width="1.4" stroke-dasharray="2 3"/>
+          <text x="460" y="414" text-anchor="middle" font-size="9.5" font-weight="700" fill="#71801A">NAT (masquerade) na odchozím rozhraní:</text>
+          <text x="460" y="429" text-anchor="middle" font-size="9.5" fill="#54666F">zdroj 192.168.1.2 → adresa Serveru přidělená DHCP</text>
+
+          <path d="M330 385 Q 260 385 200 320" stroke="#B5453B" stroke-width="1.4" fill="none" stroke-dasharray="2 4"/>
+          <path d="M192 328 L200 320 L204 331" stroke="#B5453B" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="150" y="345" text-anchor="middle" font-size="9" fill="#B5453B">návrat: NAT přeloží cíl</text>
+          <text x="150" y="357" text-anchor="middle" font-size="9" fill="#B5453B">zpět na 192.168.1.2</text>
+        </svg>
+        <figcaption>Obr. 1 — Server má dvě rozhraní: pevné do intranetu (192.168.1.1/24) a DHCP do školní sítě. S vypnutým <code>ip_forward</code> pakety mezi rozhraními vůbec neprojdou; s NAT/masquerade Server navíc před odesláním do internetu přepíše zdrojovou adresu Klienta na svou vlastní a odpověď pak správně přesměruje zpátky.</figcaption>
+      </figure>
+
+      <h3>Nástroje iproute2 — místo starých net-tools</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Balík <code>iproute2</code> (příkaz <code>ip</code>) dnes nahrazuje starší samostatné nástroje. Ty starší v Debianu často ani nejsou nainstalované — v tomto zadání používáme jen <code>ip</code>.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Účel</th><th>Starý nástroj (net-tools)</th><th>iproute2 (dnes)</th></tr></thead>
+          <tbody>
+            <tr><td>Adresy a stav rozhraní</td><td><code>ifconfig</code></td><td><code>ip addr</code>, <code>ip link</code></td></tr>
+            <tr><td>Směrovací tabulka</td><td><code>route</code></td><td><code>ip route</code></td></tr>
+            <tr><td>ARP tabulka (sousedé)</td><td><code>arp</code></td><td><code>ip neigh</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Přehled příkazů pro dnešní zadání</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Rychlá orientační reference — podrobné použití si vyzkoušíte v části Řešení. Dnes záměrně <b>bez démonů</b> (Networking, systemd-networkd) — ty přijdou na řadu v příští kapitole.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz</th><th>Co dělá</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>ip link</b></td><td>Zobrazí/nahodí/shodí síťová rozhraní</td><td><code>ip link set dev &lt;if&gt; up</code></td></tr>
+            <tr><td><b>ip addr</b></td><td>Přidá/zobrazí/smaže IP adresu na rozhraní</td><td><code>ip addr add 192.168.1.1/24 dev &lt;if&gt;</code></td></tr>
+            <tr><td><b>ip route</b></td><td>Zobrazí/nastaví směrovací tabulku vč. výchozí brány</td><td><code>ip route add default via &lt;IP&gt;</code></td></tr>
+            <tr><td><b>dhclient</b></td><td>Vyžádá adresu, masku, bránu a DNS od DHCP serveru</td><td><code>dhclient -v &lt;if&gt;</code>; uvolnění <code>dhclient -r &lt;if&gt;</code></td></tr>
+            <tr><td><b>nft</b></td><td>Ovládá nftables — pravidla firewallu a NAT</td><td>nástupce <code>iptables</code>, doporučen od Debianu 10</td></tr>
+            <tr><td><b>sysctl</b></td><td>Čte/mění za běhu nastavení jádra, např. <code>net.ipv4.ip_forward</code></td><td><code>sysctl -w net.ipv4.ip_forward=1</code></td></tr>
+            <tr><td><b>getent</b></td><td>Otestuje překlad jména přesně podle <code>nsswitch.conf</code></td><td><code>getent hosts &lt;jméno&gt;</code></td></tr>
+            <tr><td><b>ping / nslookup</b></td><td>Test dosažitelnosti / přímý dotaz na DNS server</td><td>ping jde přes NSS, nslookup ne (viz past výše)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>Návrh a realizace řešení</h2>
+      <p class="lede">Čtyři fáze na 2 vyučovací hodiny: konfigurační soubory → Server (DHCP + intranet) → Klient (statická adresa) → směrování a NAT. Zastavte si čas u fáze 4 — restart je záměrnou součástí zadání. Pracujte na <b>Serveru i Klientovi</b> z kapitoly 2; přesné názvy rozhraní si u sebe ověřte příkazem <code>ip link show</code> — v ukázkách používáme <code>enp0s3</code>/<code>enp0s8</code> jen jako příklad.</p>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí popsat, k čemu slouží hosts, hostname, resolv.conf a nsswitch.conf.</li>
+            <li><b>Rozvíjející se</b> — zná názvy souborů, ale plete si, který řeší co.</li>
+            <li><b>Očekávaná úroveň</b> — jasně vysvětlí rozdíl mezi runtime nastavením (<code>ip</code>) a trvalým zápisem do souboru, i rozdíl mezi ping/getent a nslookup.</li>
+            <li><b>Nad rámec</b> — zdůvodní, proč NAT/masquerade a IP forwarding musí být zapnuté oba zároveň, a co přesně dělá <code>nft</code> pravidlo typu postrouting.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — základní příkazy <code>ip</code> nefungují nebo jsou použity chybně.</li>
+            <li><b>Rozvíjející se</b> — adresy jsou nastavené, ale směrování nebo NAT nefunguje.</li>
+            <li><b>Očekávaná úroveň</b> — Server i Klient mají funkční adresy, Klient se dostane na www.seznam.cz přes NAT, lokální překlad jmen funguje na obou strojích.</li>
+            <li><b>Nad rámec</b> — navíc přesně a věcně popsáno, co přesně po restartu zmizelo a proč (viz fáze 4).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí zdůvodnit, proč Klient bez NAT nedosáhne internetu.</li>
+            <li><b>Rozvíjející se</b> — tuší, že je něco potřeba zapnout na Serveru, ale neumí přesně říct co.</li>
+            <li><b>Očekávaná úroveň</b> — umí vysvětlit roli výchozí brány, IP forwardingu a NAT dohromady na konkrétním příkladu své sítě.</li>
+            <li><b>Nad rámec</b> — navrhne, jak by se dnešní ruční nastavení dalo udělat trvalé (i bez znalosti příští kapitoly).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — závislý na pomoci u každého kroku.</li>
+            <li><b>Rozvíjející se</b> — poradí si se soubory, u směrování/NAT potřebuje pomoc.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, chyby si dohledá v manuálových stránkách (<code>man</code>).</li>
+            <li><b>Nad rámec</b> — patří mezi první tři funkční týmy a pomáhá spolužákům.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit, k čemu slouží /etc/hostname, /etc/hosts, /etc/resolv.conf a /etc/nsswitch.conf.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím vysvětlit rozdíl mezi ping/getent hosts (jde přes /etc/hosts) a nslookup (jde přímo na DNS).</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Umím příkazem ip nastavit adresu, masku a stav rozhraní (up/down).</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím nastavit výchozí bránu příkazem ip route add default via.</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Umím získat adresu na rozhraní příkazem dhclient a vysvětlit, co všechno tím dostanu (adresa, maska, brána, DNS).</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím zapnout IP forwarding a vysvětlit, proč je bez něj směrování mezi rozhraními nemožné.</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím vytvořit v nftables pravidlo masquerade pro odchozí rozhraní a vysvětlit, co dělá.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Umím vysvětlit, proč po restartu zmizelo nastavení udělané příkazy ip/nft/sysctl, ale démon networking naskočil sám.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty výstupů ip addr/ip route/nft list ruleset před i po restartu, i zápis toho, co přesně po restartu přestalo fungovat, ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky (kap. 7) — oficiální manuálové stránky Linuxu, dokumentace nftables a jádra, Debian Reference a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 5 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 5 — Konfigurace síťových rozhraní příkazy
+   ========================================================================== */
+
+  var TOPIC = {
+    num: "5",
+    title: "Konfigurace síťových rozhraní příkazy",
+    hours: "2 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "Síťové rozhraní se dá nastavit přímo v běžícím jádře příkazy <b>ip</b>, <b>dhclient</b>, <b>nft</b> a <b>sysctl</b> — ale bez zápisu do konfiguračního souboru tohle nastavení nepřežije restart. A bez zapnutého směrování a NAT na Serveru se Klient za ním do internetu vůbec nedostane.",
+    eq: "Jak nastavit adresy, směrování, NAT a lokální překlad jmen jen pomocí příkazů — a co přesně se stane, když tohle nastavení nikam neuložíte?",
+    challenge: "Postavte malou školní síť: <b>Server</b> bude zároveň router s NAT mezi školní sítí (adresu dostane přes DHCP) a intranetem, <b>Klient</b> bude v intranetu za ním se statickou adresou. Nastavte vše jen příkazy (<b>ip, nft, dhclient, sysctl</b>) a konfiguračními soubory (<b>hosts, hostname, resolv.conf, nsswitch.conf</b>) — bez démonů. Cílem je, aby se Klient přes Server dostal až na <b>www.seznam.cz</b>."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Jaký je rozdíl mezi příkazem, který mění nastavení sítě jen v běžícím jádře, a zápisem do konfiguračního souboru — a co se stane po restartu?",
+      "Jak systém pozná, jestli má hostname přeložit podle /etc/hosts, nebo se zeptat DNS serveru — a proč na to nemají všechny nástroje stejnou odpověď?",
+      "Co znamená, že Server „routuje“ provoz mezi dvěma sítěmi, a co navíc potřebuje NAT (překlad adres), aby se odpověď vrátila správně zpět?",
+      "Jak dhclient získá adresu, masku, bránu a DNS server automaticky — a proč to na intranetovém rozhraní nejde stejně?",
+      "Čím se dnes doporučovaný nftables liší od staršího iptables, a proč se v tomto zadání používá právě nft?"
+    ],
+    resources: [
+      {
+        title: "Linux manuál — adresy a rozhraní: ip-address(8), ip-link(8), ip-route(8)",
+        tag: "official",
+        items: [
+          "Přesná syntaxe <code>ip addr add/del</code>, <code>ip link set … up/down</code> a <code>ip route add default via</code>.",
+          "<a href='https://man7.org/linux/man-pages/man8/ip-address.8.html' target='_blank' rel='noopener'>man7.org/…/ip-address.8.html</a> · <a href='https://man7.org/linux/man-pages/man8/ip-link.8.html' target='_blank' rel='noopener'>ip-link.8.html</a> · <a href='https://man7.org/linux/man-pages/man8/ip-route.8.html' target='_blank' rel='noopener'>ip-route.8.html</a>"
+        ]
+      },
+      {
+        title: "Linux manuál — konfigurační soubory: hosts(5), hostname(5), resolv.conf(5), nsswitch.conf(5)",
+        tag: "official",
+        items: [
+          "Formát /etc/hosts (IP adresa, kanonické jméno, aliasy) a /etc/hostname (jeden řádek, čte při startu).",
+          "<a href='https://man7.org/linux/man-pages/man5/hosts.5.html' target='_blank' rel='noopener'>man7.org/…/hosts.5.html</a> · <a href='https://man7.org/linux/man-pages/man5/hostname.5.html' target='_blank' rel='noopener'>hostname.5.html</a>",
+          "Direktivy <code>nameserver</code> (max. MAXNS=3) a <code>search</code> v resolv.conf; databáze a pořadí zdrojů v nsswitch.conf.",
+          "<a href='https://man7.org/linux/man-pages/man5/resolv.conf.5.html' target='_blank' rel='noopener'>resolv.conf.5.html</a> · <a href='https://man7.org/linux/man-pages/man5/nsswitch.conf.5.html' target='_blank' rel='noopener'>nsswitch.conf.5.html</a>"
+        ]
+      },
+      {
+        title: "Debian Reference — kap. 5 Network setup",
+        tag: "official",
+        items: [
+          "Oficiální popis, jak nsswitch.conf (<code>hosts: files dns</code>) řídí pořadí hledání — nejdřív /etc/hosts, pak DNS z resolv.conf.",
+          "<a href='https://www.debian.org/doc/manuals/debian-reference/ch05.en.html' target='_blank' rel='noopener'>debian.org/doc/manuals/debian-reference/ch05.en.html</a>"
+        ]
+      },
+      {
+        title: "Linux manuál — getent(1)",
+        tag: "official",
+        items: [
+          "getent hosts jde přes stejnou NSS cestu jako gethostbyname — proto je spolehlivý pro test /etc/hosts, na rozdíl od nslookup.",
+          "<a href='https://man7.org/linux/man-pages/man1/getent.1.html' target='_blank' rel='noopener'>man7.org/…/getent.1.html</a>"
+        ]
+      },
+      {
+        title: "nftables wiki — Quick reference: nftables in 10 minutes",
+        tag: "official",
+        items: [
+          "Vytvoření tabulky/řetězu typu nat (postrouting, priority 100) a pravidla masquerade.",
+          "<a href='https://wiki.nftables.org/wiki-nftables/index.php/Quick_reference-nftables_in_10_minutes' target='_blank' rel='noopener'>wiki.nftables.org/…/Quick_reference-nftables_in_10_minutes</a>"
+        ]
+      },
+      {
+        title: "isc-dhcp-client — dhclient(8)",
+        tag: "official",
+        items: [
+          "Základní použití: <code>dhclient &lt;rozhraní&gt;</code>, <code>-v</code> pro podrobný výpis, <code>-r</code> pro uvolnění zápůjčky.",
+          "<a href='https://manpages.debian.org/bookworm/isc-dhcp-client/dhclient.8.en.html' target='_blank' rel='noopener'>manpages.debian.org/…/dhclient.8.en.html</a>"
+        ]
+      },
+      {
+        title: "Linux jádro — Documentation/networking/ip-sysctl.txt",
+        tag: "official",
+        items: [
+          "net.ipv4.ip_forward — výchozí hodnota 0 (vypnuto), 1 = přeposílání paketů mezi rozhraními zapnuto.",
+          "<a href='https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt' target='_blank' rel='noopener'>kernel.org/doc/Documentation/networking/ip-sysctl.txt</a>"
+        ]
+      },
+      {
+        title: "ifupdown — interfaces(5) (pro pochopení, co se obnoví po restartu)",
+        tag: "official",
+        items: [
+          "Soubor, který čte službu/démon networking (ifup/ifdown) při startu — proč se po restartu chová jinak než naše ruční nastavení příkazy.",
+          "<a href='https://manpages.ubuntu.com/manpages/jammy/man5/interfaces.5.html' target='_blank' rel='noopener'>manpages.ubuntu.com/…/interfaces.5.html</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Proč adresa nastavená příkazem „ip addr add 192.168.1.1/24 dev …“ po restartu zmizí?",
+      opts: ["Maska byla zadaná špatně", "Příkaz ip mění jen běžící stav jádra a nic nezapisuje na disk", "IP adresy jsou platné jen 24 hodin", "Restart vždy smaže /etc/hosts"],
+      correct: 1,
+      explain: "ip je nástroj pro runtime (okamžitou) konfiguraci sítě v jádře — nic z toho, co jím nastavíte, se nikam neukládá. Trvalé nastavení řeší až konfigurační soubor a démon, který ho při startu načte (příští kapitola)."
+    },
+    {
+      q: "Proč nslookup nenajde jméno klient, i když je správně v /etc/hosts a ping ho bez problémů přeloží?",
+      opts: ["nslookup podporuje jen IPv6", "/etc/hosts umí číst jen ping", "nslookup obchází /etc/nsswitch.conf a ptá se přímo DNS serveru z resolv.conf", "nslookup vyžaduje jiný formát jména"],
+      correct: 2,
+      explain: "ping a getent hosts jdou přes NSS podle pořadí v /etc/nsswitch.conf (typicky nejdřív files, pak dns). nslookup (stejně jako dig/host) tuto cestu úplně obchází a dotazuje se rovnou DNS serveru — bez fungujícího DNS proto selže, i když je záznam v /etc/hosts v pořádku."
+    },
+    {
+      q: "Co je nutné na Serveru zapnout, aby vůbec mohl přeposílat pakety mezi svými dvěma rozhraními?",
+      opts: ["Stačí mít dvě rozhraní se dvěma adresami", "net.ipv4.ip_forward=1 (IP forwarding)", "Restart serveru", "dhclient na obou rozhraních"],
+      correct: 1,
+      explain: "Výchozí hodnota net.ipv4.ip_forward je 0 — Linux jako běžný počítač pakety mezi rozhraními nepřeposílá. Teprve po nastavení na 1 se ze stroje stane router."
+    },
+    {
+      q: "K čemu slouží pravidlo masquerade v nftables v tomto zadání?",
+      opts: ["Zahodí veškerý provoz z Klienta", "Před odesláním do internetu přepíše zdrojovou (privátní) adresu Klienta na adresu Serveru a odpověď správně nasměruje zpět", "Zrychlí DNS dotazy", "Zašifruje provoz mezi Serverem a Klientem"],
+      correct: 1,
+      explain: "Masquerade je forma NAT: nahradí zdrojovou IP adresu odchozích paketů adresou výstupního rozhraní Serveru (tu, kterou dostal přes DHCP) a páruje odpovědi zpět ke správnému vnitřnímu spojení — bez toho by internet nevěděl, kam odpověď na privátní 192.168.1.2 poslat."
+    },
+    {
+      q: "Kolik řádků „nameserver“ smí /etc/resolv.conf podle manuálu obsahovat nejvýš?",
+      opts: ["1", "3 (MAXNS)", "5", "neomezeně"],
+      correct: 1,
+      explain: "Manuálová stránka resolv.conf(5) uvádí konstantu MAXNS = 3 — resolver použije nejvýš tři servery, v pořadí, v jakém jsou uvedené."
+    }
+  ];
+
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu (odpověď), se NEPÍŠÍ přímo do checklistu.
+  // Vloží se do pole "extra" dané fáze — renderAct je zabalí do rozklikávacího "Zobrazit řešení".
+  var ACT = [
+    {
+      num: 1, en: "Configuration Files", title: "Konfigurační soubory (Část A)",
+      body: "<p>⏱ orientačně 20 min. Na Serveru i Klientovi nastavte jméno a lokální překlad jmen — zatím jen editací souborů, žádné příkazy pro síť.</p>",
+      checklist: [
+        "Na Klientovi trvale nastaveno jméno <code>klient</code> v souboru <code>/etc/hostname</code>",
+        "Na Serveru i Klientovi doplněny do <code>/etc/hosts</code> řádky <code>192.168.1.1 server server.vyuka.cz</code> a <code>192.168.1.2 klient klient.vyuka.cz</code> (původní řádky, např. 127.0.0.1 localhost, zůstávají beze změny)",
+        "Na obou strojích zkontrolován řádek <code>hosts:</code> v <code>/etc/nsswitch.conf</code> a zapsáno, v jakém pořadí se zdroje prohledávají",
+        "Na obou strojích ověřen překlad jmen příkazy <code>ping</code> a <code>getent hosts</code> (nikoliv nslookup — viz past v teorii výše)",
+        "Bonus: vyzkoušen i <code>nslookup</code> na totéž jméno a do poznámek zapsáno a zdůvodněno, proč dopadl jinak než ping/getent"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># na Klientovi — trvalé jméno</span>\nsudo bash -c 'echo klient > /etc/hostname'\nsudo hostname klient\n\n<span class=\"c\"># na Serveru i Klientovi — lokální překlad jmen (needitujte přes echo >>, ať nesmažete obsah)</span>\nsudo nano /etc/hosts\n<span class=\"c\"># doplňte na konec souboru:</span>\n<span class=\"c\">192.168.1.1 server server.vyuka.cz</span>\n<span class=\"c\">192.168.1.2 klient klient.vyuka.cz</span>\n\n<span class=\"c\"># kontrola pořadí zdrojů</span>\ngrep ^hosts: /etc/nsswitch.conf\n\n<span class=\"c\"># test překladu — přes NSS, tedy i přes /etc/hosts</span>\nping -c 2 server\nping -c 2 klient\ngetent hosts server\ngetent hosts klient\n\n<span class=\"c\"># bonus — nslookup obchází /etc/hosts, bez DNS serveru zatím selže</span>\nnslookup klient</code></pre>"
+    },
+    {
+      num: 2, en: "Server: DHCP & Intranet", title: "Server — DHCP a intranetové rozhraní (Část B)",
+      body: "<p>⏱ orientačně 25 min. Na Serveru zastavte démon networking (jen zastavte, nezakazujte — proč, zjistíte ve fázi 4) a nastavte obě rozhraní jen příkazy.</p>",
+      checklist: [
+        "Na Serveru zastaven démon networking příkazem <code>systemctl stop networking</code>",
+        "Zjištěny skutečné názvy obou síťových rozhraní příkazem <code>ip link show</code>",
+        "Rozhraní do školní sítě (NAT ve VMware) nahozeno příkazem <code>ip link set … up</code> a přes něj získána adresa, brána i DNS příkazem <code>dhclient</code>",
+        "Ověřena přidělená konfigurace příkazy <code>ip addr show</code>, <code>ip route show</code> a <code>cat /etc/resolv.conf</code>",
+        "Intranetové rozhraní nahozeno a nastavena pevná adresa <code>192.168.1.1/24</code> příkazem <code>ip addr add</code>",
+        "Otestováno spojení ze Serveru na <code>www.seznam.cz</code> (funguje díky DHCP)"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># zastavit démon networking (NE disable — viz fáze 4)</span>\nsudo systemctl stop networking\n\n<span class=\"c\"># zjistit skutečné názvy rozhraní</span>\nip link show\n\n<span class=\"c\"># rozhraní do školní sítě (NAT) — příklad názvu enp0s3</span>\nsudo ip link set enp0s3 up\nsudo dhclient -v enp0s3\nip addr show enp0s3\nip route show\ncat /etc/resolv.conf\n\n<span class=\"c\"># intranetové rozhraní (k Vám) — příklad názvu enp0s8, pevná adresa</span>\nsudo ip link set enp0s8 up\nsudo ip addr add 192.168.1.1/24 dev enp0s8\nip addr show enp0s8\n\n<span class=\"c\"># test ze Serveru do internetu</span>\nping -c 3 www.seznam.cz</code></pre>"
+    },
+    {
+      num: 3, en: "Client: Static Address", title: "Klient — statická adresa a ověření spojení",
+      body: "<p>⏱ orientačně 20 min. Klient nemá DHCP server (ten dnes nastavujete jen ručně) — vše nastavíte staticky.</p>",
+      checklist: [
+        "Na Klientovi zastaven démon networking příkazem <code>systemctl stop networking</code>",
+        "Intranetové rozhraní Klienta nahozeno a nastavena pevná adresa <code>192.168.1.2/24</code>",
+        "Nastavena výchozí brána <code>192.168.1.1</code> příkazem <code>ip route add default via</code>",
+        "Ručně zapsán DNS server <code>8.8.8.8</code> do <code>/etc/resolv.conf</code> na Klientovi (DHCP zatím nemá)",
+        "Otestováno spojení Server↔Klient podle IP adresy i podle doménového jména (<code>server</code>/<code>klient</code> z /etc/hosts) — oběma směry",
+        "Otestováno spojení z Klienta na <code>www.seznam.cz</code> — zaznamenán výsledek a zapsána hypotéza, proč se (zatím) nepřipojí"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># zastavit démon networking</span>\nsudo systemctl stop networking\n\n<span class=\"c\"># intranetové rozhraní Klienta — příklad názvu enp0s3</span>\nsudo ip link set enp0s3 up\nsudo ip addr add 192.168.1.2/24 dev enp0s3\n\n<span class=\"c\"># výchozí brána</span>\nsudo ip route add default via 192.168.1.1\n\n<span class=\"c\"># DNS ručně, protože žádný DHCP zatím neběží</span>\nsudo bash -c 'echo \"nameserver 8.8.8.8\" > /etc/resolv.conf'\n\n<span class=\"c\"># test Server <-> Klient, podle IP i jména</span>\nping -c 3 192.168.1.1\nping -c 3 server\n<span class=\"c\"># totéž zopakujte na Serveru směrem ke Klientovi</span>\n\n<span class=\"c\"># test do internetu — očekávejte (zatím) neúspěch</span>\nping -c 3 www.seznam.cz</code></pre>"
+    },
+    {
+      num: 4, en: "Routing & NAT", title: "Směrování a NAT na Serveru",
+      body: "<p>⏱ orientačně 25 min. Klient má správnou bránu, ale Server pakety mezi rozhraními zatím nepřeposílá a nepřekládá adresy — proto se do internetu nedostane. Zapněte na Serveru směrování a NAT, a nakonec vyzkoušejte, co přežije restart.</p>",
+      checklist: [
+        "Na Serveru zjištěn a zapsán aktuální stav IP forwardingu příkazem <code>cat /proc/sys/net/ipv4/ip_forward</code>",
+        "IP forwarding zapnut příkazem <code>sysctl -w net.ipv4.ip_forward=1</code>",
+        "Vytvořena nftables tabulka a řetěz typu nat pro postrouting (<code>nft add table</code>, <code>nft add chain</code>)",
+        "Přidáno pravidlo <code>masquerade</code> pro odchozí (školní síť) rozhraní Serveru",
+        "Znovu otestováno spojení z Klienta na <code>www.seznam.cz</code> — nyní funguje",
+        "Pokud spojení funguje a jste mezi prvními třemi týmy, zavolejte vyučujícího ke kontrole → hodnocení 1",
+        "Restartován Server i Klient",
+        "Po restartu znovu otestováno spojení Klient→internet i Server↔Klient a zapsáno, co přesně přestalo fungovat, co naopak naskočilo samo (a proč), a co by bylo potřeba udělat, aby nastavení přežilo restart"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># stav IP forwardingu (výchozí je 0 — vypnuto)</span>\ncat /proc/sys/net/ipv4/ip_forward\n\n<span class=\"c\"># zapnutí — jen za běhu, nic se nezapisuje na disk</span>\nsudo sysctl -w net.ipv4.ip_forward=1\n\n<span class=\"c\"># nftables — tabulka, řetěz postrouting, pravidlo masquerade\n# enp0s3 = příklad názvu odchozího (školní síť/NAT) rozhraní Serveru</span>\nsudo nft add table ip nat\nsudo nft add chain ip nat postrouting '{ type nat hook postrouting priority 100 ; }'\nsudo nft add rule ip nat postrouting oifname \"enp0s3\" masquerade\nsudo nft list ruleset\n\n<span class=\"c\"># na Klientovi — mělo by už fungovat</span>\nping -c 3 www.seznam.cz\n\n<span class=\"c\"># restart obou strojů, pak znovu ze stejného místa:</span>\nip addr show\nip route show\nsudo nft list ruleset\nping -c 3 www.seznam.cz\n<span class=\"c\"># porovnejte se stavem před restartem a zapište rozdíl do poznámek</span></code></pre>"
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Funkční malá školní síť: Server jako router s NAT mezi školní sítí (DHCP) a intranetem 192.168.1.0/24, Klient připojený přes Server až na www.seznam.cz, lokální překlad jmen server/klient funkční na obou strojích. Odevzdejte: screenshoty ip addr / ip route / nft list ruleset před i po restartu + krátké zdůvodnění (50–100 slov), co přesně po restartu přestalo fungovat a co by bylo potřeba udělat, aby nastavení přežilo — to je téma příští kapitoly.";
+
+  var REFLECT = [
+    "Co přesně zmizelo po restartu Serveru a Klienta a proč — co bylo jen v paměti běžícího jádra a co se naopak obnovilo samo?",
+    "Kde jste poprvé narazili na to, že ne každý nástroj pro překlad jmen dělá totéž (ping/getent vs. nslookup) — a co vás to naučilo o /etc/nsswitch.conf?",
+    "Jak byste spolužákovi mimo obor vysvětlili, co dělá NAT/masquerade na Serveru a proč je bez něj Klient „neviditelný“ pro internet?",
+    "Co byste chtěli, aby se po restartu nastavilo samo — a proč je to přesně téma příští kapitoly?"
+  ];
+
+  var SOURCES = [
+    {title:"ip-address(8) — Linux manuál", url:"https://man7.org/linux/man-pages/man8/ip-address.8.html", tag:"official", note:"Syntaxe ip addr add/del/show."},
+    {title:"ip-link(8) — Linux manuál", url:"https://man7.org/linux/man-pages/man8/ip-link.8.html", tag:"official", note:"ip link set dev … up/down."},
+    {title:"ip-route(8) — Linux manuál", url:"https://man7.org/linux/man-pages/man8/ip-route.8.html", tag:"official", note:"ip route add/del default via."},
+    {title:"hosts(5) — Linux manuál", url:"https://man7.org/linux/man-pages/man5/hosts.5.html", tag:"official", note:"Formát souboru /etc/hosts."},
+    {title:"hostname(5) — Linux manuál", url:"https://man7.org/linux/man-pages/man5/hostname.5.html", tag:"official", note:"Obsah a čtení /etc/hostname při startu."},
+    {title:"resolv.conf(5) — Linux manuál", url:"https://man7.org/linux/man-pages/man5/resolv.conf.5.html", tag:"official", note:"nameserver, search, MAXNS=3."},
+    {title:"nsswitch.conf(5) — Linux manuál", url:"https://man7.org/linux/man-pages/man5/nsswitch.conf.5.html", tag:"official", note:"Pořadí zdrojů pro databázi hosts a další."},
+    {title:"getent(1) — Linux manuál", url:"https://man7.org/linux/man-pages/man1/getent.1.html", tag:"official", note:"Test překladu jmen přes NSS (na rozdíl od nslookup)."},
+    {title:"Debian Reference — kap. 5 Network setup", url:"https://www.debian.org/doc/manuals/debian-reference/ch05.en.html", tag:"official", note:"Oficiální popis pořadí files → dns v nsswitch.conf."},
+    {title:"nftables wiki — Quick reference (10 minutes)", url:"https://wiki.nftables.org/wiki-nftables/index.php/Quick_reference-nftables_in_10_minutes", tag:"official", note:"Tabulka/řetěz nat, pravidlo masquerade."},
+    {title:"dhclient(8) — isc-dhcp-client (Debian manpages)", url:"https://manpages.debian.org/bookworm/isc-dhcp-client/dhclient.8.en.html", tag:"official", note:"Základní použití dhclient, -v, -r."},
+    {title:"Documentation/networking/ip-sysctl.txt — Linux kernel", url:"https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt", tag:"official", note:"net.ipv4.ip_forward — výchozí 0, přeposílání paketů."},
+    {title:"interfaces(5) — ifupdown", url:"https://manpages.ubuntu.com/manpages/jammy/man5/interfaces.5.html", tag:"official", note:"Soubor, který čte démon networking (ifup/ifdown) při startu."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+})();
+</script>
+</body>
+</html>

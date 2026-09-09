@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6 Konfigurace síťových rozhraní démony · Operační systém Linux</title>
+<meta name="description" content="Trvalé nastavení sítě dvěma vzájemně se vylučujícími démony — networking/ifupdown (/etc/network/interfaces) a systemd-networkd + systemd-resolved (.network soubory, resolved.conf) — vč. trvalého IP forwardingu a NAT přes sysctl.d a nftables.service. Kapitola 6, 4 vyučovací hodiny.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 6 — Konfigurace síťových rozhraní démony — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf) a strukturně z kapitoly 5
+   (05-konfigurace-site-prikazy.html) — stejné HTML/CSS/vykreslovací JS,
+   jen obsah (TOPIC/ENGAGE/INVESTIGATE/QUIZ/ACT/REFLECT/SOURCES) a doplňkový
+   statický obsah (tabulky + 1 nový SVG diagram "bootovací tok"). Žádná nová
+   CSS keyframe není potřeba — nový diagram je svislý (systemd → větev →
+   soubor → jádro), takže vystačí s existující flowMoveDown z kapitol 4-5.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+@keyframes flowMoveRight{
+  0%{ transform:translateX(0); opacity:.25; }
+  15%{ opacity:1; }
+  85%{ opacity:1; }
+  100%{ transform:translateX(64px); opacity:.25; }
+}
+.flow-dot.right{ animation-name: flowMoveRight; animation-duration:2.2s; animation-timing-function:ease-in-out; }
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Konfigurace síťových rozhraní démony</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Tato kapitola uzavírá „aha moment“ z kapitoly 5 — síť Školy X dnes poprvé přežije restart. Je to první trvalá vrstva infrastruktury, na které budou stavět další kapitoly (DNS, DHCP server, SSH…).</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>Trvalé nastavení sítě — dva neslučitelné démoni</h2>
+      <p class="lede">V kapitole 5 jste síť postavili jen příkazy — po restartu vše zmizelo, protože <code>ip</code>/<code>nft</code>/<code>sysctl -w</code> mění jen běžící stav jádra, ne žádný soubor na disku. Dnes stejnou síť zapíšete do konfiguračních souborů, které při každém startu přečte démon a nastavení zopakuje sám. K tomu vedou dvě cesty, které se navzájem vylučují — a je potřeba přesně vědět, kdy se která používá.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <h3>Dvě cesty k trvalému nastavení</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Obě cesty dělají totéž (nastaví adresu, bránu, DNS), ale úplně jinými soubory a démony — nikdy je nemíchejte na jednom rozhraní.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Vrstva</th><th>Klasicky — démon networking</th><th>Moderně — systemd-networkd</th></tr></thead>
+          <tbody>
+            <tr><td><b>Konfigurační soubor</b></td><td><code>/etc/network/interfaces</code></td><td><code>/etc/systemd/network/*.network</code> + <code>/etc/systemd/resolved.conf</code></td></tr>
+            <tr><td><b>Kdo soubor čte při startu</b></td><td>démon <code>networking</code> (skripty ifup/ifdown)</td><td><code>systemd-networkd</code> + <code>systemd-resolved</code></td></tr>
+            <tr><td><b>Povolení démona</b></td><td><code>systemctl enable networking</code></td><td><code>systemctl enable systemd-networkd systemd-resolved</code></td></tr>
+            <tr><td><b>DNS</b></td><td>dhclient (automaticky) / ruční zápis do <code>/etc/resolv.conf</code></td><td><code>systemd-resolved</code>, <code>/etc/resolv.conf</code> je symlink na stub resolver</td></tr>
+            <tr><td><b>Smí běžet oba zároveň?</b></td><td colspan="2">Ne — před přechodem na druhý je nutné ten první <code>systemctl disable --now</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><b>Proč nesmí běžet oba démoni najednou:</b> oba se snaží spravovat stejná fyzická rozhraní nezávisle na sobě. Pokud jsou aktivní současně, přepisují si navzájem adresy, trasy i DNS — výsledek je nepředvídatelný a těžko se ladí. Pravidlo je jednoduché:</p>
+        <ul>
+          <li>Přecházíte na <code>systemd-networkd</code>? Nejdřív <code>systemctl disable --now networking</code>.</li>
+          <li>Vracíte se zpět k <code>networking</code>? Nejdřív <code>systemctl disable --now systemd-networkd systemd-resolved</code>.</li>
+        </ul>
+      </div>
+
+      <h3>Co je společné a co ne — kompletní obraz trvalého nastavení</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Nejde jen o IP adresu a DNS. IP forwarding a NAT pravidlo jsou nezávislé na tom, který ze dvou démonů zrovna spravuje rozhraní — nastaví se jednou a fungují dál i po přechodu z jedné metody na druhou.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Soubor / umístění</th><th>Patří k</th><th>K čemu slouží</th></tr></thead>
+          <tbody>
+            <tr><td><code>/etc/network/interfaces</code></td><td>jen networking</td><td>trvalá adresa/brána/DHCP na rozhraní</td></tr>
+            <tr><td><code>/etc/systemd/network/*.network</code></td><td>jen systemd-networkd</td><td>trvalá adresa/brána/DHCP na rozhraní</td></tr>
+            <tr><td><code>/etc/systemd/resolved.conf</code></td><td>jen systemd-resolved</td><td>ruční DNS server</td></tr>
+            <tr><td><code>/etc/sysctl.d/*.conf</code></td><td><b>oba</b> — nezávislé na volbě démona</td><td>trvalý IP forwarding (<code>net.ipv4.ip_forward</code>)</td></tr>
+            <tr><td><code>/etc/nftables.conf</code> + <code>nftables.service</code></td><td><b>oba</b> — nezávislé na volbě démona</td><td>trvalé NAT/masquerade pravidlo</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Bootovací tok — kdo co čte a kdy</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Topologie sítě je stejná jako v kapitole 5 (Server = router s NAT, Klient v intranetu) — nekreslíme ji znovu. Nový je tenhle diagram: co přesně se odehraje mezi startem počítače a funkční sítí.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgboottitle svgbootdesc">
+          <title id="svgboottitle">Bootovací tok — networking vs. systemd-networkd</title>
+          <desc id="svgbootdesc">Po startu systemd (PID 1) spustí buď démona networking, který přečte /etc/network/interfaces a skripty ifup nastaví rozhraní, nebo systemd-networkd spolu se systemd-resolved, které přečtou .network soubory a resolved.conf — nikdy ne oba zároveň. Výsledný stav v jádře (adresa, brána, DNS) je stejný bez ohledu na zvolenou cestu.</desc>
+
+          <!-- Boxy nejdřív (aby je nepřekryly šipky a popisky) -->
+          <rect x="330" y="28" width="240" height="58" rx="14" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+          <text x="450" y="52" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">systemd (PID 1)</text>
+          <text x="450" y="70" text-anchor="middle" font-size="9" fill="#8698A1">spustí cílovou jednotku při startu</text>
+
+          <rect x="50" y="130" width="240" height="58" rx="14" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="170" y="154" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">networking.service</text>
+          <text x="170" y="172" text-anchor="middle" font-size="9.5" fill="#54666F">(ifupdown, klasický démon)</text>
+
+          <rect x="610" y="130" width="240" height="58" rx="14" fill="#FAFBE6" stroke="#DBF02A" stroke-width="2.4"/>
+          <text x="730" y="154" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">systemd-networkd</text>
+          <text x="730" y="172" text-anchor="middle" font-size="9.5" fill="#54666F">+ systemd-resolved</text>
+
+          <rect x="50" y="218" width="240" height="58" rx="12" fill="#F2F6F8" stroke="#47657D" stroke-width="1.6"/>
+          <text x="170" y="242" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">/etc/network/interfaces</text>
+          <text x="170" y="260" text-anchor="middle" font-size="9" fill="#54666F">auto + iface static/dhcp</text>
+
+          <rect x="610" y="218" width="240" height="58" rx="12" fill="#F2F6F8" stroke="#71801A" stroke-width="1.6"/>
+          <text x="730" y="242" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">*.network + resolved.conf</text>
+          <text x="730" y="260" text-anchor="middle" font-size="9" fill="#54666F">[Match] / [Network] / [Resolve]</text>
+
+          <rect x="50" y="306" width="240" height="52" rx="12" fill="#F2F6F8" stroke="#47657D" stroke-width="1.6"/>
+          <text x="170" y="328" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">ifup -a spustí skripty</text>
+          <text x="170" y="345" text-anchor="middle" font-size="9" fill="#54666F">nastaví adresu/bránu v jádru</text>
+
+          <rect x="610" y="306" width="240" height="52" rx="12" fill="#F2F6F8" stroke="#71801A" stroke-width="1.6"/>
+          <text x="730" y="328" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">networkd + resolved</text>
+          <text x="730" y="345" text-anchor="middle" font-size="9" fill="#54666F">aplikují nastavení v jádru</text>
+
+          <rect x="200" y="410" width="500" height="62" rx="16" fill="#FFFFFF" stroke="#71801A" stroke-width="2" stroke-dasharray="3 3"/>
+          <text x="450" y="434" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">Stejný funkční stav sítě po každém restartu</text>
+          <text x="450" y="452" text-anchor="middle" font-size="9.5" fill="#54666F">adresa, brána, DNS, IP forwarding a NAT ruleset naskočí samy</text>
+          <text x="450" y="467" text-anchor="middle" font-size="8.5" fill="#8698A1">— ať už síť právě spravuje kterýkoli z obou démonů</text>
+
+          <!-- Varovný popisek — ve volném prostoru mezi oběma větvemi, ne v úzké mezeře u šipky -->
+          <text x="450" y="148" text-anchor="middle" font-size="10" font-weight="700" fill="#B5453B">⚠ jen jedna větev smí</text>
+          <text x="450" y="163" text-anchor="middle" font-size="10" font-weight="700" fill="#B5453B">být aktivní zároveň</text>
+          <text x="450" y="178" text-anchor="middle" font-size="8.5" fill="#8698A1">(ten druhý: systemctl disable --now)</text>
+
+          <text x="450" y="14" text-anchor="middle" font-size="10.5" fill="#8698A1">Start / restart počítače</text>
+
+          <!-- Šipky (kresleny nad boxy) -->
+          <path d="M450 18 L450 26" stroke="#8698A1" stroke-width="1.6" fill="none"/>
+          <path d="M446 20 L450 26 L454 20" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <path d="M450 86 L 174 128" stroke="#47657D" stroke-width="1.8" fill="none"/>
+          <path d="M181 121 L 174 128 L 183 133" stroke="#47657D" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot down" cx="310" cy="106" r="4.5" fill="#47657D"/>
+
+          <path d="M450 86 L 726 128" stroke="#71801A" stroke-width="1.8" fill="none"/>
+          <path d="M719 121 L 726 128 L 717 133" stroke="#71801A" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot down" cx="590" cy="106" r="4.5" fill="#71801A" style="animation-delay:.4s"/>
+
+          <path d="M170 188 L170 216" stroke="#47657D" stroke-width="1.8" fill="none"/>
+          <path d="M166 210 L170 216 L174 210" stroke="#47657D" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot down" cx="170" cy="200" r="4.5" fill="#47657D"/>
+
+          <path d="M730 188 L730 216" stroke="#71801A" stroke-width="1.8" fill="none"/>
+          <path d="M726 210 L730 216 L734 210" stroke="#71801A" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot down" cx="730" cy="200" r="4.5" fill="#71801A" style="animation-delay:.4s"/>
+
+          <path d="M170 276 L170 304" stroke="#47657D" stroke-width="1.8" fill="none"/>
+          <path d="M166 298 L170 304 L174 298" stroke="#47657D" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot down" cx="170" cy="290" r="4.5" fill="#47657D"/>
+
+          <path d="M730 276 L730 304" stroke="#71801A" stroke-width="1.8" fill="none"/>
+          <path d="M726 298 L730 304 L734 298" stroke="#71801A" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot down" cx="730" cy="290" r="4.5" fill="#71801A" style="animation-delay:.4s"/>
+
+          <path d="M170 358 L 335 408" stroke="#47657D" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>
+          <path d="M327 403 L 335 408 L 330 416" stroke="#47657D" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <path d="M730 358 L 565 408" stroke="#71801A" stroke-width="1.6" fill="none" stroke-dasharray="3 3"/>
+          <path d="M573 403 L 565 408 L 570 416" stroke="#71801A" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+        <figcaption>Obr. 1 — Po startu spustí systemd cílovou jednotku, která nahodí buď démona networking (čte /etc/network/interfaces), nebo systemd-networkd spolu se systemd-resolved (čtou .network soubory a resolved.conf) — nikdy oba zároveň. Výsledek v jádře je stejný: adresa, brána, DNS, IP forwarding a NAT ruleset naskočí samy při každém restartu.</figcaption>
+      </figure>
+
+      <h3>Přehled příkazů pro dnešní zadání</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Rychlá orientační reference — podrobné použití si vyzkoušíte v části Řešení.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz / soubor</th><th>Co dělá</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>systemctl enable/disable</b></td><td>Trvale zapne/vypne spouštění démona při startu</td><td><code>--now</code> navíc rovnou spustí/zastaví</td></tr>
+            <tr><td><b>/etc/network/interfaces</b></td><td>Konfigurace pro démona networking</td><td><code>auto</code>, <code>allow-hotplug</code>, <code>iface … inet static/dhcp</code></td></tr>
+            <tr><td><b>/etc/sysctl.d/*.conf</b></td><td>Trvalé nastavení jádra, načte <code>systemd-sysctl.service</code></td><td>např. <code>net.ipv4.ip_forward=1</code></td></tr>
+            <tr><td><b>/etc/nftables.conf</b></td><td>Trvalý nftables ruleset, načte <code>nftables.service</code></td><td>skript se shebangem <code>#!/usr/sbin/nft -f</code></td></tr>
+            <tr><td><b>/etc/systemd/network/*.network</b></td><td>Konfigurace pro systemd-networkd</td><td>sekce <code>[Match]</code>, <code>[Network]</code></td></tr>
+            <tr><td><b>/etc/systemd/resolved.conf</b></td><td>Ruční DNS server pro systemd-resolved</td><td>sekce <code>[Resolve]</code>, klíč <code>DNS=</code></td></tr>
+            <tr><td><b>networkctl / resolvectl</b></td><td>Stav rozhraní / stav DNS resolveru</td><td>diagnostika pro systemd-networkd/resolved</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>Návrh a realizace řešení</h2>
+      <p class="lede">Pět fází na 4 vyučovací hodiny: Server přes networking → Server NAT a Klient přes networking → restart a ověření Fáze A → Server na systemd-networkd/resolved → Klient na systemd-networkd/resolved a závěrečné ověření. Pracujte na <b>Serveru i Klientovi</b> ze stejné sítě jako v kapitole 5; přesné názvy rozhraní si ověřte příkazem <code>ip link show</code> — v ukázkách používáme <code>enp0s3</code> (NAT/školní síť) a <code>enp0s8</code> (intranet) jen jako příklad.</p>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí popsat rozdíl mezi runtime a trvalým nastavením sítě.</li>
+            <li><b>Rozvíjející se</b> — zná oba démony jménem, ale plete si, který soubor patří ke kterému.</li>
+            <li><b>Očekávaná úroveň</b> — jasně vysvětlí, proč networking a systemd-networkd nesmí běžet zároveň, a umí popsat cestu systemd (PID 1) → démon → konfigurační soubor → jádro.</li>
+            <li><b>Nad rámec</b> — zdůvodní, proč IP forwarding a NAT ruleset zůstávají funkční nezávisle na tom, který ze dvou démonů právě spravuje adresy.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — trvalé nastavení nefunguje, po restartu síť nefunguje ani jedním způsobem.</li>
+            <li><b>Rozvíjející se</b> — funguje jen jeden ze dvou démonů, přechod mezi nimi je neúplný nebo dochází ke konfliktu.</li>
+            <li><b>Očekávaná úroveň</b> — obě metody (networking i systemd-networkd/resolved) jsou funkční, restart nic nerozbije v žádné z nich.</li>
+            <li><b>Nad rámec</b> — přechod mezi metodami proveden čistě (starý démon vždy explicitně zastaven a zakázán před spuštěním nového), žádné zbytky ani konflikty.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí zdůvodnit, proč adresa nastavená příkazem ip po restartu zmizí.</li>
+            <li><b>Rozvíjející se</b> — tuší rozdíl runtime/trvalé nastavení, ale neumí ho spojit s konkrétním souborem a démonem.</li>
+            <li><b>Očekávaná úroveň</b> — na příkladu vlastní sítě umí vysvětlit, který soubor čte který démon a kdy.</li>
+            <li><b>Nad rámec</b> — navrhne a zdůvodní, kterou metodu by zvolil pro reálný produkční server.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — závislý na pomoci u každého kroku přechodu mezi démony.</li>
+            <li><b>Rozvíjející se</b> — poradí si s jedním démonem, u druhého potřebuje pomoc.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, chyby (konflikt démonů, špatný symlink) si dohledá sám v manuálových stránkách.</li>
+            <li><b>Nad rámec</b> — patří mezi první tři funkční týmy a pomáhá spolužákům s diagnostikou konfliktu démonů.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit rozdíl mezi runtime nastavením (ip/nft/sysctl -w) a trvalým nastavením v souboru, který démon čte při startu.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím nastavit trvalou adresu, bránu a DHCP rozhraní v /etc/network/interfaces a povolit démona networking.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Umím nastavit trvalý IP forwarding přes soubor v /etc/sysctl.d/.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím uložit trvalé NAT/masquerade pravidlo do /etc/nftables.conf a povolit démona nftables.</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Umím vysvětlit, proč nesmí networking a systemd-networkd běžet současně, a umím jeden z nich čistě zastavit a zakázat.</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím vytvořit .network soubor pro systemd-networkd se statickou i DHCP adresou.</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím nastavit systemd-resolved (resolved.conf, symlink /etc/resolv.conf) a ověřit ho příkazem resolvectl.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Umím po restartu ověřit, že celá síť (adresa, brána, DNS, forwarding, NAT) naskočila sama bez ručního zásahu.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty obsahu /etc/network/interfaces, .network souborů, resolved.conf a výstupů ip addr/networkctl status/resolvectl status/nft list ruleset po restartu ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky (kap. 7) — oficiální manuálové stránky Linuxu a systemd, dokumentace nftables a jádra, Debian Reference a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 6 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 6 — Konfigurace síťových rozhraní démony
+   ========================================================================== */
+
+  var TOPIC = {
+    num: "6",
+    title: "Konfigurace síťových rozhraní démony",
+    hours: "4 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "Příkazy <b>ip</b>, <b>nft</b> a <b>sysctl -w</b> mění jen běžící stav jádra — po restartu zmizí. Trvalé nastavení čte až <b>démon</b> z konfiguračního souboru při startu systému, a existují dva vzájemně se vylučující mechanismy (<b>networking</b> vs. <b>systemd-networkd</b>): nikdy nesmí běžet oba zároveň.",
+    eq: "Jak nastavit přesně stejnou funkční síť z kapitoly 5 tak, aby restart nic nerozbil — dvěma vzájemně neslučitelnými způsoby, a co se stane, když omylem necháte běžet oba?",
+    challenge: "Zopakujte síť z kapitoly 5 (<b>Server</b> = router s NAT mezi školní sítí a intranetem, <b>Klient</b> se statickou adresou) — tentokrát trvale. Nejdřív přes klasického démona <b>networking</b> (<code>/etc/network/interfaces</code>), pak přejděte na <b>systemd-networkd</b> + <b>systemd-resolved</b>. Po obou přechodech restartujte Server i Klienta a ověřte, že ping/přístup na <b>www.seznam.cz</b> funguje bez jediného ručního zásahu."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Čím se liší okamžitá (runtime) změna v běžícím jádře od zápisu do konfiguračního souboru — kdo a kdy takový soubor vlastně čte?",
+      "Proč nesmí být démoni networking a systemd-networkd aktivní současně, a co přesně se stane, když omylem jsou?",
+      "Jak stanzy auto/allow-hotplug a iface v /etc/network/interfaces řídí, co udělá skript ifup při startu?",
+      "Jak .network soubor u systemd-networkd popisuje totéž nastavení strukturovaně přes sekce [Match]/[Network]/[Address]?",
+      "Proč se u systemd-resolved mění /etc/resolv.conf na symbolický odkaz, a kam přesně ukazuje?"
+    ],
+    resources: [
+      {
+        title: "ifupdown — interfaces(5): syntaxe auto/allow-hotplug/iface",
+        tag: "official",
+        items: [
+          "Stanzy <code>auto</code>/<code>allow-hotplug</code> (kdy se rozhraní nahazuje) a <code>iface … inet static/dhcp</code> (adresa jako dotted quad/prefix, gateway).",
+          "<a href='https://manpages.debian.org/bookworm/ifupdown/interfaces.5.en.html' target='_blank' rel='noopener'>manpages.debian.org/…/interfaces.5.en.html</a>"
+        ]
+      },
+      {
+        title: "Debian Reference — kap. 5 Network setup",
+        tag: "official",
+        items: [
+          "Popis démona networking (ifupdown) i toho, že moderní systém může síť konfigurovat místo toho v /etc/systemd/network/ přes systemd-networkd.",
+          "<a href='https://www.debian.org/doc/manuals/debian-reference/ch05.en.html' target='_blank' rel='noopener'>debian.org/doc/manuals/debian-reference/ch05.en.html</a>"
+        ]
+      },
+      {
+        title: "systemd manuál — systemd.network(5)",
+        tag: "official",
+        items: [
+          "Syntaxe sekcí [Match] (např. <code>Name=</code>), [Network] (<code>DHCP=</code>, <code>Address=</code>, <code>Gateway=</code>, <code>DNS=</code>) a [Address] v .network souborech, umístění v /etc/systemd/network/.",
+          "<a href='https://manpages.debian.org/bookworm/systemd/systemd.network.5.en.html' target='_blank' rel='noopener'>manpages.debian.org/…/systemd.network.5.en.html</a>"
+        ]
+      },
+      {
+        title: "systemd manuál — systemd-networkd.service(8)",
+        tag: "official",
+        items: [
+          "Co démon systemd-networkd dělá (detekuje a konfiguruje síťová zařízení podle .network souborů) a jak ho kontrolovat příkazem networkctl.",
+          "<a href='https://manpages.debian.org/bookworm/systemd/systemd-networkd.service.8.en.html' target='_blank' rel='noopener'>manpages.debian.org/…/systemd-networkd.service.8.en.html</a>"
+        ]
+      },
+      {
+        title: "systemd-resolved manuál — systemd-resolved.service(8) a resolved.conf(5)",
+        tag: "official",
+        items: [
+          "Režim stub resolveru: /etc/resolv.conf jako symlink na /run/systemd/resolve/stub-resolv.conf (127.0.0.53). V resolved.conf sekce [Resolve], klíč DNS= pro ruční server.",
+          "<a href='https://manpages.debian.org/bookworm/systemd-resolved/systemd-resolved.service.8.en.html' target='_blank' rel='noopener'>…/systemd-resolved.service.8.en.html</a> · <a href='https://manpages.debian.org/bookworm/systemd-resolved/resolved.conf.5.en.html' target='_blank' rel='noopener'>…/resolved.conf.5.en.html</a>"
+        ]
+      },
+      {
+        title: "Linux manuál — sysctl.d(5)",
+        tag: "official",
+        items: [
+          "Soubory v /etc/sysctl.d/*.conf, načítané systemd-sysctl.service při startu — trvalá alternativa k jednorázovému sysctl -w.",
+          "<a href='https://man7.org/linux/man-pages/man5/sysctl.d.5.html' target='_blank' rel='noopener'>man7.org/…/sysctl.d.5.html</a>"
+        ]
+      },
+      {
+        title: "Linux jádro — Documentation/networking/ip-sysctl.txt",
+        tag: "official",
+        items: [
+          "net.ipv4.ip_forward — výchozí hodnota 0 (recap z kapitoly 5); dnes se stejná hodnota zapisuje trvale.",
+          "<a href='https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt' target='_blank' rel='noopener'>kernel.org/doc/Documentation/networking/ip-sysctl.txt</a>"
+        ]
+      },
+      {
+        title: "Trvalý nftables ruleset — nftables.service a /etc/nftables.conf",
+        tag: "official",
+        items: [
+          "Balíček nftables dodává systemd jednotku, která je ve výchozím stavu vypnutá; po systemctl enable --now nftables načte ruleset z /etc/nftables.conf při každém startu.",
+          "<a href='https://documentation.ubuntu.com/security/security-features/network/firewall/nftables/' target='_blank' rel='noopener'>documentation.ubuntu.com/…/nftables</a>"
+        ]
+      },
+      {
+        title: "nftables wiki — Quick reference (recap syntaxe z kapitoly 5)",
+        tag: "official",
+        items: [
+          "Tabulka/řetěz typu nat (postrouting, priorita 100) a pravidlo masquerade — dnes se stejná syntaxe jen ukládá do souboru místo zadávání příkazem.",
+          "<a href='https://wiki.nftables.org/wiki-nftables/index.php/Quick_reference-nftables_in_10_minutes' target='_blank' rel='noopener'>wiki.nftables.org/…/Quick_reference-nftables_in_10_minutes</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Proč adresa nastavená dnes v /etc/network/interfaces přežije restart, na rozdíl od stejné adresy nastavené v kapitole 5 příkazem „ip addr add“?",
+      opts: ["Protože /etc/network/interfaces se ukládá do RAM", "Protože démon networking při každém startu tento soubor přečte a adresu nastaví znovu", "Protože ip addr add ukládá adresu jen na 24 hodin", "Není žádný rozdíl, obojí přežije restart stejně"],
+      correct: 1,
+      explain: "ip addr add mění jen běžící stav jádra. Soubor /etc/network/interfaces sám o sobě nic nedělá — teprve démon networking (musí být systemctl enable) ho při každém startu přečte a spustí ifup, který adresu znovu nastaví."
+    },
+    {
+      q: "Co se stane, když necháte na stejném rozhraní současně běžet povolené networking i systemd-networkd?",
+      opts: ["Nic, systém si konflikt sám vyřeší", "Oba démoni se pokusí rozhraní nastavit nezávisle na sobě a mohou si nastavení navzájem přepisovat", "systemd-networkd automaticky vypne networking", "networking má vždy přednost a systemd-networkd se v tom případě vůbec nespustí"],
+      correct: 1,
+      explain: "Oba démoni spravují stejná fyzická rozhraní nezávisle na sobě — proto je nutné před přechodem na jeden ten druhý explicitně systemctl disable --now."
+    },
+    {
+      q: "Kam typicky ukazuje /etc/resolv.conf jako symlink, když je aktivní systemd-resolved?",
+      opts: ["Zůstává to obyčejný soubor bez symlinku", "Na /run/systemd/resolve/stub-resolv.conf (stub resolver 127.0.0.53)", "Na /etc/systemd/resolved.conf", "Na /etc/network/interfaces"],
+      correct: 1,
+      explain: "V doporučeném režimu stub resolveru systemd-resolved udržuje /run/systemd/resolve/stub-resolv.conf se stub adresou 127.0.0.53 a /etc/resolv.conf se na něj symlinkuje."
+    },
+    {
+      q: "Proč se trvalý zápis net.ipv4.ip_forward=1 dává do souboru v /etc/sysctl.d/, a neřeší se jen příkazem sysctl -w?",
+      opts: ["sysctl -w je pomalejší než zápis do souboru", "sysctl -w mění hodnotu jen v běžícím jádře; soubor v sysctl.d ji nastaví znovu při každém startu přes systemd-sysctl.service", "sysctl -w vyžaduje restart, aby se projevil", "Mezi oběma způsoby není žádný rozdíl"],
+      correct: 1,
+      explain: "sysctl -w (stejně jako v kapitole 5) je čistě runtime příkaz. Soubor v /etc/sysctl.d/ čte systemd-sysctl.service při každém startu a hodnotu nastaví znovu, bez ohledu na to, co bylo nastaveno předtím."
+    },
+    {
+      q: "Které dva démony se v této kapitole vzájemně vylučují a nesmí běžet zapnuté zároveň?",
+      opts: ["nftables a sysctl", "networking (ifupdown) a systemd-networkd", "systemd-resolved a nftables", "dhclient a networking"],
+      correct: 1,
+      explain: "networking (ifupdown) a systemd-networkd jsou dva nezávislé mechanismy správy síťových rozhraní — před přechodem na jeden musí být ten druhý explicitně zastaven (stop) a zakázán (disable)."
+    }
+  ];
+
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu (odpověď), se NEPÍŠÍ přímo do checklistu.
+  // Vloží se do pole "extra" dané fáze — renderAct je zabalí do rozklikávacího "Zobrazit řešení".
+  var ACT = [
+    {
+      num: 1, en: "Server: ifupdown & sysctl.d", title: "Fáze A — Server: interfaces a trvalý IP forwarding",
+      body: "<p>⏱ orientačně 40 min. Na Serveru zapište stejnou síť z kapitoly 5 do /etc/network/interfaces a IP forwarding do sysctl.d — žádné runtime příkazy ip/sysctl -w.</p>",
+      checklist: [
+        "Ověřeny skutečné názvy obou rozhraní příkazem <code>ip link show</code> a zapsány pro použití v konfiguraci",
+        "V <code>/etc/network/interfaces</code> zapsána stanza <code>auto</code> + <code>iface</code> pro intranetové rozhraní se statickou adresou <code>192.168.1.1/24</code>",
+        "V <code>/etc/network/interfaces</code> zapsána stanza <code>auto</code> + <code>iface</code> pro NAT/školní síť rozhraní s metodou <code>dhcp</code>",
+        "Vytvořen nový soubor v <code>/etc/sysctl.d/</code> (např. <code>99-ip-forward.conf</code>) s řádkem <code>net.ipv4.ip_forward=1</code>",
+        "Nastavení sysctl.d ověřeno příkazem <code>sysctl --system</code> bez nutnosti restartu",
+        "Démon networking povolen příkazem <code>systemctl enable networking</code> a stav ověřen <code>systemctl is-enabled networking</code>",
+        "Rozhraní restartována příkazem <code>systemctl restart networking</code> a ověřena adresa/brána/DNS (<code>ip addr</code>, <code>ip route</code>, <code>cat /etc/resolv.conf</code>)"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># zjištění skutečných názvů rozhraní</span>\nip link show\n\n<span class=\"c\"># /etc/network/interfaces — příklad názvů enp0s3=NAT/školní síť, enp0s8=intranet</span>\nsudo nano /etc/network/interfaces\n<span class=\"c\"># doplňte na konec souboru:</span>\n<span class=\"c\">auto enp0s8</span>\n<span class=\"c\">iface enp0s8 inet static</span>\n<span class=\"c\">    address 192.168.1.1/24</span>\n\n<span class=\"c\">auto enp0s3</span>\n<span class=\"c\">iface enp0s3 inet dhcp</span>\n\n<span class=\"c\"># trvalý IP forwarding — NE jen runtime sysctl -w</span>\nsudo nano /etc/sysctl.d/99-ip-forward.conf\n<span class=\"c\"># obsah souboru:</span>\n<span class=\"c\">net.ipv4.ip_forward=1</span>\n\n<span class=\"c\"># načtení bez restartu + kontrola</span>\nsudo sysctl --system\ncat /proc/sys/net/ipv4/ip_forward\n\n<span class=\"c\"># povolit a spustit démona networking</span>\nsudo systemctl enable networking\nsudo systemctl restart networking\nsystemctl is-enabled networking\n\n<span class=\"c\"># ověření</span>\nip addr show\nip route show\ncat /etc/resolv.conf</code></pre>"
+    },
+    {
+      num: 2, en: "Server: nftables & Client: ifupdown", title: "Fáze A — Server: trvalý NAT a Klient: trvalá adresa",
+      body: "<p>⏱ orientačně 40 min. Uložte NAT pravidlo ze Serveru z kapitoly 5 do souboru a Klientovi zapište stejnou statickou adresu do /etc/network/interfaces.</p>",
+      checklist: [
+        "Na Serveru vytvořen/upraven <code>/etc/nftables.conf</code> s tabulkou <code>nat</code>, řetězem <code>postrouting</code> a pravidlem <code>masquerade</code> pro odchozí (NAT/školní síť) rozhraní",
+        "Syntaxe rulesetu ověřena příkazem <code>nft -c -f /etc/nftables.conf</code> a poté ruleset načten <code>nft -f /etc/nftables.conf</code>",
+        "Démon nftables povolen a spuštěn příkazem <code>systemctl enable --now nftables</code>",
+        "Na Klientovi zjištěn název intranetového rozhraní (<code>ip link show</code>)",
+        "V <code>/etc/network/interfaces</code> Klienta zapsána stanza <code>auto</code> + <code>iface</code> se statickou adresou <code>192.168.1.2/24</code> a <code>gateway 192.168.1.1</code>",
+        "Ověřen obsah <code>/etc/resolv.conf</code> na Klientovi (nameserver 8.8.8.8 z kapitoly 5 — je to obyčejný soubor, přežije restart už sám)",
+        "Démon networking na Klientovi povolen příkazem <code>systemctl enable networking</code> a rozhraní restartováno"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># --- na Serveru ---</span>\nsudo nano /etc/nftables.conf\n<span class=\"c\"># obsah (příklad názvu enp0s3 = odchozí NAT/školní síť rozhraní):</span>\n<span class=\"c\">#!/usr/sbin/nft -f</span>\n<span class=\"c\">flush ruleset</span>\n<span class=\"c\">table ip nat {</span>\n<span class=\"c\">    chain postrouting {</span>\n<span class=\"c\">        type nat hook postrouting priority 100;</span>\n<span class=\"c\">        oifname \"enp0s3\" masquerade</span>\n<span class=\"c\">    }</span>\n<span class=\"c\">}</span>\n\n<span class=\"c\"># kontrola syntaxe a načtení</span>\nsudo nft -c -f /etc/nftables.conf\nsudo nft -f /etc/nftables.conf\nsudo nft list ruleset\n\n<span class=\"c\"># povolit a spustit démona nftables</span>\nsudo systemctl enable --now nftables\n\n<span class=\"c\"># --- na Klientovi ---</span>\nip link show\n\nsudo nano /etc/network/interfaces\n<span class=\"c\"># doplňte (příklad názvu enp0s3 = intranet):</span>\n<span class=\"c\">auto enp0s3</span>\n<span class=\"c\">iface enp0s3 inet static</span>\n<span class=\"c\">    address 192.168.1.2/24</span>\n<span class=\"c\">    gateway 192.168.1.1</span>\n\n<span class=\"c\"># DNS zůstává v /etc/resolv.conf — obyčejný soubor z kapitoly 5</span>\ncat /etc/resolv.conf\n\nsudo systemctl enable networking\nsudo systemctl restart networking\nip addr show\nip route show</code></pre>"
+    },
+    {
+      num: 3, en: "Restart & Verify (Phase A)", title: "Fáze A — Restart a ověření trvalého stavu",
+      body: "<p>⏱ orientačně 25 min. Restartujte oba stroje a zkontrolujte, že tentokrát na rozdíl od konce kapitoly 5 nic nezmizelo.</p>",
+      checklist: [
+        "Server i Klient restartováni (<code>reboot</code>)",
+        "Po startu bez jakéhokoli ručního zásahu ověřena adresa, brána a DNS na obou strojích (<code>ip addr</code>, <code>ip route</code>, <code>cat /etc/resolv.conf</code>)",
+        "Na Serveru ověřen stav IP forwardingu (<code>cat /proc/sys/net/ipv4/ip_forward</code>) a NAT rulesetu (<code>nft list ruleset</code>) — obojí naskočilo samo",
+        "Na Klientovi otestováno spojení na <code>www.seznam.cz</code> a výsledek zapsán",
+        "Zapsáno srovnání s koncem kapitoly 5 — co se dnes změnilo a proč (démon networking je dnes povolen, ne jen dočasně zastaven)"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># na obou strojích</span>\nsudo reboot\n\n<span class=\"c\"># po znovupřipojení, na obou strojích:</span>\nip addr show\nip route show\ncat /etc/resolv.conf\n\n<span class=\"c\"># na Serveru navíc</span>\ncat /proc/sys/net/ipv4/ip_forward\nsudo nft list ruleset\n\n<span class=\"c\"># na Klientovi</span>\nping -c 3 www.seznam.cz</code></pre>"
+    },
+    {
+      num: 4, en: "Phase B: Server networkd", title: "Fáze B — Server: přechod na systemd-networkd a systemd-resolved",
+      body: "<p>⏱ orientačně 40 min. Nejdřív nainstalujte balíček (dokud ještě funguje internet přes networking), pak teprve networking vypněte a přejděte na moderní démony.</p>",
+      checklist: [
+        "Zatímco ještě běží networking a funguje internet, na Serveru nainstalován balíček <code>systemd-resolved</code> (<code>systemd-networkd</code> je už součástí systemd)",
+        "Vlastními slovy vysvětleno, proč nesmí networking a systemd-networkd běžet současně",
+        "Na Serveru démon networking zastaven a zakázán příkazem <code>systemctl disable --now networking</code>",
+        "Vytvořen soubor <code>/etc/systemd/network/10-intranet.network</code> pro intranetové rozhraní se statickou adresou <code>192.168.1.1/24</code>",
+        "Vytvořen soubor <code>/etc/systemd/network/20-nat.network</code> pro NAT/školní síť rozhraní s <code>DHCP=yes</code>",
+        "Démoni <code>systemd-networkd</code> a <code>systemd-resolved</code> povoleni a spuštěni (<code>systemctl enable --now</code>)",
+        "Symbolický odkaz <code>/etc/resolv.conf</code> přesměrován na <code>/run/systemd/resolve/stub-resolv.conf</code>",
+        "Stav ověřen příkazy <code>networkctl status</code> a <code>resolvectl status</code>, spojení do internetu otestováno"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># 1) nejdřív balíček — dokud ještě funguje internet přes networking</span>\nsudo apt update\nsudo apt install -y systemd-resolved\n\n<span class=\"c\"># 2) proč ne oba démoni najednou — oba by chtěly řídit stejná rozhraní</span>\nsudo systemctl disable --now networking\n\n<span class=\"c\"># intranetové rozhraní — příklad názvu enp0s8</span>\nsudo nano /etc/systemd/network/10-intranet.network\n<span class=\"c\">[Match]</span>\n<span class=\"c\">Name=enp0s8</span>\n\n<span class=\"c\">[Network]</span>\n<span class=\"c\">Address=192.168.1.1/24</span>\n\n<span class=\"c\"># NAT/školní síť rozhraní — příklad názvu enp0s3</span>\nsudo nano /etc/systemd/network/20-nat.network\n<span class=\"c\">[Match]</span>\n<span class=\"c\">Name=enp0s3</span>\n\n<span class=\"c\">[Network]</span>\n<span class=\"c\">DHCP=yes</span>\n\nsudo systemctl enable --now systemd-networkd\nsudo systemctl enable --now systemd-resolved\n\n<span class=\"c\"># resolv.conf jako symlink na stub resolver systemd-resolved</span>\nsudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf\n\n<span class=\"c\"># ověření</span>\nnetworkctl status\nresolvectl status\nip addr show\nping -c 3 www.seznam.cz</code></pre>"
+    },
+    {
+      num: 5, en: "Phase B: Client networkd & final check", title: "Fáze B — Klient: systemd-networkd a závěrečné ověření",
+      body: "<p>⏱ orientačně 35 min. Zopakujte přechod na Klientovi, pak restartujte oba stroje naposledy a potvrďte beze změny stejný funkční stav jako na konci Fáze A.</p>",
+      checklist: [
+        "Zatímco ještě běží networking, na Klientovi nainstalován balíček <code>systemd-resolved</code>",
+        "Na Klientovi démon networking zastaven a zakázán (<code>systemctl disable --now networking</code>)",
+        "Vytvořen soubor <code>/etc/systemd/network/10-intranet.network</code> pro Klienta se statickou adresou <code>192.168.1.2/24</code> a bránou <code>192.168.1.1</code>",
+        "V <code>/etc/systemd/resolved.conf</code> ručně nastaven DNS server <code>DNS=8.8.8.8</code>",
+        "Démoni <code>systemd-networkd</code> a <code>systemd-resolved</code> na Klientovi povoleni, spuštěni a <code>/etc/resolv.conf</code> přesměrován na stub resolver",
+        "Server i Klient restartováni naposledy a beze změny ověřeno spojení Klient↔Server (podle IP i jména) i Klient→www.seznam.cz",
+        "Pokud vše funguje a jste mezi prvními třemi týmy, zavolejte vyučujícího ke kontrole → hodnocení 1",
+        "Zapsáno, čím se dnešní trvalý stav liší od konce kapitoly 5 — co dnes přežilo restart a proč (démon čte konfigurační soubor při každém startu, místo jednorázového runtime příkazu)"
+      ],
+      extra: "<pre class=\"cmdblock\"><code><span class=\"c\"># na Klientovi — nejdřív balíček, dokud jde přes Server do internetu</span>\nsudo apt update\nsudo apt install -y systemd-resolved\n\nsudo systemctl disable --now networking\n\n<span class=\"c\"># intranetové rozhraní Klienta — příklad názvu enp0s3</span>\nsudo nano /etc/systemd/network/10-intranet.network\n<span class=\"c\">[Match]</span>\n<span class=\"c\">Name=enp0s3</span>\n\n<span class=\"c\">[Network]</span>\n<span class=\"c\">Address=192.168.1.2/24</span>\n<span class=\"c\">Gateway=192.168.1.1</span>\n\n<span class=\"c\"># ruční DNS server — Klient nemá DHCP</span>\nsudo nano /etc/systemd/resolved.conf\n<span class=\"c\">[Resolve]</span>\n<span class=\"c\">DNS=8.8.8.8</span>\n\nsudo systemctl enable --now systemd-networkd\nsudo systemctl enable --now systemd-resolved\nsudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf\n\nnetworkctl status\nresolvectl status\n\n<span class=\"c\"># závěrečný restart obou strojů</span>\nsudo reboot\n\n<span class=\"c\"># po startu, na obou strojích beze změny:</span>\nip addr show\nip route show\nresolvectl status\nping -c 3 server\nping -c 3 klient\nping -c 3 www.seznam.cz</code></pre>"
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Trvale funkční síť Školy X — nastavená dvakrát: nejdřív démonem networking (/etc/network/interfaces, /etc/sysctl.d/, /etc/nftables.conf), pak systemd-networkd + systemd-resolved (.network soubory, resolved.conf) — v obou případech přežije restart beze změny. Odevzdejte: screenshoty obsahu konfiguračních souborů + výstupů ip addr/route, networkctl status, resolvectl status a nft list ruleset po posledním restartu, a krátké zdůvodnění (50–100 slov), čím se tento stav liší od konce kapitoly 5.";
+
+  var REFLECT = [
+    "Co konkrétně dnes přežilo restart, co na konci kapitoly 5 nepřežilo — a proč přesně?",
+    "Kde jste museli explicitně zastavit a zakázat networking před přechodem na systemd-networkd, a co by se stalo, kdybyste tenhle krok přeskočili?",
+    "Který ze dvou způsobů (networking, nebo systemd-networkd) byste doporučili pro reálný produkční server a proč?",
+    "Co by se ještě muselo nastavit trvale, aby síť Školy X fungovala i po výpadku napájení úplně bez ručního zásahu?"
+  ];
+
+  var SOURCES = [
+    {title:"interfaces(5) — ifupdown (Debian manpages)", url:"https://manpages.debian.org/bookworm/ifupdown/interfaces.5.en.html", tag:"official", note:"Syntaxe auto/allow-hotplug/iface, static/dhcp metoda."},
+    {title:"Debian Reference — kap. 5 Network setup", url:"https://www.debian.org/doc/manuals/debian-reference/ch05.en.html", tag:"official", note:"Démon networking i zmínka systemd-networkd jako alternativy."},
+    {title:"systemd.network(5) — systemd (Debian manpages)", url:"https://manpages.debian.org/bookworm/systemd/systemd.network.5.en.html", tag:"official", note:"Sekce [Match]/[Network]/[Address], DHCP=, Address=, Gateway=, DNS=."},
+    {title:"systemd-networkd.service(8) — systemd (Debian manpages)", url:"https://manpages.debian.org/bookworm/systemd/systemd-networkd.service.8.en.html", tag:"official", note:"Co démon systemd-networkd dělá a jak ho ovládat přes networkctl."},
+    {title:"systemd-resolved.service(8) — systemd-resolved (Debian manpages)", url:"https://manpages.debian.org/bookworm/systemd-resolved/systemd-resolved.service.8.en.html", tag:"official", note:"Režim stub resolveru a symlink /etc/resolv.conf."},
+    {title:"resolved.conf(5) — systemd-resolved (Debian manpages)", url:"https://manpages.debian.org/bookworm/systemd-resolved/resolved.conf.5.en.html", tag:"official", note:"Sekce [Resolve], klíč DNS= pro ruční nastavení serveru."},
+    {title:"sysctl.d(5) — Linux manuál", url:"https://man7.org/linux/man-pages/man5/sysctl.d.5.html", tag:"official", note:"Umístění a formát trvalých souborů /etc/sysctl.d/*.conf."},
+    {title:"Documentation/networking/ip-sysctl.txt — Linux kernel", url:"https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt", tag:"official", note:"net.ipv4.ip_forward — výchozí 0, přeposílání paketů (recap z kap. 5)."},
+    {title:"nftables — trvalý ruleset (Ubuntu Security dokumentace)", url:"https://documentation.ubuntu.com/security/security-features/network/firewall/nftables/", tag:"official", note:"nftables.service (výchozí vypnuto) načítá /etc/nftables.conf po systemctl enable."},
+    {title:"nftables wiki — Quick reference (10 minutes)", url:"https://wiki.nftables.org/wiki-nftables/index.php/Quick_reference-nftables_in_10_minutes", tag:"official", note:"Syntaxe tabulky/řetězu nat a pravidla masquerade (recap z kap. 5)."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+})();
+</script>
+</body>
+</html>
