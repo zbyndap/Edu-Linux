@@ -284,5 +284,11 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3rem; padding-top
 
 })();
 </script>
+
+<!-- Tuxík — chat agent pro podporu učení (kapitoly + rozcestník)
+     Dynamicky se připojí k Vercel API proxy (api/chat) a bude se ptát na kontextu
+     současné stránky (návštěvník zde vidí rozcestník kapitol). Klíč GEMINI_API_KEY
+     se nastavuje v Vercel Settings → Environment Variables. -->
+<script src="assets/tuxik-agent.js" defer></script>
 </body>
 </html>
