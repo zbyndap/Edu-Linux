@@ -1,0 +1,1473 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>7 Konfigurace síťových rozhraní démonem systemd — IPv6 · Operační systém Linux</title>
+<meta name="description" content="Dual-stack (IPv4 + IPv6) konfigurace sítě Serveru a Klienta démonem systemd-networkd — ULA prefix v intranetu, IPv6 forwarding a nftables firewall bez NAT, systemd-resolved a volitelně Router Advertisement (SLAAC). Kapitola 7, 4 vyučovací hodiny.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 7 — Konfigurace síťových rozhraní démonem systemd — IPv6 — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf) a strukturně z kapitoly 6
+   (06-konfigurace-site-demony.html) — stejné HTML/CSS/vykreslovací JS,
+   jen obsah (TOPIC/ENGAGE/INVESTIGATE/QUIZ/ACT/REFLECT/SOURCES) a doplňkový
+   statický obsah (tabulky + 3 SVG diagramy). Oproti kapitole 6 přibyly jen
+   drobnosti: štítky rodin adres .fam (IPv4/IPv6) a dvě keyframes pro dlouhý
+   vodorovný tok paketu v sekvenčním diagramu (flowLongRight/flowLongLeft).
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+@keyframes flowMoveRight{
+  0%{ transform:translateX(0); opacity:.25; }
+  15%{ opacity:1; }
+  85%{ opacity:1; }
+  100%{ transform:translateX(64px); opacity:.25; }
+}
+.flow-dot.right{ animation-name: flowMoveRight; animation-duration:2.2s; animation-timing-function:ease-in-out; }
+
+@keyframes flowLongRight{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(540px); opacity:.2; }
+}
+@keyframes flowLongLeft{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(-540px); opacity:.2; }
+}
+.flow-dot.longr{ animation-name: flowLongRight; animation-duration:3.4s; animation-timing-function:ease-in-out; }
+.flow-dot.longl{ animation-name: flowLongLeft; animation-duration:3.4s; animation-timing-function:ease-in-out; animation-delay:.9s; }
+
+/* štítky rodin adres (IPv4 / IPv6) */
+.fam{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; padding:.08rem .45rem; border-radius:999px; vertical-align:middle; white-space:nowrap;}
+.fam.v4{background:var(--robot-tint); color:var(--robot-deep); border:1px solid var(--robot);}
+.fam.v6{background:var(--electric-tint); color:var(--electric-deep); border:1px solid var(--electric-deep);}
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Konfigurace síťových rozhraní démony</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Tato kapitola navazuje na kapitolu 6: trvalá síť Školy X se stává dual-stack — každé rozhraní má IPv4 i IPv6 adresu. Další kapitoly (DNS s AAAA záznamy, DHCP server, SSH…) pak mohou stavět na obou rodinách adres.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>IPv6 a dual-stack — dvě rodiny adres na jednom rozhraní</h2>
+      <p class="lede">V kapitole 6 jste síť Školy X nastavili trvale a IPv4 funguje i po restartu. Dnes tutéž síť rozšíříte o <b>IPv6</b>: každé rozhraní bude mít <b>IPv4 i IPv6 adresu zároveň</b> (tzv. <i>dual-stack</i>) a obě rodiny musí fungovat. Práci opět odvedou démoni — <code>systemd-networkd</code> (adresy a trasy), <code>systemd-resolved</code> (DNS), <code>nftables.service</code> (NAT a firewall) a <code>systemd-sysctl</code> (trvalý forwarding). Klasický démon <code>networking</code> se dnes nepoužívá.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <h3>Co se mění a co zůstává — IPv4 vs. IPv6</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Princip (adresa, síť, brána, DNS, směrování) je stejný. Mění se délka adresy, způsob automatické konfigurace a to, že se běžně obejdeme bez NAT.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Oblast</th><th><span class="fam v4">IPv4</span></th><th><span class="fam v6">IPv6</span></th></tr></thead>
+          <tbody>
+            <tr><td><b>Adresa</b></td><td>32 bitů, zápis po bajtech desítkově: <code>192.168.1.1</code></td><td>128 bitů, osm skupin po 16 bitech šestnáctkově: <code>fd12:3456:789a:1::1</code> (úvodní nuly ve skupině a jednu souvislou řadu nulových skupin lze zkrátit na <code>::</code>)</td></tr>
+            <tr><td><b>Síť / prefix</b></td><td><code>192.168.1.0/24</code> (maska)</td><td><code>fd12:3456:789a:1::/64</code> — v síti s běžnými klienty se používá /64 (spodních 64 bitů je identifikátor rozhraní)</td></tr>
+            <tr><td><b>Soukromé adresy</b></td><td>RFC 1918 (<code>192.168.0.0/16</code>, <code>10.0.0.0/8</code> …)</td><td>ULA <code>fd00::/8</code> (RFC 4193) — vlastní náhodný prefix, do Internetu se nesměruje</td></tr>
+            <tr><td><b>Adresa „jen na lince“</b></td><td><code>169.254.0.0/16</code> — vznikne až když selže DHCP</td><td>link-local <code>fe80::/10</code> — vzniká <b>automaticky na každém rozhraní</b>, vždy</td></tr>
+            <tr><td><b>Hledání souseda na lince</b></td><td>ARP (broadcast)</td><td>NDP — Neighbor Discovery (ICMPv6, multicast); <code>ip -6 neigh</code></td></tr>
+            <tr><td><b>Automatické přidělení adresy</b></td><td>DHCP</td><td>Router Advertisement + SLAAC (klient si adresu složí sám), případně DHCPv6</td></tr>
+            <tr><td><b>Překlad adres</b></td><td>NAT / masquerade je běžný</td><td>běžně <b>bez NAT</b> — adresy jsou dost dlouhé, aby šly směrovat; ochranu dělá stavový firewall</td></tr>
+            <tr><td><b>Routování v jádře</b></td><td><code>net.ipv4.ip_forward=1</code></td><td><code>net.ipv6.conf.all.forwarding=1</code></td></tr>
+            <tr><td><b>nftables</b></td><td>tabulka <code>ip</code></td><td>tabulka <code>ip6</code>, nebo společná <code>inet</code> (obě rodiny v jedné)</td></tr>
+            <tr><td><b>Nástroje</b></td><td><code>ping -4</code>, <code>ip -4 addr</code></td><td><code>ping -6</code>, <code>ip -6 addr</code> (starší <code>ping6</code> je jen alias)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Anatomie adresy, kterou dnes použijeme</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Prefix <code>fd12:3456:789a:1::/64</code> patří do bloku ULA. Každou skupinu 16 bitů má v adrese svou roli.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svganatitle svganadesc">
+          <title id="svganatitle">Anatomie IPv6 adresy fd12:3456:789a:1::1/64</title>
+          <desc id="svganadesc">Adresa se skládá z osmi skupin po 16 bitech. První tři skupiny (48 bitů) tvoří prefix ULA — počáteční fd a 40 bitů náhodného Global ID. Čtvrtá skupina je ID podsítě. Poslední čtyři skupiny (64 bitů) jsou identifikátor rozhraní: ::1 je Server a ::2 je Klient. Prvních 64 bitů dohromady tvoří adresu sítě /64.</desc>
+
+          <!-- skupiny (boxy nejdřív) -->
+          <rect x="63" y="60" width="88" height="54" rx="10" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <rect x="161" y="60" width="88" height="54" rx="10" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <rect x="259" y="60" width="88" height="54" rx="10" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <rect x="357" y="60" width="88" height="54" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="2.2"/>
+          <rect x="455" y="60" width="88" height="54" rx="10" fill="#F2F6F8" stroke="#8698A1" stroke-width="1.8"/>
+          <rect x="553" y="60" width="88" height="54" rx="10" fill="#F2F6F8" stroke="#8698A1" stroke-width="1.8"/>
+          <rect x="651" y="60" width="88" height="54" rx="10" fill="#F2F6F8" stroke="#8698A1" stroke-width="1.8"/>
+          <rect x="749" y="60" width="88" height="54" rx="10" fill="#F2F6F8" stroke="#8698A1" stroke-width="1.8"/>
+
+          <text x="107" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#1E2E38">fd12</text>
+          <text x="205" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#1E2E38">3456</text>
+          <text x="303" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#1E2E38">789a</text>
+          <text x="401" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#1E2E38">0001</text>
+          <text x="499" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#54666F">0000</text>
+          <text x="597" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#54666F">0000</text>
+          <text x="695" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#54666F">0000</text>
+          <text x="793" y="94" text-anchor="middle" font-size="18" font-weight="700" fill="#1E2E38">0001</text>
+
+          <text x="107" y="46" text-anchor="middle" font-size="10.5" fill="#71801A" font-weight="700">fd = ULA (L = 1)</text>
+          <text x="401" y="46" text-anchor="middle" font-size="10.5" fill="#54666F">podsíť č. 1</text>
+          <text x="793" y="46" text-anchor="middle" font-size="10.5" fill="#54666F">::1 Server · ::2 Klient</text>
+
+          <!-- závorky pod skupinami -->
+          <path d="M63 128 L63 136 L347 136 L347 128" stroke="#47657D" stroke-width="1.6" fill="none" stroke-linejoin="round"/>
+          <text x="205" y="156" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">Prefix ULA — 48 bitů</text>
+          <text x="205" y="174" text-anchor="middle" font-size="10.5" fill="#54666F">fd + 40 bitů náhodného Global ID (RFC 4193)</text>
+
+          <path d="M357 128 L357 136 L445 136 L445 128" stroke="#71801A" stroke-width="1.6" fill="none" stroke-linejoin="round"/>
+          <text x="401" y="156" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">ID podsítě</text>
+          <text x="401" y="174" text-anchor="middle" font-size="10.5" fill="#54666F">16 bitů</text>
+
+          <path d="M455 128 L455 136 L837 136 L837 128" stroke="#8698A1" stroke-width="1.6" fill="none" stroke-linejoin="round"/>
+          <text x="646" y="156" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">ID rozhraní — 64 bitů</text>
+          <text x="646" y="174" text-anchor="middle" font-size="10.5" fill="#54666F">u statické adresy si ho volíte sami (zde ::1 a ::2)</text>
+
+          <path d="M63 196 L63 204 L445 204 L445 196" stroke="#2E4657" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+          <text x="254" y="226" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">/64 = adresa sítě intranetu: fd12:3456:789a:1::/64</text>
+
+          <!-- zkrácený zápis -->
+          <rect x="80" y="252" width="740" height="52" rx="14" fill="#FFFFFF" stroke="#71801A" stroke-width="1.8" stroke-dasharray="3 3"/>
+          <text x="450" y="274" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">Zkrácený zápis:  fd12:3456:789a:1::1</text>
+          <text x="450" y="293" text-anchor="middle" font-size="10.5" fill="#54666F">0001 → 1 (úvodní nuly pryč) · čtyři nulové skupiny za sebou → jedno „::“ (jen jednou v adrese)</text>
+        </svg>
+        <figcaption>Obr. 1 — Osm skupin po 16 bitech: prefix ULA (48 b) + ID podsítě (16 b) = /64 sítě, zbylých 64 bitů je identifikátor rozhraní. Server má ::1, Klient ::2.</figcaption>
+      </figure>
+
+      <h3>Typy IPv6 adres, které dnes uvidíte</h3>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Typ</th><th>Rozsah</th><th>Kde se s ním dnes setkáte</th></tr></thead>
+          <tbody>
+            <tr><td><b>Link-local</b></td><td><code>fe80::/10</code></td><td>vznikne samo na každém rozhraní (systemd-networkd: <code>LinkLocalAddressing=</code>, výchozí <code>ipv6</code>); stejný prefix je na všech rozhraních, proto se při pingu píše <code>%rozhraní</code>; mají ji i rozhraní do školní sítě</td></tr>
+            <tr><td><b>ULA (unique local)</b></td><td><code>fd00::/8</code> (z bloku <code>fc00::/7</code>)</td><td>naše intranetové adresy <code>fd12:3456:789a:1::/64</code> — obdoba <code>192.168.x.x</code></td></tr>
+            <tr><td><b>Globální unicast</b></td><td><code>2000::/3</code></td><td>adresy „z Internetu“, např. <code>2001:4860:4860::8888</code> (veřejný DNS server Google); školní síť je nejspíš neposkytne</td></tr>
+            <tr><td><b>Loopback</b></td><td><code>::1/128</code></td><td>obdoba <code>127.0.0.1</code></td></tr>
+            <tr><td><b>Multicast</b></td><td><code>ff00::/8</code></td><td><code>ff02::1</code> = všechny uzly na lince, <code>ff02::2</code> = všechny routery (sem posílá klient Router Solicitation)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Dual-stack topologie Školy X</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Zapojení stejné jako v kapitolách 5 a 6 (Server = router, Klient v intranetu). Nové je, že po intranetu jde provoz ve dvou rodinách adres, ale ven ze školy zatím jen jedna.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgdstitle svgdsdesc">
+          <title id="svgdstitle">Dual-stack topologie sítě Školy X</title>
+          <desc id="svgdsdesc">Klient a Server jsou propojeny dvěma cestami: IPv4 (192.168.1.0/24) a IPv6 (ULA fd12:3456:789a:1::/64). Server je router: IPv4 provoz překládá NAT do školní sítě a Internetu, kdežto IPv6 cesta ven končí, protože školní síť IPv6 neposkytuje. Forwarding je zapnutý pro obě rodiny a firewall v nftables chrání směrovaný provoz IPv4 i IPv6.</desc>
+
+          <!-- uzly (boxy nejdřív) -->
+          <rect x="30" y="40" width="200" height="110" rx="16" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="130" y="84" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">Klient</text>
+          <text x="130" y="106" text-anchor="middle" font-size="11" fill="#54666F">klient.vyuka.cz</text>
+          <text x="130" y="128" text-anchor="middle" font-size="10.5" fill="#8698A1">jen intranet</text>
+
+          <rect x="350" y="40" width="200" height="110" rx="16" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+          <text x="450" y="84" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">Server</text>
+          <text x="450" y="106" text-anchor="middle" font-size="11" fill="#54666F">server.vyuka.cz</text>
+          <text x="450" y="128" text-anchor="middle" font-size="10.5" fill="#8698A1">router: NAT + firewall</text>
+
+          <rect x="670" y="40" width="200" height="110" rx="16" fill="#FFFFFF" stroke="#8698A1" stroke-width="1.8" stroke-dasharray="4 3"/>
+          <text x="770" y="84" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">Školní síť</text>
+          <text x="770" y="106" text-anchor="middle" font-size="11" fill="#54666F">→ Internet</text>
+          <text x="770" y="128" text-anchor="middle" font-size="10.5" fill="#8698A1">www.seznam.cz</text>
+
+          <!-- cesty: IPv4 (modrá) a IPv6 (olivová) — mezi Klientem a Serverem -->
+          <text x="290" y="72" text-anchor="middle" font-size="10.5" font-weight="700" fill="#47657D">IPv4</text>
+          <path d="M232 80 L348 80" stroke="#47657D" stroke-width="2" fill="none"/>
+          <path d="M340 75 L348 80 L340 85" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M240 75 L232 80 L240 85" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot right" cx="250" cy="80" r="4.5" fill="#47657D"/>
+
+          <text x="290" y="112" text-anchor="middle" font-size="10.5" font-weight="700" fill="#71801A">IPv6</text>
+          <path d="M232 120 L348 120" stroke="#71801A" stroke-width="2" fill="none"/>
+          <path d="M340 115 L348 120 L340 125" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M240 115 L232 120 L240 125" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot right" cx="250" cy="120" r="4.5" fill="#71801A" style="animation-delay:.5s"/>
+
+          <!-- cesty mezi Serverem a školní sítí -->
+          <text x="610" y="72" text-anchor="middle" font-size="10.5" font-weight="700" fill="#47657D">IPv4 + NAT</text>
+          <path d="M552 80 L668 80" stroke="#47657D" stroke-width="2" fill="none"/>
+          <path d="M660 75 L668 80 L660 85" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M560 75 L552 80 L560 85" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot right" cx="570" cy="80" r="4.5" fill="#47657D"/>
+
+          <text x="574" y="112" text-anchor="middle" font-size="10.5" font-weight="700" fill="#71801A">IPv6</text>
+          <path d="M552 120 L596 120" stroke="#71801A" stroke-width="2" fill="none"/>
+          <path d="M604 112 L620 128 M620 112 L604 128" stroke="#B5453B" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <path d="M628 120 L668 120" stroke="#C4D1D7" stroke-width="2" stroke-dasharray="3 3" fill="none"/>
+
+          <!-- adresní karty -->
+          <rect x="25" y="180" width="210" height="108" rx="12" fill="#F2F6F8" stroke="#47657D" stroke-width="1.4"/>
+          <text x="37" y="203" font-size="11" font-weight="700" fill="#1E2E38">enp0s3 · intranet</text>
+          <text x="37" y="226" font-size="10" font-weight="700" fill="#47657D">IPv4</text>
+          <text x="78" y="226" font-size="10" fill="#1E2E38">192.168.1.2/24</text>
+          <text x="37" y="246" font-size="10" font-weight="700" fill="#71801A">IPv6</text>
+          <text x="78" y="246" font-size="10" fill="#1E2E38">fd12:3456:789a:1::2/64</text>
+          <text x="37" y="270" font-size="10" fill="#8698A1">+ fe80:: link-local (auto)</text>
+
+          <rect x="345" y="180" width="210" height="160" rx="12" fill="#F2F6F8" stroke="#2E4657" stroke-width="1.4"/>
+          <text x="357" y="203" font-size="11" font-weight="700" fill="#1E2E38">enp0s8 · intranet</text>
+          <text x="357" y="226" font-size="10" font-weight="700" fill="#47657D">IPv4</text>
+          <text x="398" y="226" font-size="10" fill="#1E2E38">192.168.1.1/24</text>
+          <text x="357" y="246" font-size="10" font-weight="700" fill="#71801A">IPv6</text>
+          <text x="398" y="246" font-size="10" fill="#1E2E38">fd12:3456:789a:1::1/64</text>
+          <path d="M357 260 L543 260" stroke="#D7E3E8" stroke-width="1.4" fill="none"/>
+          <text x="357" y="282" font-size="11" font-weight="700" fill="#1E2E38">enp0s3 · NAT / školní síť</text>
+          <text x="357" y="304" font-size="10" font-weight="700" fill="#47657D">IPv4</text>
+          <text x="398" y="304" font-size="10" fill="#1E2E38">DHCP (školní síť)</text>
+          <text x="357" y="324" font-size="10" font-weight="700" fill="#71801A">IPv6</text>
+          <text x="398" y="324" font-size="10" fill="#1E2E38">jen fe80:: (RA nepřišlo)</text>
+
+          <rect x="665" y="180" width="210" height="108" rx="12" fill="#FFFFFF" stroke="#8698A1" stroke-width="1.4" stroke-dasharray="4 3"/>
+          <text x="677" y="203" font-size="11" font-weight="700" fill="#1E2E38">Internet</text>
+          <text x="677" y="226" font-size="10" font-weight="700" fill="#47657D">IPv4</text>
+          <text x="718" y="226" font-size="10" fill="#1E2E38">✓ dostupné přes NAT</text>
+          <text x="677" y="246" font-size="10" font-weight="700" fill="#71801A">IPv6</text>
+          <text x="718" y="246" font-size="10" fill="#B5453B">✗ škola neposkytuje</text>
+          <text x="677" y="270" font-size="10" fill="#8698A1">(chybí výchozí IPv6 trasa)</text>
+
+          <!-- spojka k router boxu -->
+          <path d="M450 340 L450 360" stroke="#8698A1" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+          <rect x="245" y="360" width="410" height="74" rx="14" fill="#FFFFFF" stroke="#71801A" stroke-width="1.8" stroke-dasharray="3 3"/>
+          <text x="450" y="383" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">Server jako router</text>
+          <text x="450" y="402" text-anchor="middle" font-size="10.5" fill="#54666F">forwarding IPv4 i IPv6 zapnutý (sysctl.d)</text>
+          <text x="450" y="420" text-anchor="middle" font-size="10.5" fill="#54666F">nftables: NAT jen pro IPv4 · firewall pro IPv4 i IPv6</text>
+
+          <!-- legenda -->
+          <path d="M30 458 L58 458" stroke="#47657D" stroke-width="2" fill="none"/>
+          <text x="66" y="462" font-size="10.5" fill="#54666F">IPv4</text>
+          <path d="M120 458 L148 458" stroke="#71801A" stroke-width="2" fill="none"/>
+          <text x="156" y="462" font-size="10.5" fill="#54666F">IPv6</text>
+          <path d="M210 452 L222 464 M222 452 L210 464" stroke="#B5453B" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+          <text x="232" y="462" font-size="10.5" fill="#54666F">= nedostupné (školní síť IPv6 neposkytuje)</text>
+        </svg>
+        <figcaption>Obr. 2 — Intranet mluví po IPv4 i po IPv6. Ven se dostane jen IPv4 (přes NAT); IPv6 cesta je na straně Serveru připravená, ale škola po ní zatím nic nenabízí.</figcaption>
+      </figure>
+
+      <div class="callout">
+        <p><b>Školní síť pravděpodobně IPv6 neposkytuje.</b> Server proto na straně NAT/školní sítě nezíská globální IPv6 adresu ani výchozí IPv6 trasu, jen link-local <code>fe80::</code>. Nevadí to: IPv6 uvnitř intranetu bude plně funkční a cesta ven je připravená (forwarding, firewall, <code>IPv6AcceptRA=yes</code>) — jakmile škola IPv6 nabídne, začne fungovat bez další změny. Do Internetu půjde dnes po IPv6 jen „pokus“, který skončí zprávou <i>Destination unreachable</i> od Serveru — a i to je důkaz, že paket prošel bránou.</p>
+      </div>
+
+      <div class="callout">
+        <p><b>NAT není firewall.</b> V IPv4 překlad adres (masquerade) vedlejším efektem zabraňuje tomu, aby zvenku někdo navázal spojení s klientem v intranetu. Pro IPv6 NAT nepoužíváme — adresy klientů jsou přímo směrovatelné — a proto tuto ochranu musí převzít <b>explicitní stavový firewall</b>. Na Serveru ho zapíšeme do řetězu <code>forward</code> v tabulce <code>inet filter</code>: výchozí politika <code>drop</code>, povolí se jen odpovědi na už navázaná spojení (<code>established,related</code>) a provoz vzniklý v intranetu. Tabulka typu <code>inet</code> platí pro IPv4 i IPv6 najednou.</p>
+      </div>
+
+      <div class="callout">
+        <p><b>Kterou rodinu adres systém zvolí?</b> Když má jméno současně záznam A (IPv4) i AAAA (IPv6), vybírá si klient rodinu podle pravidel výběru adres (RFC 6724). Stroj, který má z IPv6 jen ULA a link-local adresy, často sáhne raději po IPv4. Proto se při <b>ověřování konkrétní rodiny vždy vynucuje</b> přepínačem: <code>ping -4</code> / <code>ping -6</code>, <code>ip -4</code> / <code>ip -6</code>, <code>resolvectl query -4/-6</code>. Co vybere obyčejné <code>ping klient</code> na vašich strojích, zjistíte ve Fázi 3.</p>
+      </div>
+
+      <div class="callout">
+        <p><b>Router a příjem Router Advertisement.</b> Zapnutý forwarding přepne jádro do „režimu routeru“ — a ten výchozí příjem RA vypíná. <code>systemd-networkd</code> zpracovává RA vlastním kódem (jádrovou implementaci nechává vypnutou) a při zapnutém forwardingu má <code>IPv6AcceptRA=</code> výchozí hodnotu <b>vypnuto</b>. Chce-li router získat IPv6 adresu a trasu od školní sítě, musí se na jeho vnějším rozhraní <code>IPv6AcceptRA=yes</code> zapsat <b>výslovně</b>.</p>
+      </div>
+
+      <h3>Klíče v .network souboru pro dual-stack</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Celý IPv4 i IPv6 popis jednoho rozhraní se vejde do jednoho souboru — klíče <code>Address=</code> a <code>Gateway=</code> lze opakovat a rodinu adresy pozná démon podle jejího zápisu.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Klíč</th><th>Co dělá</th><th>Kde ho dnes použijete</th></tr></thead>
+          <tbody>
+            <tr><td><b><code>Address=</code></b> <span style="color:var(--ink-faint)">[Network]</span></td><td>statická adresa IPv4 <b>nebo</b> IPv6 s délkou prefixu; klíč lze opakovat</td><td>Server i Klient</td></tr>
+            <tr><td><b><code>Gateway=</code></b> <span style="color:var(--ink-faint)">[Network]</span></td><td>výchozí brána, IPv4 i IPv6; klíč lze opakovat</td><td>Klient</td></tr>
+            <tr><td><b><code>DHCP=ipv4</code></b></td><td>DHCP klient jen pro IPv4 (<code>yes</code> = IPv4 i IPv6)</td><td>Server, rozhraní do školní sítě</td></tr>
+            <tr><td><b><code>IPv6AcceptRA=</code></b></td><td>příjem Router Advertisement; při zapnutém forwardingu výchozí vypnuto</td><td>Server (školní síť) · Klient (bonus)</td></tr>
+            <tr><td><b><code>IPv6SendRA=</code></b> + <code>[IPv6Prefix]</code> <code>Prefix=</code></td><td>router vysílá RA s prefixem, klienti si podle něj složí adresu (SLAAC)</td><td>Server (bonus, Fáze 5)</td></tr>
+            <tr><td><b><code>LinkLocalAddressing=</code></b></td><td>automatická link-local adresa; výchozí <code>ipv6</code></td><td>nic nenastavujete — jen si všimnete <code>fe80::</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Router Advertisement a SLAAC — bonus (Fáze 5)</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Statickou adresu si zvolíte sami. Při SLAAC ji naopak <b>Klient složí sám</b>: prefix mu poví router, spodních 64 bitů si odvodí z vlastního rozhraní.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgratitle svgradesc">
+          <title id="svgratitle">Router Advertisement a SLAAC</title>
+          <desc id="svgradesc">Klient pošle Router Solicitation na multicast ff02::2. Server odpoví Router Advertisement s prefixem fd12:3456:789a:1::/64 a životností routeru 1800 sekund. Klient si z prefixu a identifikátoru rozhraní složí adresu, ověří ji pomocí Duplicate Address Detection a přidá výchozí trasu přes link-local adresu Serveru.</desc>
+
+          <!-- hlavičky a čáry života -->
+          <rect x="90" y="16" width="160" height="44" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="170" y="43" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Klient</text>
+          <rect x="650" y="16" width="160" height="44" rx="12" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+          <text x="730" y="43" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Server (router)</text>
+          <path d="M170 60 L170 384" stroke="#C4D1D7" stroke-width="1.6" stroke-dasharray="4 4" fill="none"/>
+          <path d="M730 60 L730 384" stroke="#C4D1D7" stroke-width="1.6" stroke-dasharray="4 4" fill="none"/>
+
+          <!-- zpráva 1: RS -->
+          <text x="450" y="104" text-anchor="middle" font-size="11.5" font-weight="700" fill="#47657D">① Router Solicitation (RS) → ff02::2</text>
+          <text x="450" y="122" text-anchor="middle" font-size="10.5" fill="#54666F">„Je tady nějaký router?“</text>
+          <path d="M170 134 L728 134" stroke="#47657D" stroke-width="2" fill="none"/>
+          <path d="M720 129 L728 134 L720 139" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot longr" cx="178" cy="134" r="4.5" fill="#47657D"/>
+
+          <!-- zpráva 2: RA -->
+          <text x="450" y="176" text-anchor="middle" font-size="11.5" font-weight="700" fill="#71801A">② Router Advertisement (RA)</text>
+          <text x="450" y="194" text-anchor="middle" font-size="10.5" fill="#54666F">prefix fd12:3456:789a:1::/64 · životnost routeru 1800 s</text>
+          <path d="M730 206 L172 206" stroke="#71801A" stroke-width="2" fill="none"/>
+          <path d="M180 201 L172 206 L180 211" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <circle class="flow-dot longl" cx="722" cy="206" r="4.5" fill="#71801A"/>
+
+          <!-- kroky na straně Klienta -->
+          <rect x="10" y="238" width="345" height="70" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+          <text x="24" y="260" font-size="11.5" font-weight="700" fill="#1E2E38">③ SLAAC — Klient si adresu složí sám</text>
+          <text x="24" y="280" font-size="10.5" fill="#54666F">prefix z RA + 64 bitů z identifikátoru rozhraní</text>
+          <text x="24" y="298" font-size="10.5" fill="#1E2E38">→ fd12:3456:789a:1:xxxx:xxxx:xxxx:xxxx/64</text>
+
+          <rect x="370" y="238" width="330" height="70" rx="12" fill="#F2F6F8" stroke="#47657D" stroke-width="1.6"/>
+          <text x="384" y="260" font-size="11.5" font-weight="700" fill="#1E2E38">④ Výchozí trasa</text>
+          <text x="384" y="280" font-size="10.5" fill="#54666F">default via fe80::… (link-local adresa Serveru)</text>
+          <text x="384" y="298" font-size="10.5" fill="#54666F">v tabulce tras označeno „proto ra“</text>
+
+          <rect x="150" y="330" width="600" height="46" rx="12" fill="#FFFFFF" stroke="#8698A1" stroke-width="1.4" stroke-dasharray="3 3"/>
+          <text x="450" y="350" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">DAD — Duplicate Address Detection</text>
+          <text x="450" y="367" text-anchor="middle" font-size="10.5" fill="#54666F">před použitím Klient ověří, že adresu na lince nemá nikdo jiný</text>
+        </svg>
+        <figcaption>Obr. 3 — Router Advertisement: Server oznámí prefix, Klient si sám složí adresu i výchozí trasu (SLAAC). Adresa vzniklá z hardwarového identifikátoru se ale mění s výměnou síťové karty — proto se pro servery používají statické adresy.</figcaption>
+      </figure>
+
+      <h3>Přehled příkazů pro dnešní zadání</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Rychlá orientační reference — podrobné použití si vyzkoušíte v části Řešení.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz / soubor</th><th>Co dělá</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>ip -6 addr</b></td><td>Vypíše jen IPv6 adresy rozhraní</td><td>u adres vidíte <code>scope global</code> / <code>scope link</code>, u SLAAC <code>dynamic</code></td></tr>
+            <tr><td><b>ip -6 route</b> · <b>ip -6 route get ADRESA</b></td><td>IPv6 tabulka tras · kudy půjde paket na danou adresu</td><td><code>route get</code> ukáže bránu i zdrojovou adresu, aniž cokoli odešle</td></tr>
+            <tr><td><b>ip -6 neigh</b></td><td>Sousedé na lince (NDP)</td><td>stavy <code>REACHABLE</code>, <code>STALE</code>; náhrada za <code>arp</code></td></tr>
+            <tr><td><b>ping -4</b> · <b>ping -6</b></td><td>Test spojení jen po IPv4 / jen po IPv6</td><td>u link-local adresy nutné <code>fe80::…%rozhraní</code></td></tr>
+            <tr><td><b>sysctl net.ipv6.conf.all.forwarding</b></td><td>Vypíše IPv6 forwarding (0/1)</td><td>trvale v <code>/etc/sysctl.d/*.conf</code></td></tr>
+            <tr><td><b>/etc/nftables.conf</b></td><td>Trvalý ruleset (tabulky <code>ip nat</code> a <code>inet filter</code>)</td><td>kontrola <code>nft -c -f</code>, výpis <code>nft list ruleset</code></td></tr>
+            <tr><td><b>networkctl</b> (<code>status</code>, <code>reload</code>)</td><td>Stav rozhraní · znovunačtení .network souborů</td><td><code>reload</code> překonfiguruje rozhraní upravených souborů, restart démona netřeba</td></tr>
+            <tr><td><b>resolvectl query -4 / -6 JMÉNO</b></td><td>DNS dotaz jen na A / jen na AAAA záznam</td><td>dotaz odchází na DNS server po IPv4, i když se ptáte na IPv6 adresu</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>Návrh a realizace řešení</h2>
+      <p class="lede">Pět fází na 4 vyučovací hodiny: <b>1</b> IPv4 základ ze zadání kapitoly 6 přes systemd-networkd → <b>2</b> Server: IPv6, forwarding a firewall → <b>3</b> Klient: IPv6, jména a cesta ven → <b>4</b> restart a ověření dual-stack → <b>5</b> bonus SLAAC. Fáze 1–4 jsou povinné, fáze 5 je bonus pro týmy, které skončí dřív. Pracujte na <b>Serveru i Klientovi</b> ze stejné sítě jako v kapitole 6. Názvy rozhraní si ověřte příkazem <code>ip link show</code> — v ukázkách je <code>enp0s3</code> (NAT/školní síť) a <code>enp0s8</code> (intranet) na Serveru a <code>enp0s3</code> (intranet) na Klientovi jen jako příklad.</p>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí popsat rozdíl mezi IPv4 a IPv6 adresou ani rozlišit link-local, ULA a globální adresu.</li>
+            <li><b>Rozvíjející se</b> — zná typy adres, ale neumí vysvětlit, proč IPv6 běžně nepoužívá NAT ani co dělá forwarding.</li>
+            <li><b>Očekávaná úroveň</b> — správně čte a zkracuje IPv6 adresu, rozliší typy adres a vysvětlí, proč IPv6 router potřebuje forwarding a stavový firewall, ale ne NAT.</li>
+            <li><b>Nad rámec</b> — vysvětlí i souvislost forwardingu s příjmem Router Advertisement a s výběrem adresy podle rodiny (proč <code>ping klient</code> ≠ <code>ping -6 klient</code>).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — po restartu nefunguje IPv4 ani IPv6, nebo IPv6 rozbije původní IPv4 konfiguraci.</li>
+            <li><b>Rozvíjející se</b> — funguje jen jedna rodina, nebo se IPv6 po restartu ztratí (chybí trvalý zápis).</li>
+            <li><b>Očekávaná úroveň</b> — Server i Klient mají IPv4 i IPv6, ping v obou rodinách funguje v obou směrech i po restartu, IPv6 forwarding a firewall jsou trvale nastavené.</li>
+            <li><b>Nad rámec</b> — navíc funguje SLAAC (Fáze 5) a tým umí vysvětlit každý řádek konfigurace včetně důvodu <code>IPv6AcceptRA=yes</code> na Serveru.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neumí říct, proč cesta ven po IPv6 nefunguje a jak to poznat.</li>
+            <li><b>Rozvíjející se</b> — pozná, že IPv6 do Internetu nefunguje, ale neumí to doložit výstupem (<code>ip -6 route get</code>, <code>ping -6</code>).</li>
+            <li><b>Očekávaná úroveň</b> — na výstupech dokáže ukázat, kde IPv6 provoz končí (na Serveru) a proč, a co by se muselo změnit, aby fungoval i ven.</li>
+            <li><b>Nad rámec</b> — navrhne a zdůvodní, kdy v reálné síti použít statickou adresu a kdy SLAAC (server × klient).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — závislý na pomoci u každé úpravy .network souboru.</li>
+            <li><b>Rozvíjející se</b> — poradí si se Serverem, u Klienta nebo u nftables potřebuje pomoc.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, chyby (překlep v adrese, špatné rozhraní, chybějící <code>%rozhraní</code>) si dohledá v manuálových stránkách.</li>
+            <li><b>Nad rámec</b> — patří mezi první tři funkční týmy a pomáhá spolužákům s diagnostikou (<code>networkctl status</code>, <code>ip -6 route get</code>).</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit rozdíl mezi IPv4 a IPv6 adresou (délka, zápis, /64) a umím IPv6 adresu správně zkrátit.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím rozlišit link-local (fe80::), ULA (fd…) a globální IPv6 adresu a říct, kterou kde používáme.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Umím do jednoho .network souboru zapsat IPv4 i IPv6 adresu a bránu (opakované Address= a Gateway=).</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím trvale zapnout IPv6 forwarding přes /etc/sysctl.d/ a vím, proč je na routeru nutné IPv6AcceptRA=yes.</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Umím vysvětlit, proč IPv6 nepotřebuje NAT, a zapsat firewall pro směrovaný provoz (tabulka inet, řetěz forward).</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím ověřit IPv6 příkazy ip -6 addr, ip -6 route, ip -6 neigh a ping -6 a vynutit rodinu přepínači -4/-6.</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím vysvětlit, čím se statická adresa liší od SLAAC (Router Advertisement) a kdy použít kterou.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Umím po restartu ověřit, že celá dual-stack síť (adresy, trasy, forwarding, NAT a firewall, DNS) naskočila sama bez ručního zásahu.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty obsahu .network souborů, /etc/sysctl.d/, /etc/nftables.conf a výstupů ip -6 addr, ip -6 route, networkctl status, nft list ruleset a pingů (-4 i -6) po restartu ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky CBL — oficiální manuálové stránky Debianu a Linuxu, dokumentace jádra a nftables, standardy IETF (RFC) a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 7 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 7 — Konfigurace síťových rozhraní démonem systemd — IPv6
+   ========================================================================== */
+
+  // Pomocná funkce: převede prostý text příkazů na barevný terminálový blok.
+  //   řádek začínající "# "  = komentář (barevně)
+  //   řádek začínající "| "  = obsah konfiguračního souboru (barevně, značka "| " se odstraní)
+  //   ostatní řádky           = příkazy
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function cmd(txt){
+    var out = txt.replace(/^\n/,"").replace(/\n$/,"").split("\n").map(function(l){
+      if(l === "#" || l.indexOf("# ") === 0) return '<span class="c">'+esc(l)+'</span>';
+      if(l === "|" || l.indexOf("| ") === 0) return '<span class="c">'+esc(l.slice(2))+'</span>';
+      return esc(l);
+    }).join("\n");
+    return '<pre class="cmdblock"><code>'+out+'</code></pre>';
+  }
+
+  var TOPIC = {
+    num: "7",
+    title: "Konfigurace síťových rozhraní démonem systemd — IPv6",
+    hours: "4 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "IPv6 se v Linuxu nenastavuje <b>místo</b> IPv4, ale <b>vedle</b> něj (<b>dual-stack</b>): totéž rozhraní má IPv4 i IPv6 adresu, jeden démon (<b>systemd-networkd</b>) je popíše v jednom <code>.network</code> souboru a router k tomu potřebuje <b>forwarding a firewall</b> — ale ne NAT.",
+    eq: "Jak rozšířit trvale funkční síť z kapitoly 6 o IPv6 tak, aby po restartu fungovaly IPv4 i IPv6 zároveň — a proč Server směruje IPv6 bez NAT?",
+    challenge: "Zopakujte síť Školy X z kapitoly 6 přes <b>systemd-networkd</b> (<b>Server</b> = router s NAT mezi školní sítí a intranetem <code>192.168.1.0/24</code>, <b>Klient</b> se statickou adresou, test <b>www.seznam.cz</b>) a <b>přidejte IPv6</b>: soukromý prefix ULA <code>fd12:3456:789a:1::/64</code> v intranetu, statické IPv6 adresy Serveru i Klienta, IPv6 forwarding a firewall na Serveru. Po restartu musí fungovat <code>ping</code> Server↔Klient po IPv4 <b>i</b> po IPv6 a Klient musí dosáhnout na www.seznam.cz po IPv4. Školní síť IPv6 pravděpodobně neposkytuje — ven tedy půjde jen IPv4, ale IPv6 cesta na Serveru bude připravená. <b>Bonus:</b> Klient si IPv6 adresu vytvoří sám přes Router Advertisement (SLAAC)."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Čím se IPv6 adresa liší od IPv4 (délka, zápis, prefix /64) a jak se dlouhá adresa správně zkracuje?",
+      "Které typy IPv6 adres se objeví na rozhraní (link-local, ULA, globální) a k čemu se který hodí?",
+      "Proč IPv6 běžně nepoužívá NAT a čím se v routeru nahradí „ochrana“, kterou v IPv4 nepřímo poskytoval překlad adres?",
+      "Jak IPv6 nahrazuje ARP a DHCP (NDP, Router Advertisement, SLAAC) — a kdo ve vaší síti Router Advertisement vysílá?",
+      "Když má cíl současně záznam A i AAAA, kterou rodinu adres systém zvolí a jak testovanou rodinu vynutit?"
+    ],
+    resources: [
+      {
+        title: "systemd.network(5) — dual-stack v jednom souboru",
+        tag: "official",
+        items: [
+          "<code>Address=</code> a <code>Gateway=</code> přijímají IPv4 i IPv6 a lze je opakovat. <code>IPv6AcceptRA=</code> je při zapnutém IP forwardingu výchozí vypnuté; nastavení <code>yes</code> v systemd odpovídá hodnotě 2 jádrového <code>accept_ra</code>. <code>IPv6SendRA=</code> spolu se sekcí <code>[IPv6Prefix]</code> (<code>Prefix=</code>) vysílá Router Advertisement.",
+          "<a href='https://manpages.debian.org/trixie/systemd/systemd.network.5.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/…/systemd.network.5.en.html</a>"
+        ]
+      },
+      {
+        title: "networkctl(1) — reload a status",
+        tag: "official",
+        items: [
+          "<code>networkctl reload</code> znovu načte <code>.network</code> soubory a překonfiguruje rozhraní, kterých se změna týká; <code>networkctl status</code> ukáže adresy, brány a DNS.",
+          "<a href='https://manpages.debian.org/trixie/systemd/networkctl.1.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/…/networkctl.1.en.html</a>"
+        ]
+      },
+      {
+        title: "resolved.conf(5) a resolvectl(1) — DNS pro dual-stack",
+        tag: "official",
+        items: [
+          "Klíč <code>DNS=</code> v <code>resolved.conf</code> přijímá IPv4 i IPv6 adresy serverů. <code>resolvectl query -4</code> / <code>-6</code> omezí dotaz jen na A / jen na AAAA záznamy.",
+          "<a href='https://manpages.debian.org/trixie/systemd-resolved/resolved.conf.5.en.html' target='_blank' rel='noopener'>…/resolved.conf.5.en.html</a> · <a href='https://manpages.debian.org/trixie/systemd-resolved/resolvectl.1.en.html' target='_blank' rel='noopener'>…/resolvectl.1.en.html</a>"
+        ]
+      },
+      {
+        title: "Jádro Linuxu — IP Sysctl (IPv6 forwarding a accept_ra)",
+        tag: "official",
+        items: [
+          "Vysvětlení „režimu hostitele“ a „režimu routeru“ (<code>forwarding</code>), celosystémového přepínače <code>conf/all/forwarding</code> a parametru <code>accept_ra</code> (hodnota 2 = přijímat RA i při zapnutém forwardingu).",
+          "<a href='https://docs.kernel.org/networking/ip-sysctl.html' target='_blank' rel='noopener'>docs.kernel.org/networking/ip-sysctl.html</a>"
+        ]
+      },
+      {
+        title: "RFC 4193 a RFC 4291 — adresy ULA a architektura IPv6 adres",
+        tag: "official",
+        items: [
+          "RFC 4193 definuje Unique Local Addresses (<code>fc00::/7</code>, v praxi <code>fd00::/8</code> s 40bitovým náhodným Global ID). RFC 4291 popisuje typy adres, zápis a zkracování.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc4193' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc4193</a> · <a href='https://www.rfc-editor.org/rfc/rfc4291' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc4291</a>"
+        ]
+      },
+      {
+        title: "RFC 4861 a RFC 4862 — Neighbor Discovery, Router Advertisement a SLAAC",
+        tag: "official",
+        items: [
+          "RFC 4861 popisuje NDP (náhradu ARP) a zprávy Router Solicitation / Router Advertisement. RFC 4862 popisuje bezstavovou autokonfiguraci adres (SLAAC) včetně Duplicate Address Detection.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc4861' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc4861</a> · <a href='https://www.rfc-editor.org/rfc/rfc4862' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc4862</a>"
+        ]
+      },
+      {
+        title: "RFC 6724 — výběr zdrojové a cílové adresy",
+        tag: "official",
+        items: [
+          "Výchozí tabulka priorit a pravidla, podle kterých systém řadí adresy vrácené pro jedno jméno (A vs. AAAA, ULA vs. globální adresy). Vysvětluje, proč se pro test konkrétní rodiny používá <code>ping -4</code> / <code>ping -6</code>.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc6724' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc6724</a>"
+        ]
+      },
+      {
+        title: "nftables wiki — rodina inet a firewall routeru",
+        tag: "official",
+        items: [
+          "Rodina <code>inet</code> zpracuje IPv4 i IPv6 jedním rulesetem; ukázka firewallu routeru s řetězem <code>forward</code> a stavovým sledováním spojení (<code>ct state</code>).",
+          "<a href='https://wiki.nftables.org/wiki-nftables/index.php/Nftables_families' target='_blank' rel='noopener'>wiki.nftables.org/…/Nftables_families</a> · <a href='https://wiki.nftables.org/wiki-nftables/index.php/Simple_ruleset_for_a_home_router' target='_blank' rel='noopener'>wiki.nftables.org/…/Simple_ruleset_for_a_home_router</a>"
+        ]
+      },
+      {
+        title: "ping(8) a ip(8) — přepínače -4/-6, ip -6, route get, neigh",
+        tag: "official",
+        items: [
+          "<code>ping -4</code> / <code>ping -6</code> vynutí rodinu adres; <code>ip -6 addr</code>, <code>ip -6 route get ADRESA</code> a <code>ip -6 neigh</code> jsou IPv6 obdoby známých příkazů.",
+          "<a href='https://manpages.debian.org/trixie/iputils-ping/ping.8.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/…/ping.8.en.html</a> · <a href='https://man7.org/linux/man-pages/man8/ip-route.8.html' target='_blank' rel='noopener'>man7.org/…/ip-route.8.html</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Do jakého bloku adres patří <code>fd12:3456:789a:1::1</code>?",
+      opts: ["Globální unicast — adresa použitelná přímo v Internetu", "Link-local — platí jen na jedné lince a vzniká automaticky", "ULA (unique local) — soukromá adresa, obdoba 192.168.x.x", "Multicast — adresa skupiny uzlů"],
+      correct: 2,
+      explain: "Prefix <code>fd00::/8</code> patří do bloku ULA (RFC 4193) — soukromý rozsah pro vnitřní sítě, který se nesměruje do Internetu. Link-local adresy začínají <code>fe80::</code>, globální adresy z bloku <code>2000::/3</code> a multicast <code>ff…</code>."
+    },
+    {
+      q: "Proč Server v naší dual-stack síti nepoužívá NAT pro IPv6 a čím ho nahrazuje?",
+      opts: ["NAT pro IPv6 v Linuxu vůbec neexistuje, proto se místo něj používá DHCPv6", "NAT není potřeba, protože IPv6 adres je dost; klienty chrání stavový firewall v řetězu forward", "NAT pro IPv6 zajišťuje systemd-resolved", "Server IPv6 vůbec nesměruje, takže ochranu nepotřebuje"],
+      correct: 1,
+      explain: "IPv6 adresy jsou dostatečně dlouhé na to, aby se daly směrovat bez překladu. Ochranu, kterou v IPv4 nepřímo poskytoval NAT, ale musí převzít firewall: v tabulce <code>inet filter</code> řetěz <code>forward</code> s politikou <code>drop</code>, který propouští jen odpovědi (<code>established,related</code>) a provoz vzniklý v intranetu. (Překlad pro IPv6 lze v Linuxu postavit, ale v běžné praxi se nepoužívá.)"
+    },
+    {
+      q: "Server má zapnutý IPv6 forwarding a chce získat IPv6 adresu od školní sítě přes Router Advertisement. Co musí být v <code>20-nat.network</code>?",
+      opts: ["<code>IPv6AcceptRA=yes</code> — při zapnutém forwardingu je příjem RA ve výchozím stavu vypnutý", "Nic — RA se přijímá vždy", "<code>IPv6SendRA=yes</code>", "<code>DHCP=no</code>"],
+      correct: 0,
+      explain: "systemd-networkd má <code>IPv6AcceptRA=</code> při zapnutém IP forwardingu ve výchozím stavu vypnuto (router se na cizí RA nespoléhá). Chceme-li adresu a trasu od školní sítě, musíme příjem zapnout výslovně. <code>IPv6SendRA=</code> naopak RA <b>vysílá</b> — to dělá Server směrem do intranetu (bonus)."
+    },
+    {
+      q: "Proč se při ověřování používá <code>ping -4</code> a <code>ping -6</code>, a ne jen <code>ping klient</code>?",
+      opts: ["Obyčejné <code>ping</code> už v Debianu nefunguje", "Když má jméno záznam A i AAAA, vybírá rodinu systém podle vlastních pravidel (RFC 6724) — a stroj s ULA adresou často zvolí IPv4; testovanou rodinu je proto nutné vynutit", "Přepínač -6 zrychluje odezvu", "Bez přepínače používá ping vždy IPv6"],
+      correct: 1,
+      explain: "O výběru adresy pro jméno s A i AAAA záznamem rozhoduje resolver podle pravidel z RFC 6724, ne uživatel. U hostitele, který má z IPv6 jen ULA a link-local adresy, často vyhraje IPv4. Chcete-li otestovat konkrétní rodinu, musíte ji vynutit (<code>ping -4</code> / <code>ping -6</code>)."
+    },
+    {
+      q: "Proč se při pingu na link-local adresu píše <code>fe80::…%enp0s3</code>?",
+      opts: ["Protože adresy <code>fe80::</code> jsou globální", "Protože prefix <code>fe80::/10</code> je na každém rozhraní stejný, takže adresa sama neřekne, kterým rozhraním má paket odejít", "Aby ping použil IPv4", "Je to jen zkrácený zápis prefixu"],
+      correct: 1,
+      explain: "Link-local adresa platí jen na jedné lince a stejný prefix <code>fe80::/10</code> má každé rozhraní. Bez <code>%rozhraní</code> (tzv. zone ID) by systém nevěděl, kterým rozhraním má paket poslat."
+    },
+    {
+      q: "Kdo při SLAAC vytvoří spodních 64 bitů IPv6 adresy Klienta?",
+      opts: ["Server v Router Advertisement", "DHCPv6 server", "Klient sám — odvodí je z identifikátoru svého rozhraní (např. EUI-64) a ověří pomocí DAD", "Správce ručně v .network souboru"],
+      correct: 2,
+      explain: "Router Advertisement nese jen prefix (a další parametry). Klient si adresu složí sám: k prefixu připojí 64bitový identifikátor rozhraní odvozený z jeho MAC adresy (EUI-64), případně jiným algoritmem, a před použitím ověří, že ji na lince nemá nikdo jiný (DAD)."
+    }
+  ];
+
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu (odpověď), se NEPÍŠÍ přímo do checklistu.
+  // Vloží se do pole "extra" dané fáze — renderAct je zabalí do rozklikávacího "Zobrazit řešení".
+  var ACT = [
+    {
+      num: 1, en: "IPv4 základ (zadání kap. 6)", title: "Fáze 1 — IPv4 základ přes systemd-networkd (zadání z kapitoly 6)",
+      body: "<p>⏱ orientačně 30 min. Stejné zadání jako v kapitole 6 (Fáze B): Server = router s NAT mezi školní sítí a intranetem <code>192.168.1.0/24</code>, Klient se statickou adresou — vše přes <code>systemd-networkd</code> a <code>systemd-resolved</code>. Pokud vaše stroje po kapitole 6 tak stále běží, stav jen ověřte a doplňte, co chybí; jinak konfiguraci zopakujte. Tohle je <b>základ, na který IPv6 postavíme</b>.</p>",
+      checklist: [
+        "Na Serveru i Klientovi ověřeno, že <code>systemd-networkd</code> a <code>systemd-resolved</code> jsou povolené a běží a že <code>networking</code> je zakázaný (<code>systemctl is-enabled</code>, <code>systemctl is-active</code>)",
+        "Server: v <code>/etc/systemd/network/10-intranet.network</code> je statická IPv4 adresa <code>192.168.1.1/24</code> intranetového rozhraní (zatím jen IPv4)",
+        "Server: v <code>/etc/systemd/network/20-nat.network</code> je DHCP na rozhraní do NAT/školní sítě (<code>DHCP=yes</code>, stejně jako v kapitole 6)",
+        "Server: v <code>/etc/sysctl.d/99-ip-forward.conf</code> je trvalý IPv4 forwarding (<code>net.ipv4.ip_forward=1</code>)",
+        "Server: v <code>/etc/nftables.conf</code> je trvalé NAT/masquerade pro rozhraní do školní sítě a démon <code>nftables</code> je povolený (<code>systemctl enable --now nftables</code>)",
+        "Klient: v <code>/etc/systemd/network/10-intranet.network</code> je statická adresa <code>192.168.1.2/24</code> a brána <code>192.168.1.1</code>; DNS <code>8.8.8.8</code> je v <code>/etc/systemd/resolved.conf</code> a <code>/etc/resolv.conf</code> je symlink na stub resolver",
+        "Otestováno po IPv4: <code>ping -4</code> Server↔Klient (podle IP adresy) a <code>ping -4 www.seznam.cz</code> z Klienta",
+        "Na obou strojích prohlédnuto <code>ip -6 addr</code> — zapsáno, jaké IPv6 adresy rozhraní mají už teď (jen link-local <code>fe80::…</code>) a proč tam jsou, přestože jste IPv6 nic nenastavovali"
+      ],
+      extra: cmd(`
+# stav démonů: networking zakázaný, networkd + resolved povolené a běžící
+systemctl is-enabled networking systemd-networkd systemd-resolved
+systemctl is-active systemd-networkd systemd-resolved nftables
+networkctl status
+resolvectl status
+
+# --- SERVER ---
+# intranetové rozhraní — zatím jen IPv4 (příklad názvu enp0s8)
+sudo nano /etc/systemd/network/10-intranet.network
+| [Match]
+| Name=enp0s8
+|
+| [Network]
+| Address=192.168.1.1/24
+
+# rozhraní do NAT/školní sítě (příklad názvu enp0s3)
+sudo nano /etc/systemd/network/20-nat.network
+| [Match]
+| Name=enp0s3
+|
+| [Network]
+| DHCP=yes
+
+# trvalý IPv4 forwarding
+sudo nano /etc/sysctl.d/99-ip-forward.conf
+| net.ipv4.ip_forward=1
+
+# trvalý NAT
+sudo nano /etc/nftables.conf
+| #!/usr/sbin/nft -f
+| flush ruleset
+|
+| table ip nat {
+|     chain postrouting {
+|         type nat hook postrouting priority 100;
+|         oifname "enp0s3" masquerade
+|     }
+| }
+
+sudo sysctl --system
+sudo nft -c -f /etc/nftables.conf
+sudo systemctl enable --now nftables
+sudo networkctl reload
+
+# --- KLIENT ---
+# intranetové rozhraní Klienta (příklad názvu enp0s3)
+sudo nano /etc/systemd/network/10-intranet.network
+| [Match]
+| Name=enp0s3
+|
+| [Network]
+| Address=192.168.1.2/24
+| Gateway=192.168.1.1
+
+# ruční DNS server
+sudo nano /etc/systemd/resolved.conf
+| [Resolve]
+| DNS=8.8.8.8
+
+sudo ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+sudo systemctl restart systemd-resolved
+sudo networkctl reload
+
+# --- test ---
+# z Klienta:
+ping -4 -c 3 192.168.1.1
+ping -4 -c 3 www.seznam.cz
+# na obou strojích — zatím jen link-local fe80::
+ip -6 addr
+`)
+    },
+    {
+      num: 2, en: "Server: IPv6, forwarding, firewall", title: "Fáze 2 — Server: IPv6 v intranetu, forwarding a firewall",
+      body: "<p>⏱ orientačně 40 min. Na Serveru přidejte IPv6 <b>vedle</b> IPv4: ULA adresu v intranetu, trvalý IPv6 forwarding, firewall pro směrovaný provoz a příjem Router Advertisement na straně školní sítě. IPv4 se nesmí rozbít — po změnách ji otestujte.</p>",
+      checklist: [
+        "Na Serveru ověřeno (<code>ip -6 addr</code>), že obě rozhraní mají link-local adresu <code>fe80::…</code>, a zapsáno, zda rozhraní do školní sítě dostalo i globální IPv6 adresu (očekává se, že ne)",
+        "Zvolen intranetový prefix <code>fd12:3456:789a:1::/64</code> a vlastními slovy vysvětleno, co je ULA a proč se pro intranet hodí místo globální adresy",
+        "V <code>10-intranet.network</code> přibyla druhá adresa <code>Address=fd12:3456:789a:1::1/64</code> — IPv4 adresa <code>192.168.1.1/24</code> zůstává ve stejném souboru",
+        "V <code>20-nat.network</code> je <code>DHCP=ipv4</code> (DHCP jen pro IPv4) a <code>IPv6AcceptRA=yes</code> — vysvětleno, proč se příjem RA musí zapnout výslovně, když je zapnutý forwarding",
+        "V <code>/etc/sysctl.d/99-ip-forward.conf</code> přibyl řádek <code>net.ipv6.conf.all.forwarding=1</code> (IPv4 řádek zůstává) a hodnoty načteny příkazem <code>sysctl --system</code>",
+        "V <code>/etc/nftables.conf</code> přibyla tabulka <code>inet filter</code> s řetězem <code>forward</code> (politika <code>drop</code>, <code>ct state established,related accept</code>, povolení provozu z intranetového rozhraní); tabulka <code>ip nat</code> zůstala beze změny",
+        "Syntaxe ověřena příkazem <code>nft -c -f /etc/nftables.conf</code>, ruleset načten a zkontrolován (<code>nft list ruleset</code> obsahuje <code>table ip nat</code> i <code>table inet filter</code>)",
+        "Změny .network souborů načteny příkazem <code>networkctl reload</code>; ověřena IPv6 adresa a trasa intranetu (<code>ip -6 addr show dev …</code>, <code>ip -6 route</code>) a hodnota <code>sysctl net.ipv6.conf.all.forwarding</code>",
+        "Regresní test IPv4: ze Serveru stále funguje <code>ping -4 www.seznam.cz</code> a intranetové rozhraní má beze změny adresu <code>192.168.1.1/24</code>"
+      ],
+      extra: cmd(`
+# 1) co rozhraní mají hned po startu: fe80:: link-local a případná globální adresa od školy
+ip -6 addr show
+ip -6 route show
+
+# 2) intranet — IPv4 zůstává, přibývá ULA adresa (víc Address= v jednom souboru)
+sudo nano /etc/systemd/network/10-intranet.network
+| [Match]
+| Name=enp0s8
+|
+| [Network]
+| Address=192.168.1.1/24
+| Address=fd12:3456:789a:1::1/64
+
+# 3) NAT/školní síť — jen DHCPv4; příjem RA zapnout VÝSLOVNĚ (forwarding jej jinak vypíná)
+sudo nano /etc/systemd/network/20-nat.network
+| [Match]
+| Name=enp0s3
+|
+| [Network]
+| DHCP=ipv4
+| IPv6AcceptRA=yes
+
+# 4) trvalý IPv6 forwarding vedle IPv4
+sudo nano /etc/sysctl.d/99-ip-forward.conf
+| net.ipv4.ip_forward=1
+| net.ipv6.conf.all.forwarding=1
+
+sudo sysctl --system
+sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding
+
+# 5) firewall pro směrované pakety (IPv4 i IPv6) vedle stávající tabulky ip nat
+sudo nano /etc/nftables.conf
+| #!/usr/sbin/nft -f
+| flush ruleset
+|
+| table ip nat {
+|     chain postrouting {
+|         type nat hook postrouting priority 100;
+|         oifname "enp0s3" masquerade
+|     }
+| }
+|
+| table inet filter {
+|     chain forward {
+|         type filter hook forward priority 0; policy drop;
+|         ct state established,related accept
+|         iifname "enp0s8" accept
+|     }
+| }
+
+sudo nft -c -f /etc/nftables.conf
+sudo nft -f /etc/nftables.conf
+sudo nft list ruleset
+
+# 6) načíst změny .network souborů a ověřit
+sudo networkctl reload
+networkctl status enp0s8
+ip -6 addr show dev enp0s8
+ip -6 route show
+
+# regresní test IPv4
+ping -4 -c 3 www.seznam.cz
+`)
+    },
+    {
+      num: 3, en: "Klient: IPv6, jména, cesta ven", title: "Fáze 3 — Klient: IPv6 adresa, brána, jména a cesta ven",
+      body: "<p>⏱ orientačně 35 min. Klient dostane IPv6 adresu a bránu, oba stroje se uvidí po IPv6 i podle jména a zjistíte, kudy a jak daleko se IPv6 dostane ven. Nezapomeňte: pro test konkrétní rodiny vždy vynuťte <code>-4</code> / <code>-6</code>.</p>",
+      checklist: [
+        "Klient: v <code>10-intranet.network</code> přibyla adresa <code>Address=fd12:3456:789a:1::2/64</code> a brána <code>Gateway=fd12:3456:789a:1::1</code>; IPv4 část zůstala beze změny",
+        "Po <code>networkctl reload</code> ověřena IPv6 adresa a výchozí trasa Klienta (<code>ip -6 addr</code>, <code>ip -6 route</code> — <code>default via fd12:3456:789a:1::1</code>)",
+        "Otestováno <code>ping -6</code> Klient→Server (<code>fd12:3456:789a:1::1</code>) i Server→Klient (<code>fd12:3456:789a:1::2</code>)",
+        "Prohlédnuta tabulka sousedů (<code>ip -6 neigh</code>) — zapsáno, kdo je v ní vidět, v jakém stavu a že NDP nahrazuje ARP",
+        "Otestován ping na link-local adresu druhého stroje ve tvaru <code>fe80::…%rozhraní</code> a zapsáno, proč je nutné rozhraní zadat",
+        "Do <code>/etc/hosts</code> obou strojů přidány IPv6 záznamy <code>server</code> a <code>klient</code> vedle IPv4 záznamů; ověřeno <code>getent ahostsv6 klient</code>",
+        "Vyzkoušeno <code>ping -4 klient</code>, <code>ping -6 klient</code> a <code>ping klient</code> bez přepínače — zapsáno, kterou rodinu zvolil poslední příkaz a proč (viz RFC 6724)",
+        "Cesta ven po IPv6: <code>ip -6 route get 2001:4860:4860::8888</code> ukazuje bránu Serveru; <code>ping -6 2001:4860:4860::8888</code> buď odpoví, nebo skončí zprávou <i>Destination unreachable</i> od Serveru — zapsáno, který případ nastal a co z něj plyne",
+        "<code>resolvectl query -6 www.seznam.cz</code> vrátil IPv6 adresu (AAAA), přestože je DNS server <code>8.8.8.8</code> dosažitelný jen po IPv4 — vysvětleno, proč rodina dotazu na DNS a rodina odpovědi spolu nesouvisejí"
+      ],
+      extra: cmd(`
+# --- KLIENT ---
+# přibývá IPv6 adresa a IPv6 brána, IPv4 zůstává (příklad názvu enp0s3)
+sudo nano /etc/systemd/network/10-intranet.network
+| [Match]
+| Name=enp0s3
+|
+| [Network]
+| Address=192.168.1.2/24
+| Gateway=192.168.1.1
+| Address=fd12:3456:789a:1::2/64
+| Gateway=fd12:3456:789a:1::1
+
+sudo networkctl reload
+ip -6 addr show dev enp0s3
+ip -6 route show
+
+# --- test Klient -> Server ---
+ping -6 -c 3 fd12:3456:789a:1::1
+# na Serveru obráceně:
+# ping -6 -c 3 fd12:3456:789a:1::2
+
+# sousedé (NDP nahrazuje ARP)
+ip -6 neigh show
+
+# link-local adresu Serveru zjistíte na Serveru: ip -6 addr show dev enp0s8
+# na Klientovi pak se jménem rozhraní za znakem %:
+ping -6 -c 3 fe80::…%enp0s3
+
+# --- /etc/hosts na OBOU strojích: IPv6 záznamy vedle IPv4 ---
+sudo nano /etc/hosts
+| 192.168.1.1            server.vyuka.cz server
+| fd12:3456:789a:1::1    server.vyuka.cz server
+| 192.168.1.2            klient.vyuka.cz klient
+| fd12:3456:789a:1::2    klient.vyuka.cz klient
+
+getent ahostsv6 klient
+ping -4 -c 2 klient
+ping -6 -c 2 klient
+# bez přepínače: kterou rodinu systém zvolil?
+ping -c 2 klient
+
+# --- cesta ven po IPv6 (na Klientovi) ---
+ip -6 route get 2001:4860:4860::8888
+ping -6 -c 3 2001:4860:4860::8888
+
+# DNS: dotaz jde po IPv4 (8.8.8.8), odpovědí je IPv6 adresa (AAAA)
+resolvectl query -6 www.seznam.cz
+`)
+    },
+    {
+      num: 4, en: "Restart & Verify (dual-stack)", title: "Fáze 4 — Restart a ověření dual-stack",
+      body: "<p>⏱ orientačně 30 min. Restartujte oba stroje a ověřte, že dual-stack síť naskočí sama. Na konci porovnejte s koncem kapitoly 6.</p>",
+      checklist: [
+        "Server i Klient restartováni (<code>reboot</code>)",
+        "Po startu bez ručního zásahu má Server na intranetovém rozhraní IPv4 i IPv6 adresu a Klient IPv4 i IPv6 adresu s výchozí trasou (<code>ip addr</code>, <code>ip -6 route</code>)",
+        "Na Serveru ověřen trvalý forwarding obou rodin (<code>sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding</code>) a ruleset (<code>nft list ruleset</code> — obě tabulky)",
+        "IPv4: <code>ping -4</code> Server↔Klient a <code>ping -4 www.seznam.cz</code> z Klienta fungují",
+        "IPv6: <code>ping -6</code> Server↔Klient (podle adresy i jména) funguje; výsledek testu ven (<code>ping -6 2001:4860:4860::8888</code>) zapsán",
+        "Pokud vše funguje a jste mezi prvními třemi týmy, zavolejte vyučujícího ke kontrole → hodnocení 1",
+        "Zapsáno srovnání s koncem kapitoly 6 — co přibylo (IPv6 adresy, IPv6 forwarding, firewall v <code>inet filter</code>) a co zůstalo stejné (NAT jen pro IPv4, jeden démon a jeden soubor na rozhraní)"
+      ],
+      extra: cmd(`
+# na obou strojích
+sudo reboot
+
+# po startu — na obou strojích, beze změny:
+ip addr show
+ip -6 route show
+networkctl status
+
+# na Serveru navíc
+sysctl net.ipv4.ip_forward net.ipv6.conf.all.forwarding
+sudo nft list ruleset
+
+# IPv4
+ping -4 -c 3 klient
+# z Klienta:
+ping -4 -c 3 server
+ping -4 -c 3 www.seznam.cz
+
+# IPv6
+ping -6 -c 3 klient
+# z Klienta:
+ping -6 -c 3 server
+ping -6 -c 3 2001:4860:4860::8888
+`)
+    },
+    {
+      num: 5, en: "Bonus: SLAAC (Router Advertisement)", title: "Fáze 5 — Bonus: Klient si IPv6 adresu vytvoří sám (SLAAC)",
+      body: "<p>⏱ bonus, orientačně 40 min. Server začne vysílat Router Advertisement a Klient si IPv6 adresu i výchozí trasu vytvoří sám — místo statické konfigurace z Fáze 3. Tuto fázi dělejte až po úspěšném ověření Fáze 4.</p>",
+      checklist: [
+        "Server: v <code>10-intranet.network</code> přibylo <code>IPv6SendRA=yes</code> a sekce <code>[IPv6Prefix]</code> s <code>Prefix=fd12:3456:789a:1::/64</code>; změna načtena příkazem <code>networkctl reload</code>",
+        "Klient: konfigurace z Fáze 3 zálohována (<code>10-intranet.network.bak</code> — démon čte jen soubory <code>*.network</code>, záloha se ignoruje)",
+        "Klient: statická IPv6 <code>Address=…::2/64</code> a <code>Gateway=…::1</code> odstraněny a přidáno <code>IPv6AcceptRA=yes</code>; IPv4 část zůstává statická",
+        "Po <code>networkctl reload</code> (případně po restartu Klienta) má Klient IPv6 adresu z prefixu <code>fd12:3456:789a:1::/64</code> označenou <code>dynamic</code> a původní adresa <code>::2</code> zmizela",
+        "V <code>ip -6 route</code> je výchozí trasa <code>default via fe80::… proto ra</code> — zapsáno, že bránou je link-local adresa Serveru, ne jeho ULA adresa",
+        "<code>ping -6</code> na Server (<code>fd12:3456:789a:1::1</code>) funguje; zapsáno, že adresa Klienta už neodpovídá záznamu v <code>/etc/hosts</code> a proč se pro servery volí statické adresy",
+        "Klient restartován a ověřeno, že SLAAC adresa i trasa naskočily samy; zapsáno rozhodnutí, kterou metodu by tým zvolil pro Server a kterou pro Klienty v reálné školní síti"
+      ],
+      extra: cmd(`
+# --- SERVER: přidat vysílání Router Advertisement ---
+sudo nano /etc/systemd/network/10-intranet.network
+| [Match]
+| Name=enp0s8
+|
+| [Network]
+| Address=192.168.1.1/24
+| Address=fd12:3456:789a:1::1/64
+| IPv6SendRA=yes
+|
+| [IPv6Prefix]
+| Prefix=fd12:3456:789a:1::/64
+
+sudo networkctl reload
+
+# --- KLIENT: záloha, pak statické IPv6 nahradit příjmem RA ---
+# přípona .bak zajistí, že démon soubor ignoruje
+sudo cp /etc/systemd/network/10-intranet.network /etc/systemd/network/10-intranet.network.bak
+sudo nano /etc/systemd/network/10-intranet.network
+| [Match]
+| Name=enp0s3
+|
+| [Network]
+| Address=192.168.1.2/24
+| Gateway=192.168.1.1
+| IPv6AcceptRA=yes
+
+sudo networkctl reload
+ip -6 addr show dev enp0s3
+ip -6 route show
+ping -6 -c 3 fd12:3456:789a:1::1
+
+# pokud stará adresa ::2 reload přežila, pomůže restart démona nebo celého stroje
+sudo systemctl restart systemd-networkd
+sudo reboot
+`)
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Trvale funkční dual-stack síť Školy X — systemd-networkd + systemd-resolved (.network soubory, resolved.conf), /etc/sysctl.d/ (IPv4 i IPv6 forwarding) a /etc/nftables.conf (NAT jen pro IPv4, firewall inet filter pro obě rodiny). Odevzdejte: screenshoty obsahu konfiguračních souborů a výstupů ip addr, ip -6 route, networkctl status, nft list ruleset a pingů (-4 i -6, obě strany) po posledním restartu, a krátké zdůvodnění (50–100 slov), proč IPv6 nepotřebuje NAT a čím se dnešní stav liší od konce kapitoly 6.";
+
+  var REFLECT = [
+    "Co ve vaší síti dnes funguje po IPv4 i po IPv6, co jen po IPv4 — a kde přesně IPv6 provoz končí a proč?",
+    "Jak byste spolužákovi vysvětlili, že IPv6 nepotřebuje NAT, ale potřebuje firewall?",
+    "Které řádky konfigurace se pro IPv6 liší od IPv4 a které jsou naprosto stejné (adresa, brána, forwarding, firewall)?",
+    "Která metoda přidělení IPv6 adresy — statická, nebo SLAAC — by se hodila pro Server a která pro Klienty v reálné školní síti a proč?"
+  ];
+
+  var SOURCES = [
+    {title:"systemd.network(5) — systemd (Debian manpages)", url:"https://manpages.debian.org/trixie/systemd/systemd.network.5.en.html", tag:"official", note:"Address=, Gateway=, DHCP=, IPv6AcceptRA=, IPv6SendRA=, [IPv6Prefix] — IPv4 i IPv6 v jednom souboru."},
+    {title:"networkctl(1) — systemd (Debian manpages)", url:"https://manpages.debian.org/trixie/systemd/networkctl.1.en.html", tag:"official", note:"reload, reconfigure a status — načtení změn bez restartu démona."},
+    {title:"resolved.conf(5) — systemd-resolved (Debian manpages)", url:"https://manpages.debian.org/trixie/systemd-resolved/resolved.conf.5.en.html", tag:"official", note:"DNS= přijímá IPv4 i IPv6 adresy serverů."},
+    {title:"resolvectl(1) — systemd-resolved (Debian manpages)", url:"https://manpages.debian.org/trixie/systemd-resolved/resolvectl.1.en.html", tag:"official", note:"query s přepínači -4/-6 (jen A / jen AAAA záznamy)."},
+    {title:"sysctl.d(5) — Linux manuál", url:"https://man7.org/linux/man-pages/man5/sysctl.d.5.html", tag:"official", note:"Trvalé soubory /etc/sysctl.d/*.conf (net.ipv6.conf.all.forwarding)."},
+    {title:"IP Sysctl — Linux kernel documentation", url:"https://docs.kernel.org/networking/ip-sysctl.html", tag:"official", note:"IPv6 forwarding (režim hostitele/routeru) a accept_ra."},
+    {title:"ping(8) — iputils-ping (Debian manpages)", url:"https://manpages.debian.org/trixie/iputils-ping/ping.8.en.html", tag:"official", note:"Přepínače -4 (jen IPv4) a -6 (jen IPv6)."},
+    {title:"ip-route(8) — Linux manuál", url:"https://man7.org/linux/man-pages/man8/ip-route.8.html", tag:"official", note:"ip -6 route a ip route get (příklad výběru trasy bez odeslání paketu)."},
+    {title:"RFC 4193 — Unique Local IPv6 Unicast Addresses", url:"https://www.rfc-editor.org/rfc/rfc4193", tag:"official", note:"ULA: fc00::/7, v praxi fd00::/8 s náhodným 40bitovým Global ID."},
+    {title:"RFC 4291 — IP Version 6 Addressing Architecture", url:"https://www.rfc-editor.org/rfc/rfc4291", tag:"official", note:"Typy adres (link-local, unicast, multicast), zápis a zkracování."},
+    {title:"RFC 4861 — Neighbor Discovery for IPv6", url:"https://www.rfc-editor.org/rfc/rfc4861", tag:"official", note:"NDP (náhrada ARP), Router Solicitation a Router Advertisement."},
+    {title:"RFC 4862 — IPv6 Stateless Address Autoconfiguration", url:"https://www.rfc-editor.org/rfc/rfc4862", tag:"official", note:"SLAAC a Duplicate Address Detection."},
+    {title:"RFC 6724 — Default Address Selection for IPv6", url:"https://www.rfc-editor.org/rfc/rfc6724", tag:"official", note:"Pravidla výběru mezi A a AAAA záznamem (proč se rodina vynucuje -4/-6)."},
+    {title:"nftables wiki — Nftables families", url:"https://wiki.nftables.org/wiki-nftables/index.php/Nftables_families", tag:"official", note:"Rodina inet — jeden ruleset pro IPv4 i IPv6."},
+    {title:"nftables wiki — Simple ruleset for a home router", url:"https://wiki.nftables.org/wiki-nftables/index.php/Simple_ruleset_for_a_home_router", tag:"official", note:"Ukázka firewallu routeru: řetěz forward a stavové sledování spojení."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+})();
+</script>
+<script src="../assets/tuxik-agent.js" defer></script>
+</body>
+</html>
