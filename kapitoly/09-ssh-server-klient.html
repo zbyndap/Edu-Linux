@@ -1,0 +1,1418 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>9 SSH server a klient · Operační systém Linux</title>
+<meta name="description" content="SSH server a klient v Debianu 13 (OpenSSH 10.0): účel SSH, hostitelské a uživatelské klíče, ověření serveru otiskem (fingerprint), known_hosts, konfigurace sshd_config, zákaz roota a přihlašování jen klíči. Kapitola 9, 1 vyučovací hodina.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 9 — SSH server a klient — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf) a strukturně z kapitoly 8 —
+   stejné HTML/CSS/vykreslovací JS (vč. SMIL animací s tlačítkem pozastavení),
+   jen obsah (TOPIC/ENGAGE/INVESTIGATE/QUIZ/ACT/REFLECT/SOURCES) a doplňkový
+   statický obsah (tabulky + 2 SVG diagramy). Nové: blok vzorových odpovědí
+   (.model-answers) uvnitř „Zobrazit řešení“.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+@keyframes flowMoveRight{
+  0%{ transform:translateX(0); opacity:.25; }
+  15%{ opacity:1; }
+  85%{ opacity:1; }
+  100%{ transform:translateX(64px); opacity:.25; }
+}
+.flow-dot.right{ animation-name: flowMoveRight; animation-duration:2.2s; animation-timing-function:ease-in-out; }
+
+@keyframes flowLongRight{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(540px); opacity:.2; }
+}
+@keyframes flowLongLeft{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(-540px); opacity:.2; }
+}
+.flow-dot.longr{ animation-name: flowLongRight; animation-duration:3.4s; animation-timing-function:ease-in-out; }
+.flow-dot.longl{ animation-name: flowLongLeft; animation-duration:3.4s; animation-timing-function:ease-in-out; animation-delay:.9s; }
+
+/* štítky rodin adres (IPv4 / IPv6) */
+.fam{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; padding:.08rem .45rem; border-radius:999px; vertical-align:middle; white-space:nowrap;}
+.fam.v4{background:var(--robot-tint); color:var(--robot-deep); border:1px solid var(--robot);}
+.fam.v6{background:var(--electric-tint); color:var(--electric-deep); border:1px solid var(--electric-deep);}
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+
+/* ---------- KAPITOLA 9 — doplňky ---------- */
+/* tlačítko pozastavení animace pod SVG diagramem */
+.anim-toggle{display:block; margin:.6rem auto 0; font-family:inherit; font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.3rem .85rem; cursor:pointer;}
+.anim-toggle:hover{border-color:var(--robot); background:var(--surface);}
+
+/* datové tabulky v zadání ACT */
+.data-table{margin:.3rem 0 .4rem;}
+.data-table td{padding:.45rem .6rem;}
+
+
+/* vzorové odpovědi v rozbaleném řešení */
+.model-answers{margin-top:.9rem; background:#fff; border:1px solid var(--border); border-left:3px solid var(--robot); border-radius:var(--radius); padding:.8rem 1rem;}
+.model-answers .ma-head{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); margin:0 0 .4rem;}
+.model-answers dl{margin:0;}
+.model-answers dt{font-weight:700; font-size:.86rem; color:var(--ink); margin-top:.55rem;}
+.model-answers dt:first-child{margin-top:0;}
+.model-answers dd{margin:.15rem 0 0; font-size:.86rem; color:var(--ink-soft);}
+.ap-num{min-width:2rem;}
+.lede code, .callout code, .src-table code, .model-answers code{overflow-wrap:anywhere;}
+</style>
+</head>
+<body>
+<!-- sdílené ikony pro SVG diagramy (klíč, zámek) -->
+<!-- sdílené ikony pro SVG diagramy (klíč, zámek) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="ico-key" viewBox="0 0 44 20"><circle cx="9" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M15.5 10 H41 M33 10 V16 M39 10 V15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="ico-lock" viewBox="0 0 24 28"><rect x="3" y="12" width="18" height="14" rx="3" fill="currentColor"/><path d="M7 12 V8 a5 5 0 0 1 10 0 V12" fill="none" stroke="currentColor" stroke-width="2.6"/></symbol>
+  </defs>
+</svg>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — SSH server a klient</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Server Školy X má od kapitol 6 a 7 trvalou síť a v kapitole 8 jste poznali asymetrickou kryptografii, otisky a klíče. Dnes na tom postavíte první síťovou službu: bezpečnou vzdálenou správu přes SSH. Od příští kapitoly budete Server spravovat už jen z Klienta.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>SSH — účel, konfigurace a zabezpečení</h2>
+      <p class="lede">SSH (Secure Shell) je protokol pro <b>šifrovanou vzdálenou správu</b>. Klient a server se navzájem ověří, dohodnou si klíč relace a veškerá komunikace (včetně hesla) jde šifrovaně. Jak spojení probíhá krok za krokem, ukazuje obr. 6 v kapitole 8. Dnes se soustředíme na to, <b>co musí správce udělat</b>, aby bylo spojení opravdu bezpečné: kde leží klíče, jak ověřit otisk serveru a jak vypnout přihlašování heslem. Diagramy jsou animované, animaci zastavíte tlačítkem pod obrázkem.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <!-- ===================== A — ÚČEL ===================== -->
+      <h3>A · K čemu je SSH a z čeho se skládá</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Dříve se servery spravovaly přes <b>Telnet</b>, <b>rlogin/rsh</b> a soubory se přenášely přes <b>FTP</b>. Všechny posílají data i hesla <b>nešifrovaně</b>, takže je přečte každý, kdo síť odposlouchává. SSH je nahrazuje jedním šifrovaným protokolem (architektura SSH-2 je popsána v RFC 4251).</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Použití SSH</th><th>Příkaz klienta</th><th>Nahrazuje</th></tr></thead>
+          <tbody>
+            <tr><td><b>Vzdálený shell</b> — interaktivní práce na serveru</td><td><code>ssh zak@192.168.1.1</code></td><td>telnet, rlogin</td></tr>
+            <tr><td><b>Jeden příkaz</b> bez interaktivní relace (skripty)</td><td><code>ssh zak@192.168.1.1 uptime</code></td><td>rsh</td></tr>
+            <tr><td><b>Přenos souborů</b></td><td><code>scp</code>, <code>sftp</code></td><td>rcp, FTP</td></tr>
+            <tr><td><b>Tunelování</b> (přesměrování portů)</td><td><code>ssh -L</code>, <code>ssh -R</code></td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Role</th><th>Balík v Debianu 13</th><th>Program / služba</th><th>Konfigurace</th></tr></thead>
+          <tbody>
+            <tr><td><b>Server</b> — přijímá spojení, TCP port 22</td><td><code>openssh-server</code></td><td>démon <code>sshd</code>, služba systemd <code>ssh.service</code></td><td><code>/etc/ssh/sshd_config</code> + <code>/etc/ssh/sshd_config.d/*.conf</code></td></tr>
+            <tr><td><b>Klient</b> — navazuje spojení</td><td><code>openssh-client</code></td><td><code>ssh</code>, <code>scp</code>, <code>sftp</code>, <code>ssh-keygen</code>, <code>ssh-copy-id</code></td><td><code>/etc/ssh/ssh_config</code> (systém), <code>~/.ssh/config</code> (uživatel)</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Pozor na jedno písmeno:</b> <code>sshd_config</code> (s „d“ jako démon) nastavuje <b>server</b>, <code>ssh_config</code> bez „d“ nastavuje <b>klienta</b>. Záměna je nejčastější chyba v této kapitole.</p>
+        <p style="margin-bottom:0;"><b>Debian 13 obsahuje OpenSSH 10.0.</b> Starý protokol SSH-1 už OpenSSH vůbec neumí a klíče DSA nepodporuje ani po ručním povolení (poznámky k vydání Debianu 13, kap. 5.1.8). Nové klíče proto vytvářejte typu <b>Ed25519</b>, který <code>ssh-keygen</code> používá jako výchozí od OpenSSH 9.5.</p>
+      </div>
+
+      <!-- ===================== B — DVA PÁRY KLÍČŮ ===================== -->
+      <h3>B · Dva páry klíčů — hostitelský a uživatelský</h3>
+      <p class="lede" style="margin-bottom:.9rem;">V SSH se ověřují <b>dvě strany</b>, a proto existují <b>dva různé páry klíčů</b>. <b>Hostitelský pár</b> dokazuje klientovi, že mluví se správným <i>serverem</i>. <b>Uživatelský pár</b> dokazuje serveru, že se přihlašuje správný <i>uživatel</i>. U obou platí stejné pravidlo z kapitoly 8: veřejný klíč smí vidět kdokoli, soukromý klíč nesmí opustit počítač, na kterém vznikl.</p>
+      <figure class="svg-figure">
+<svg viewBox="0 0 900 418" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgkeyst svgkeysd">
+<title id="svgkeyst">Dva páry klíčů v SSH a kde leží</title>
+<desc id="svgkeysd">Vlevo Klient s adresářem ~/.ssh: soukromý klíč uživatele id_ed25519, veřejný klíč id_ed25519.pub a soubor known_hosts. Vpravo Server: soukromý hostitelský klíč /etc/ssh/ssh_host_ed25519_key, soubor ~/.ssh/authorized_keys a veřejný hostitelský klíč ssh_host_ed25519_key.pub. Veřejný klíč uživatele se příkazem ssh-copy-id zkopíruje do authorized_keys na serveru. Veřejný hostitelský klíč serveru se při prvním připojení po ověření otisku uloží do known_hosts na klientu. Soukromé klíče nikdy neopouštějí svůj počítač.</desc>
+<text x="450" y="24" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">Dva páry klíčů — každý dokazuje identitu někoho jiného</text>
+<rect x="20" y="44" width="330" height="296" rx="16" fill="#FFFFFF" stroke="#47657D" stroke-width="2"/>
+<text x="185" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Klient (ssh)</text>
+<text x="185" y="90" text-anchor="middle" font-size="10.5" fill="#54666F">192.168.1.2 · uživatel zak</text>
+<rect x="550" y="44" width="330" height="296" rx="16" fill="#FFFFFF" stroke="#47657D" stroke-width="2"/>
+<text x="715" y="72" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Server (sshd, port 22)</text>
+<text x="715" y="90" text-anchor="middle" font-size="10.5" fill="#54666F">192.168.1.1 · /etc/ssh a domov zak</text>
+<rect x="32" y="104" width="306" height="52" rx="10" fill="#EAF0F3" stroke="#2E4657" stroke-width="1.4"/>
+<use href="#ico-key" x="40" y="120" width="38" height="17" style="color:#2E4657"/>
+<text x="86" y="127" font-size="11" font-weight="700" fill="#1E2E38">~/.ssh/id_ed25519</text>
+<text x="86" y="144" font-size="10" fill="#54666F">soukromý klíč uživatele · 600</text>
+<rect x="32" y="174" width="306" height="52" rx="10" fill="#EAF0F3" stroke="#47657D" stroke-width="1.4"/>
+<use href="#ico-key" x="40" y="190" width="38" height="17" style="color:#47657D"/>
+<text x="86" y="197" font-size="11" font-weight="700" fill="#1E2E38">~/.ssh/id_ed25519.pub</text>
+<text x="86" y="214" font-size="10" fill="#54666F">veřejný klíč uživatele · 644</text>
+<rect x="32" y="244" width="306" height="52" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+<g stroke="#71801A" stroke-width="2.4" stroke-linecap="round"><path d="M44 260 H72 M44 268 H72 M44 276 H66"/></g>
+<text x="86" y="267" font-size="11" font-weight="700" fill="#1E2E38">~/.ssh/known_hosts</text>
+<text x="86" y="284" font-size="10" fill="#54666F">ověřené veřejné klíče serverů</text>
+<rect x="562" y="104" width="306" height="52" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+<use href="#ico-key" x="570" y="120" width="38" height="17" style="color:#71801A"/>
+<text x="616" y="127" font-size="11" font-weight="700" fill="#1E2E38">/etc/ssh/ssh_host_ed25519_key</text>
+<text x="616" y="144" font-size="10" fill="#54666F">soukromý hostitelský klíč · 600 root</text>
+<rect x="562" y="174" width="306" height="52" rx="10" fill="#EAF0F3" stroke="#47657D" stroke-width="1.4"/>
+<g stroke="#47657D" stroke-width="2.4" stroke-linecap="round"><path d="M574 190 H602 M574 198 H602 M574 206 H596"/></g>
+<text x="616" y="197" font-size="11" font-weight="700" fill="#1E2E38">~/.ssh/authorized_keys</text>
+<text x="616" y="214" font-size="10" fill="#54666F">povolené veřejné klíče uživatelů</text>
+<rect x="562" y="244" width="306" height="52" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+<use href="#ico-key" x="570" y="260" width="38" height="17" style="color:#71801A"/>
+<text x="616" y="267" font-size="11" font-weight="700" fill="#1E2E38">/etc/ssh/ssh_host_ed25519_key.pub</text>
+<text x="616" y="284" font-size="10" fill="#54666F">veřejný hostitelský klíč · 644</text>
+<use href="#ico-lock" x="441" y="96" width="18" height="21" style="color:#B5453B"/>
+<text x="450" y="134" text-anchor="middle" font-size="10" font-weight="600" fill="#B5453B">soukromé klíče</text>
+<text x="450" y="148" text-anchor="middle" font-size="10" font-weight="600" fill="#B5453B">nikdy neopouštějí</text>
+<text x="450" y="162" text-anchor="middle" font-size="10" font-weight="600" fill="#B5453B">svůj počítač</text>
+<path d="M352 200 L546 200" stroke="#47657D" stroke-width="2.2" fill="none"/>
+<path d="M538 195 L546 200 L538 205" stroke="#47657D" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="450" y="188" text-anchor="middle" font-size="11" font-weight="700" fill="#47657D">① ssh-copy-id</text>
+<text x="450" y="218" text-anchor="middle" font-size="10" fill="#54666F">kopie veřejného klíče</text>
+<path d="M548 270 L354 270" stroke="#71801A" stroke-width="2.2" fill="none"/>
+<path d="M362 265 L354 270 L362 275" stroke="#71801A" stroke-width="2.2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="450" y="258" text-anchor="middle" font-size="11" font-weight="700" fill="#71801A">② 1. připojení</text>
+<text x="450" y="288" text-anchor="middle" font-size="10" fill="#54666F">po ověření otisku</text>
+<rect x="60" y="362" width="14" height="10" rx="3" fill="#47657D"/>
+<text x="84" y="371" font-size="10.5" fill="#1E2E38"><tspan font-weight="700">Uživatelský pár</tspan> — identita UŽIVATELE · vytvoří ssh-keygen na klientu</text>
+<rect x="60" y="386" width="14" height="10" rx="3" fill="#71801A"/>
+<text x="84" y="395" font-size="10.5" fill="#1E2E38"><tspan font-weight="700">Hostitelský pár</tspan> — identita SERVERU · vznikne při instalaci openssh-server</text>
+<rect x="28" y="170" width="314" height="60" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0400;0.0600;0.1900;0.2200;1"/></rect>
+<circle r="5" fill="#47657D" opacity="0"><animateMotion dur="8.0s" repeatCount="indefinite" path="M358 200 L540 200" keyPoints="0;0;1;1" keyTimes="0;0.1200;0.3000;1" calcMode="linear"/><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1190;0.1300;0.2900;0.3000;1"/></circle>
+<rect x="558" y="170" width="314" height="60" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3000;0.3200;0.4300;0.4600;1"/></rect>
+<rect x="558" y="240" width="314" height="60" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5200;0.5400;0.6700;0.7000;1"/></rect>
+<circle r="5" fill="#71801A" opacity="0"><animateMotion dur="8.0s" repeatCount="indefinite" path="M542 270 L360 270" keyPoints="0;0;1;1" keyTimes="0;0.6000;0.7800;1" calcMode="linear"/><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5990;0.6100;0.7700;0.7800;1"/></circle>
+<rect x="28" y="240" width="314" height="60" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.7800;0.8000;0.9300;0.9600;1"/></rect>
+</svg>
+        <figcaption>Obr. 1 — Uživatelský pár vzniká na klientu, jeho veřejná část jde do <code>authorized_keys</code> na serveru. Hostitelský pár vzniká na serveru, jeho veřejná část se po ověření otisku uloží do <code>known_hosts</code> na klientu.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Soubor</th><th>Kde</th><th>Co obsahuje</th><th>Oprávnění (doporučená)</th></tr></thead>
+          <tbody>
+            <tr><td><code>/etc/ssh/ssh_host_*_key</code></td><td>server</td><td>soukromé hostitelské klíče (Debian 13: <b>rsa</b>, <b>ecdsa</b>, <b>ed25519</b>), vzniknou při instalaci <code>openssh-server</code></td><td><code>600</code>, vlastník root — <code>sshd</code> s volnějšími právy nenastartuje</td></tr>
+            <tr><td><code>/etc/ssh/ssh_host_*_key.pub</code></td><td>server</td><td>veřejné hostitelské klíče — z nich se počítá otisk</td><td><code>644</code> (číst smí každý, zapisovat jen root)</td></tr>
+            <tr><td><code>~/.ssh/known_hosts</code></td><td>klient</td><td>veřejné klíče serverů, které uživatel už ověřil (systémový seznam: <code>/etc/ssh/ssh_known_hosts</code>)</td><td>zapisovat smí jen vlastník</td></tr>
+            <tr><td><code>~/.ssh/id_ed25519</code></td><td>klient</td><td>soukromý klíč uživatele, ideálně zašifrovaný heslovou frází</td><td><code>600</code> — při volnějších právech ho <code>ssh</code> odmítne použít</td></tr>
+            <tr><td><code>~/.ssh/id_ed25519.pub</code></td><td>klient</td><td>veřejný klíč uživatele — jeden řádek textu</td><td><code>644</code></td></tr>
+            <tr><td><code>~/.ssh/authorized_keys</code></td><td>server, v domově <b>cílového</b> uživatele</td><td>veřejné klíče, kterými se smí přihlásit (jeden klíč = jeden řádek)</td><td><code>600</code>, adresář <code>~/.ssh</code> <code>700</code> — při zápisu pro ostatní ho <code>sshd</code> ignoruje (<code>StrictModes yes</code>)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ===================== C — FINGERPRINT ===================== -->
+      <h3>C · Fingerprint — jak ověřit, že se připojujete ke správnému serveru</h3>
+      <p class="lede" style="margin-bottom:.9rem;"><b>Otisk (fingerprint)</b> je hash SHA-256 veřejného hostitelského klíče, zapsaný v Base64, např. <code>SHA256:gSw9XVY0DePTlVFerJIVuJCMkOMtvz6uC0yZRptkW00</code>. Je krátký, takže ho člověk dokáže porovnat. Při prvním připojení klient server nezná a nemá s čím porovnávat. Ověření proto musí provést <b>člověk</b> — porovnáním otisku, který dostal od správce <b>jinou cestou</b>.</p>
+      <figure class="svg-figure">
+<svg viewBox="0 0 900 384" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgfpt svgfpd">
+<title id="svgfpt">Cesta otisku hostitelského klíče</title>
+<desc id="svgfpd">1: správce na serveru vypíše otisk příkazem ssh-keygen -lf. 2: otisk předá uživateli jiným kanálem, ne neověřeným SSH spojením. 3: při prvním připojení klient ukáže otisk a uživatel ho porovná. 4: po odpovědi yes se klíč uloží do ~/.ssh/known_hosts, v Debianu s hashovaným jménem. 5: při každém dalším připojení klient klíč porovná sám, při shodě pokračuje. 6: když otisk nesouhlasí, klient vypíše varování REMOTE HOST IDENTIFICATION HAS CHANGED a spojení odmítne.</desc>
+<text x="450" y="22" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">Cesta otisku hostitelského klíče — od správce až do known_hosts</text>
+<rect x="20" y="40" width="260" height="130" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<circle cx="44" cy="64" r="12" fill="#71801A"/>
+<text x="44" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">1</text>
+<text x="66" y="69" font-size="11.5" font-weight="700" fill="#1E2E38">Správce na Serveru</text>
+<text x="36" y="98" font-size="10.5" font-weight="600" fill="#2E4657">$ ssh-keygen -lf</text>
+<text x="36" y="116" font-size="10.5" font-weight="600" fill="#2E4657">/etc/ssh/ssh_host_ed25519_key.pub</text>
+<text x="36" y="134" font-size="10.5" font-weight="600" fill="#2E4657">256 SHA256:gSw9XVY0…ptkW00</text>
+<text x="36" y="152" font-size="10.5" fill="#54666F">root@server (ED25519)</text>
+<rect x="320" y="40" width="260" height="130" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<circle cx="344" cy="64" r="12" fill="#71801A"/>
+<text x="344" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">2</text>
+<text x="366" y="69" font-size="11.5" font-weight="700" fill="#1E2E38">Předání jiným kanálem</text>
+<text x="336" y="98" font-size="10.5" fill="#54666F">osobně, telefonem, na papíře,</text>
+<text x="336" y="116" font-size="10.5" fill="#54666F">na webu školy přes HTTPS …</text>
+<text x="336" y="134" font-size="10.5" fill="#54666F">NE přes to samé, dosud</text>
+<text x="336" y="152" font-size="10.5" fill="#54666F">neověřené SSH spojení</text>
+<rect x="620" y="40" width="260" height="130" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<circle cx="644" cy="64" r="12" fill="#71801A"/>
+<text x="644" y="68" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">3</text>
+<text x="666" y="69" font-size="11.5" font-weight="700" fill="#1E2E38">1. připojení klienta</text>
+<text x="636" y="98" font-size="10.5" font-weight="600" fill="#2E4657">$ ssh zak@192.168.1.1</text>
+<text x="636" y="116" font-size="10.5" fill="#54666F">ED25519 key fingerprint is</text>
+<text x="636" y="134" font-size="10.5" font-weight="600" fill="#2E4657">SHA256:gSw9XVY0…ptkW00</text>
+<text x="636" y="152" font-size="10.5" fill="#54666F">porovnej → teprve pak yes</text>
+<rect x="620" y="214" width="260" height="130" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<circle cx="644" cy="238" r="12" fill="#71801A"/>
+<text x="644" y="242" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">4</text>
+<text x="666" y="243" font-size="11.5" font-weight="700" fill="#1E2E38">Uloženo do known_hosts</text>
+<text x="636" y="272" font-size="10.5" font-weight="600" fill="#2E4657">~/.ssh/known_hosts</text>
+<text x="636" y="290" font-size="10.5" fill="#54666F">Debian ukládá jméno hashovaně:</text>
+<text x="636" y="308" font-size="10.5" font-weight="600" fill="#2E4657">|1|…= ssh-ed25519 AAAA…</text>
+<text x="636" y="326" font-size="10.5" fill="#54666F">hledání: ssh-keygen -F IP</text>
+<rect x="320" y="214" width="260" height="130" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="1.6"/>
+<circle cx="344" cy="238" r="12" fill="#47657D"/>
+<text x="344" y="242" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">5</text>
+<text x="366" y="243" font-size="11.5" font-weight="700" fill="#1E2E38">Každé další připojení</text>
+<text x="336" y="272" font-size="10.5" fill="#54666F">klient sám porovná klíč</text>
+<text x="336" y="290" font-size="10.5" fill="#54666F">serveru s known_hosts</text>
+<text x="336" y="308" font-size="10.5" fill="#54666F">shoda → přihlášení</text>
+<text x="336" y="326" font-size="10.5" fill="#54666F">pokračuje bez otázky</text>
+<rect x="20" y="214" width="260" height="130" rx="12" fill="#F6E9E7" stroke="#B5453B" stroke-width="1.6"/>
+<circle cx="44" cy="238" r="12" fill="#B5453B"/>
+<text x="44" y="242" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">6</text>
+<text x="66" y="243" font-size="11.5" font-weight="700" fill="#1E2E38">Otisk nesouhlasí!</text>
+<text x="36" y="272" font-size="10.5" font-weight="600" fill="#B5453B">WARNING: REMOTE HOST</text>
+<text x="36" y="290" font-size="10.5" font-weight="600" fill="#B5453B">IDENTIFICATION HAS CHANGED!</text>
+<text x="36" y="308" font-size="10.5" fill="#54666F">spojení odmítnuto → zjisti proč</text>
+<text x="36" y="326" font-size="10.5" fill="#54666F">(nové klíče? útok MITM?)</text>
+<path d="M282 105 L318 105" stroke="#71801A" stroke-width="2" fill="none"/><path d="M310 100 L318 105 L310 110" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M582 105 L618 105" stroke="#71801A" stroke-width="2" fill="none"/><path d="M610 100 L618 105 L610 110" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M750 172 L750 212" stroke="#71801A" stroke-width="2" fill="none"/><path d="M745 204 L750 212 L755 204" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="760" y="197" font-size="10" font-weight="700" fill="#71801A">yes</text>
+<path d="M618 279 L582 279" stroke="#47657D" stroke-width="2" fill="none"/><path d="M590 274 L582 279 L590 284" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M318 279 L282 279" stroke="#B5453B" stroke-width="2" fill="none"/><path d="M290 274 L282 279 L290 284" stroke="#B5453B" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="300" y="268" text-anchor="middle" font-size="9.5" font-weight="700" fill="#B5453B">změna</text>
+<text x="450" y="372" text-anchor="middle" font-size="10.5" fill="#54666F">Model TOFU (trust on first use) je bezpečný jen tehdy, když první připojení ověříte otiskem.</text>
+<rect x="16" y="36" width="268" height="138" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="12.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0300;0.0500;0.1400;0.1700;1"/></rect>
+<rect x="316" y="36" width="268" height="138" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="12.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1850;0.2050;0.2950;0.3250;1"/></rect>
+<rect x="616" y="36" width="268" height="138" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="12.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3400;0.3600;0.4500;0.4800;1"/></rect>
+<rect x="616" y="210" width="268" height="138" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="12.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.4950;0.5150;0.6050;0.6350;1"/></rect>
+<rect x="316" y="210" width="268" height="138" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="12.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6500;0.6700;0.7600;0.7900;1"/></rect>
+<rect x="16" y="210" width="268" height="138" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="12.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.8050;0.8250;0.9150;0.9450;1"/></rect>
+</svg>
+        <figcaption>Obr. 2 — Otisk zjistí správce na serveru, předá ho mimo SSH, uživatel ho porovná při prvním připojení. Pak už kontrolu dělá klient sám podle <code>known_hosts</code>.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Krok</th><th>Kdo a kde</th><th>Jak</th></tr></thead>
+          <tbody>
+            <tr><td><b>Zjištění otisku</b></td><td>správce na serveru</td><td><code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> — pro všechny typy: smyčka přes <code>/etc/ssh/ssh_host_*_key.pub</code></td></tr>
+            <tr><td><b>Předání</b></td><td>správce → uživatel</td><td>kanál, který útočník v síti nepodvrhne: osobně, telefonem, interní web s HTTPS. Klient ukazuje otisk typu, na kterém se se serverem dohodl (u OpenSSH obvykle ED25519), proto je dobré předat otisky všech typů.</td></tr>
+            <tr><td><b>Porovnání</b></td><td>uživatel na klientu</td><td>Hláška <i>The authenticity of host … can't be established</i> a otázka <code>(yes/no/[fingerprint])</code>. Odpovězte <code>yes</code> až po kontrole, nebo místo <code>yes</code> vložte otisk od správce — <code>ssh</code> ho porovná za vás.</td></tr>
+            <tr><td><b>Uložení</b></td><td>klient, <code>~/.ssh/known_hosts</code></td><td>Uloží se celý veřejný klíč. Debian má v <code>/etc/ssh/ssh_config</code> nastaveno <code>HashKnownHosts yes</code>, proto je místo jména serveru řetězec <code>|1|…</code>. Najít server: <code>ssh-keygen -F 192.168.1.1</code>. Po přihlášení může klient doplnit i klíče dalších typů (volba <code>UpdateHostKeys</code>).</td></tr>
+            <tr><td><b>Další připojení</b></td><td>klient automaticky</td><td>Shoda → pokračuje bez otázky. Neshoda → <code>WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!</code> a spojení se odmítne (výchozí <code>StrictHostKeyChecking ask</code>).</td></tr>
+            <tr><td><b>Odstranění starého klíče</b></td><td>klient</td><td><code>ssh-keygen -R 192.168.1.1</code> — <b>jen když víte, proč se klíč změnil</b> (přeinstalace serveru, nové klíče). Jinak jde o možný útok man-in-the-middle.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Proč je změna otisku poplach:</b> soukromý hostitelský klíč má jen server. Útočník, který se vloží mezi klienta a server, ho nemá, a proto musí podstrčit <b>vlastní</b> klíč s jiným otiskem. Varování je jediné místo, kde si útoku všimnete. Kdo odpoví <code>yes</code> bez kontroly nebo naslepo smaže <code>known_hosts</code>, ochranu SSH sám vypne.</p>
+      </div>
+
+      <!-- ===================== D — KONFIGURACE SERVERU ===================== -->
+      <h3>D · Principy konfigurace serveru <code>sshd</code></h3>
+      <p class="lede" style="margin-bottom:.9rem;">Konfigurace je v <code>/etc/ssh/sshd_config</code>: na každém řádku <b>klíčové slovo a hodnota</b>, řádky s <code>#</code> jsou komentáře. Zakomentované řádky v souboru od Debianu ukazují <b>výchozí hodnoty</b> — změnu uděláte odkomentováním a úpravou hodnoty.</p>
+      <div class="callout">
+        <p><b>Tři pravidla, která musí správce znát (sshd_config(5)):</b></p>
+        <ul>
+          <li><b>Platí první získaná hodnota.</b> Když je klíčové slovo v konfiguraci víckrát, použije se to, které <code>sshd</code> načte jako první — ne poslední, jak by člověk čekal.</li>
+          <li><b>Na začátku souboru je <code>Include /etc/ssh/sshd_config.d/*.conf</code>.</b> Soubory v tomto adresáři se tedy načtou dřív a jejich nastavení <b>přebije</b> hlavní soubor. Když změna v <code>sshd_config</code> nefunguje, zkontrolujte <code>sshd_config.d/</code>.</li>
+          <li><b>Debian mění některé výchozí hodnoty.</b> V jeho <code>sshd_config</code> je mj. <code>KbdInteractiveAuthentication no</code> a <code>UsePAM yes</code> — tyto řádky se liší od výchozích hodnot programu.</li>
+        </ul>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Direktiva</th><th>Výchozí hodnota</th><th>Doporučení pro Server Školy X</th></tr></thead>
+          <tbody>
+            <tr><td><code>Port</code></td><td><code>22</code></td><td>ponechat; změna portu jen sníží počet automatických pokusů v logu, bezpečnost nezvýší</td></tr>
+            <tr><td><code>ListenAddress</code></td><td>všechny adresy</td><td>volitelně jen intranet: <code>ListenAddress 192.168.1.1</code></td></tr>
+            <tr><td><code>PermitRootLogin</code></td><td><code>prohibit-password</code> (root jen klíčem)</td><td><code>no</code> — root se nepřihlašuje vůbec, správce použije <code>sudo</code></td></tr>
+            <tr><td><code>PubkeyAuthentication</code></td><td><code>yes</code></td><td><code>yes</code></td></tr>
+            <tr><td><code>PasswordAuthentication</code></td><td><code>yes</code></td><td><code>no</code> — <b>až po</b> ověření, že funguje přihlášení klíčem</td></tr>
+            <tr><td><code>KbdInteractiveAuthentication</code></td><td><code>yes</code> (Debian v souboru: <code>no</code>)</td><td><code>no</code> — jinak by se heslo dalo zadat touto cestou přes PAM</td></tr>
+            <tr><td><code>PermitEmptyPasswords</code></td><td><code>no</code></td><td><code>no</code></td></tr>
+            <tr><td><code>AuthorizedKeysFile</code></td><td><code>.ssh/authorized_keys .ssh/authorized_keys2</code></td><td>ponechat</td></tr>
+            <tr><td><code>AllowUsers</code> / <code>AllowGroups</code></td><td>nenastaveno = všichni</td><td>volitelně jen vybraní: <code>AllowUsers zak</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Bezpečný postup každé změny</th><th>Příkaz</th></tr></thead>
+          <tbody>
+            <tr><td><b>1.</b> Upravit konfiguraci (root)</td><td><code>sudo nano /etc/ssh/sshd_config</code></td></tr>
+            <tr><td><b>2.</b> Zkontrolovat syntaxi — bez výpisu = v pořádku</td><td><code>sudo sshd -t</code></td></tr>
+            <tr><td><b>3.</b> Ověřit, co bude opravdu platit (efektivní konfigurace po zpracování Include)</td><td><code>sudo sshd -T | grep -i passwordauthentication</code></td></tr>
+            <tr><td><b>4.</b> Restartovat službu — <b>stávající SSH relace zůstane otevřená</b></td><td><code>sudo systemctl restart ssh</code></td></tr>
+            <tr><td><b>5.</b> Otestovat v <b>novém</b> okně / nové relaci; starou zavřít až po úspěchu</td><td><code>ssh zak@192.168.1.1</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ===================== E — JEN KLÍČE ===================== -->
+      <h3>E · Přihlašování jen pomocí klíčů</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Heslo se dá uhodnout, odpozorovat nebo zkoušet hrubou silou — na každý server v internetu útočí roboti tisíckrát denně. Při ověření klíčem server pošle náhodnou výzvu a klient ji <b>podepíše soukromým klíčem</b>. Server podpis ověří veřejným klíčem z <code>authorized_keys</code>. Soukromý klíč ani heslo po síti nejdou a uhodnout klíč Ed25519 nelze.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th></th><th>Heslo účtu</th><th>Heslová fráze (passphrase) klíče</th></tr></thead>
+          <tbody>
+            <tr><td><b>Kde je uložené</b></td><td>na <b>serveru</b> jako hash v <code>/etc/shadow</code> (kap. 8)</td><td>nikde — šifruje soubor soukromého klíče na <b>klientu</b></td></tr>
+            <tr><td><b>Jde po síti?</b></td><td>ano (šifrovaně, ale server ho vidí)</td><td>ne, používá se jen lokálně</td></tr>
+            <tr><td><b>Co útočník potřebuje</b></td><td>jen heslo</td><td>soubor soukromého klíče <b>a</b> frázi</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Pořadí kroků — jinak se zamknete:</b></p>
+        <ul>
+          <li>Na klientu vytvořte klíč: <code>ssh-keygen -t ed25519</code> (s heslovou frází).</li>
+          <li>Veřejný klíč přeneste na server: <code>ssh-copy-id</code> — přihlásí se ještě <b>heslem</b> a připíše klíč do <code>~/.ssh/authorized_keys</code>. Bez <code>ssh-copy-id</code> stačí řádek z <code>.pub</code> ručně vložit do <code>authorized_keys</code>.</li>
+          <li><b>Ověřte, že přihlášení klíčem funguje</b> — <code>ssh</code> se ptá na frázi klíče, ne na heslo účtu.</li>
+          <li>Teprve teď na serveru <code>PasswordAuthentication no</code> (a <code>KbdInteractiveAuthentication no</code>), <code>sshd -t</code>, restart při otevřené relaci.</li>
+          <li>Test: přihlášení klíčem projde, vynucené heslo skončí hláškou <code>Permission denied (publickey)</code>.</li>
+        </ul>
+        <p style="margin:.6rem 0 0;"><b>Ochrana soukromého klíče:</b> heslová fráze, oprávnění <code>600</code>, nikdy ho nekopírovat na server ani nikam neposílat, pro každé zařízení vlastní klíč. Aby nebylo nutné zadávat frázi pořád, drží odemčený klíč v paměti <code>ssh-agent</code> (<code>eval "$(ssh-agent)"</code>, <code>ssh-add</code>). Když je klíč prozrazený, smažte jeho řádek z <code>authorized_keys</code> na všech serverech a vytvořte nový.</p>
+      </div>
+
+      <h3>Přehled příkazů pro dnešní zadání</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Rychlá orientační reference — podrobné použití si vyzkoušíte v části Řešení.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz</th><th>Co dělá</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>systemctl status / is-active / is-enabled ssh</b></td><td>Stav služby, zda běží, zda startuje po spuštění systému</td><td>služba se v Debianu jmenuje <code>ssh</code></td></tr>
+            <tr><td><b>ss -tlnp</b></td><td>Naslouchající TCP porty a procesy</td><td><code>-p</code> (jméno procesu) potřebuje root</td></tr>
+            <tr><td><b>sshd -t</b> · <b>sshd -T</b></td><td>Kontrola konfigurace · výpis efektivní konfigurace</td><td>spouštět přes <code>sudo</code>; klíčová slova vypíše malými písmeny</td></tr>
+            <tr><td><b>ssh-keygen -t ed25519</b></td><td>Vytvoří pár klíčů uživatele</td><td><code>-C "komentář"</code>; výchozí soubor <code>~/.ssh/id_ed25519</code></td></tr>
+            <tr><td><b>ssh-keygen -lf SOUBOR.pub</b></td><td>Otisk veřejného klíče</td><td>formát <code>SHA256:</code> v Base64</td></tr>
+            <tr><td><b>ssh-keygen -F HOST</b> · <b>-R HOST</b></td><td>Najde · smaže server v <code>known_hosts</code></td><td>funguje i s hashovanými jmény</td></tr>
+            <tr><td><b>ssh-copy-id -i KLÍČ.pub uživatel@server</b></td><td>Připíše veřejný klíč do <code>authorized_keys</code> na serveru</td><td>vyžaduje (zatím) přihlášení heslem</td></tr>
+            <tr><td><b>ssh -v uživatel@server</b></td><td>Podrobný výpis navazování spojení</td><td>řádek <code>Authenticated … using "publickey"</code> ukáže metodu</td></tr>
+            <tr><td><b>ssh -o PubkeyAuthentication=no uživatel@server</b></td><td>Vynutí jiné ověření než klíčem</td><td>test, že heslo je opravdu zakázané</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>SSH na Debianu – Zadání pro žáky</h2>
+      <p class="lede">Hodina má 45 minut: zhruba <b>15 min</b> výklad s diagramy, <b>30 min</b> praktická část: <b>A</b> SSH server (10 min) → <b>B</b> SSH klient (5 min) → <b>C</b> přihlašování pomocí klíčů (12 min) → <b>D</b> závěrečné otázky (3 min, případně dokončit doma). Část A děláte na <b>Serveru</b> (192.168.1.1), části B a C na <b>Klientovi</b> (192.168.1.2), úkoly A2 a C3 mění konfiguraci Serveru. Místo <code>zak</code> v ukázkách použijte své uživatelské jméno. Časy jsou orientační.</p>
+      <div class="callout">
+        <p><b>1. Metodika a cíle hodiny</b><br>Cílem cvičení je prakticky si osvojit práci se službou SSH na serveru Debian.<br>Po absolvování cvičení bude žák schopen:</p>
+        <ul>
+          <li>1.1 vysvětlit princip SSH</li>
+          <li>1.2 rozlišit roli serveru a klienta</li>
+          <li>1.3 ověřit identitu serveru pomocí fingerprintu</li>
+          <li>1.4 používat přihlášení pomocí klíčů</li>
+        </ul>
+        <p style="margin:.7rem 0 0;"><b>2. Organizační pokyny</b></p>
+        <ul>
+          <li>2.1 Pracuj samostatně</li>
+          <li>2.2 Příkazy zadávej ručně</li>
+          <li>2.3 Každou změnu ověř funkčností</li>
+        </ul>
+      </div>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neví, k čemu SSH slouží, a nerozliší server a klienta.</li>
+            <li><b>Rozvíjející se</b> — popíše účel SSH, ale plete si hostitelský a uživatelský klíč.</li>
+            <li><b>Očekávaná úroveň</b> — vysvětlí oba páry klíčů a jejich umístění, význam otisku a <code>known_hosts</code> a proč jsou klíče bezpečnější než hesla.</li>
+            <li><b>Nad rámec</b> — vysvětlí pravidlo „první získaná hodnota“ a roli <code>sshd_config.d</code>, rozdíl hesla účtu a heslové fráze.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — nainstaluje <code>openssh-server</code>, ale neověří stav služby ani port.</li>
+            <li><b>Rozvíjející se</b> — zakáže root a připojí se z klienta, přihlášení klíčem nedokončí.</li>
+            <li><b>Očekávaná úroveň</b> — splní části A–C: ověřený otisk, funkční přihlášení klíčem, zakázaná hesla ověřená testem.</li>
+            <li><b>Nad rámec</b> — každou změnu ověří <code>sshd -t</code> a <code>sshd -T</code>, prokáže metodu přihlášení výpisem <code>ssh -v</code>.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — na otázku o otisku odpoví <code>yes</code> bez kontroly.</li>
+            <li><b>Rozvíjející se</b> — otisk porovná, ale neví, co dělat při jeho změně.</li>
+            <li><b>Očekávaná úroveň</b> — postupuje v bezpečném pořadí (nejdřív klíč, pak zákaz hesel) a ví, jak reagovat na změněný otisk.</li>
+            <li><b>Nad rámec</b> — navrhne zabezpečení pro reálný server (AllowUsers, ListenAddress, ssh-agent, klíč pro každé zařízení).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — potřebuje pomoc u každého kroku.</li>
+            <li><b>Rozvíjející se</b> — zvládne část A, u B a C potřebuje vést.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, příkazy zadává ručně, nejasnosti dohledá v manuálových stránkách.</li>
+            <li><b>Nad rámec</b> — pomůže spolužákovi, který se „zamkl“, najít příčinu bez reinstalace.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit, k čemu SSH slouží, co dělá server (sshd) a co klient (ssh), a které staré protokoly nahrazuje.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím nainstalovat SSH server a ověřit, že služba běží, startuje po spuštění systému a na kterém portu naslouchá.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Vím, že sshd_config je konfigurace serveru a ssh_config klienta, a znám pravidlo „první získaná hodnota“ a adresář sshd_config.d.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím zakázat přihlášení roota a změnu ověřit (sshd -t, sshd -T, pokus o přihlášení).</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Umím vysvětlit rozdíl mezi hostitelským a uživatelským klíčem a říct, kde leží jejich soukromé a veřejné části.</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím zjistit otisk hostitelského klíče na serveru, porovnat ho při prvním připojení a vím, co dělat, když se změní.</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím vytvořit pár klíčů Ed25519, přenést veřejný klíč na server a přihlásit se klíčem.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Umím bezpečně zakázat přihlašování heslem tak, abych se nezamkl, a ověřit, že heslo je opravdu odmítnuto.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty stavu služby a portu, výstupu sshd -T (permitrootlogin, passwordauthentication), otisků hostitelských klíčů, prvního připojení s otiskem, výpisu ~/.ssh na klientu, přihlášení klíčem a odmítnutého hesla ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky CBL — oficiální manuálové stránky Debianu 13 (OpenSSH 10.0), poznámky k vydání OpenSSH a Debianu, standardy IETF (RFC), Debian Administrator's Handbook a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 9 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 9 — SSH server a klient
+   ========================================================================== */
+
+  // Pomocná funkce: převede prostý text příkazů na barevný terminálový blok.
+  //   řádek začínající "# "  = komentář (barevně)
+  //   řádek začínající "| "  = obsah konfiguračního souboru / ukázkový výstup (barevně, značka "| " se odstraní)
+  //   ostatní řádky           = příkazy
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function cmd(txt){
+    var out = txt.replace(/^\n/,"").replace(/\n$/,"").split("\n").map(function(l){
+      if(l === "#" || l.indexOf("# ") === 0) return '<span class="c">'+esc(l)+'</span>';
+      if(l === "|" || l.indexOf("| ") === 0) return '<span class="c">'+esc(l.slice(2))+'</span>';
+      return esc(l);
+    }).join("\n");
+    return '<pre class="cmdblock"><code>'+out+'</code></pre>';
+  }
+  // Vzorové odpovědi na vysvětlovací úkoly (zobrazí se spolu s řešením)
+  function answers(list){
+    return '<div class="model-answers"><p class="ma-head">Vzorové odpovědi</p><dl>' +
+      list.map(function(a){ return '<dt>'+a[0]+'</dt><dd>'+a[1]+'</dd>'; }).join("") + '</dl></div>';
+  }
+
+  var TOPIC = {
+    num: "9",
+    title: "SSH server a klient",
+    hours: "1 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "SSH umožňuje <b>bezpečnou vzdálenou správu</b> serveru přes nedůvěryhodnou síť. Bezpečné je ale jen tehdy, když správce ověří <b>identitu serveru otiskem</b> hostitelského klíče a uživatele ověřuje <b>klíčem místo hesla</b>. Klíče jsou dva různé páry — hostitelský na serveru a uživatelský na klientu.",
+    eq: "Jak se z Klienta bezpečně přihlásit na Server tak, aby ani útočník v síti, ani robot zkoušející hesla neměli šanci — a jak poznám, že se připojuji opravdu ke svému serveru?",
+    challenge: "Správce Školy X už nechce chodit k Serveru do serverovny. Nainstalujte na <b>Server</b> SSH server, zakažte přihlášení roota a zjistěte otisky hostitelských klíčů. Z <b>Klienta</b> se připojte a otisk při prvním připojení <b>poctivě porovnejte</b>. Pak si vytvořte vlastní pár klíčů, přeneste veřejný klíč na Server a nakonec <b>úplně vypněte přihlašování heslem</b> — tak, abyste se při tom nezamkli."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Jaké služby SSH poskytuje a které starší nešifrované protokoly nahrazuje?",
+      "Čím se liší hostitelský a uživatelský pár klíčů — kdo je vytváří, kde leží jejich soukromá a veřejná část a co dokazují?",
+      "Proč klient při prvním připojení ukáže otisk serveru, jak ho mám ověřit a co znamená, když se otisk později změní?",
+      "Proč se změna v sshd_config někdy neprojeví — jakou roli hraje pravidlo „první získaná hodnota“ a adresář sshd_config.d?",
+      "V jakém pořadí zakázat přihlašování heslem, abych se ze serveru nezamkl, a jak ověřím, že heslo je opravdu odmítnuto?"
+    ],
+    resources: [
+      {
+        title: "sshd_config(5) — konfigurace serveru (Debian 13, OpenSSH 10.0)",
+        tag: "official",
+        items: [
+          "„Unless noted otherwise, for each keyword, the first obtained value will be used.“ Výchozí hodnoty: <code>PermitRootLogin prohibit-password</code>, <code>PasswordAuthentication yes</code>, <code>KbdInteractiveAuthentication yes</code>, <code>PubkeyAuthentication yes</code>, <code>StrictModes yes</code>, <code>Port 22</code>. Debian v souboru nastavuje mj. <code>Include /etc/ssh/sshd_config.d/*.conf</code>, <code>KbdInteractiveAuthentication no</code> a <code>UsePAM yes</code>; soubory v <code>sshd_config.d</code> přebíjejí hlavní soubor.",
+          "<a href='https://manpages.debian.org/trixie/openssh-server/sshd_config.5.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/openssh-server/sshd_config.5.en.html</a>"
+        ]
+      },
+      {
+        title: "sshd(8) — démon, volby -t/-T a soubory",
+        tag: "official",
+        items: [
+          "<code>-t</code> jen zkontroluje konfiguraci a klíče, <code>-T</code> navíc vypíše efektivní konfiguraci. Sekce FILES: soukromé hostitelské klíče smí číst jen root (jinak sshd nenastartuje), <code>~/.ssh</code> a <code>authorized_keys</code> nesmí být přístupné ostatním. Formát <code>authorized_keys</code> a <code>known_hosts</code> (hashovaná jména začínají <code>|</code>).",
+          "<a href='https://manpages.debian.org/trixie/openssh-server/sshd.8.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/openssh-server/sshd.8.en.html</a>"
+        ]
+      },
+      {
+        title: "ssh_config(5) — konfigurace klienta, known_hosts",
+        tag: "official",
+        items: [
+          "<code>StrictHostKeyChecking</code> výchozí <code>ask</code>: nový klíč jen po potvrzení, změněný klíč se odmítne. <code>UserKnownHostsFile</code> výchozí <code>~/.ssh/known_hosts</code>, globální <code>/etc/ssh/ssh_known_hosts</code>. Debian v <code>/etc/ssh/ssh_config</code> nastavuje <code>HashKnownHosts yes</code>. <code>FingerprintHash</code> výchozí <code>sha256</code>.",
+          "<a href='https://manpages.debian.org/trixie/openssh-client/ssh_config.5.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/openssh-client/ssh_config.5.en.html</a>"
+        ]
+      },
+      {
+        title: "ssh-keygen(1) a ssh-copy-id(1) — klíče, otisky, přenos klíče",
+        tag: "official",
+        items: [
+          "<code>ssh-keygen</code>: <code>-t</code> typ klíče, <code>-l -f</code> otisk, <code>-F</code> hledání a <code>-R</code> odstranění serveru v <code>known_hosts</code>, <code>-C</code> komentář, <code>-p</code> změna heslové fráze. <code>ssh-copy-id</code> se přihlásí (zpravidla heslem) a připíše klíč do <code>~/.ssh/authorized_keys</code> vzdáleného uživatele; soubor i adresář podle potřeby vytvoří, <code>-i</code> určí, který klíč se přenese.",
+          "<a href='https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html' target='_blank' rel='noopener'>…/ssh-keygen.1.en.html</a> · <a href='https://manpages.debian.org/trixie/openssh-client/ssh-copy-id.1.en.html' target='_blank' rel='noopener'>…/ssh-copy-id.1.en.html</a>"
+        ]
+      },
+      {
+        title: "OpenSSH 9.5 — Ed25519 jako výchozí typ klíče",
+        tag: "official",
+        items: [
+          "„ssh-keygen(1): generate Ed25519 keys by default.“ Klíče Ed25519 definuje RFC 8709, OpenSSH je podporuje od verze 6.5 (2014).",
+          "<a href='https://www.openssh.org/txt/release-9.5' target='_blank' rel='noopener'>openssh.org/txt/release-9.5</a> · <a href='https://www.openssh.org/releasenotes.html' target='_blank' rel='noopener'>openssh.org/releasenotes.html</a>"
+        ]
+      },
+      {
+        title: "Debian 13 — poznámky k vydání: OpenSSH a klíče DSA",
+        tag: "official",
+        items: [
+          "Kap. 5.1.8: od OpenSSH 9.8p1 v Debianu 13 nejsou klíče DSA podporované ani pomocí voleb, které je dříve povolovaly; doporučuje se nahradit je např. klíči Ed25519 (<code>ssh-keygen</code>, <code>ssh-copy-id</code>). Kap. 5.1.7: <code>sshd</code> už nečte <code>~/.pam_environment</code>.",
+          "<a href='https://www.debian.org/releases/trixie/release-notes/issues.en.html' target='_blank' rel='noopener'>debian.org/releases/trixie/release-notes/issues.en.html</a>"
+        ]
+      },
+      {
+        title: "Debian Administrator's Handbook — Remote Login (SSH)",
+        tag: "official",
+        items: [
+          "Server je v balíku <code>openssh-server</code>; ověření klíčem: <code>ssh-keygen</code> na klientu, <code>ssh-copy-id</code>, heslová fráze a <code>ssh-agent</code>/<code>ssh-add</code>; prozrazený klíč odstranit z <code>authorized_keys</code>.",
+          "<a href='https://www.debian.org/doc/manuals/debian-handbook/sect.remote-login.en.html' target='_blank' rel='noopener'>debian.org/doc/manuals/debian-handbook/sect.remote-login.en.html</a>"
+        ]
+      },
+      {
+        title: "RFC 4251, RFC 4252 a RFC 4253 — protokol SSH-2",
+        tag: "official",
+        items: [
+          "Architektura SSH-2 (transport, ověření uživatele, spojení), ověření uživatele veřejným klíčem a heslem (RFC 4252), výměna klíčů a ověření hostitelského klíče (RFC 4253).",
+          "<a href='https://www.rfc-editor.org/rfc/rfc4251' target='_blank' rel='noopener'>rfc4251</a> · <a href='https://www.rfc-editor.org/rfc/rfc4252' target='_blank' rel='noopener'>rfc4252</a> · <a href='https://www.rfc-editor.org/rfc/rfc4253' target='_blank' rel='noopener'>rfc4253</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Kde je uložený <b>soukromý hostitelský klíč</b> serveru typu Ed25519?",
+      opts: ["~/.ssh/id_ed25519 na klientu", "/etc/ssh/ssh_host_ed25519_key na serveru", "~/.ssh/known_hosts na klientu", "~/.ssh/authorized_keys na serveru"],
+      correct: 1,
+      explain: "Hostitelské klíče patří serveru a leží v <code>/etc/ssh/ssh_host_*_key</code> (soukromé, jen root) a <code>…_key.pub</code> (veřejné). <code>~/.ssh/id_ed25519</code> je soukromý klíč <b>uživatele</b> na klientu."
+    },
+    {
+      q: "K čemu slouží soubor <code>~/.ssh/known_hosts</code> na klientu?",
+      opts: ["Obsahuje hesla k serverům", "Obsahuje veřejné klíče serverů, které uživatel už ověřil; při každém připojení se s nimi porovná klíč serveru", "Určuje, kdo se smí přihlásit na klienta", "Obsahuje soukromé klíče serverů"],
+      correct: 1,
+      explain: "Po prvním ověřeném připojení se veřejný hostitelský klíč uloží do <code>known_hosts</code>. Při dalších připojeních ho klient porovná sám; při neshodě spojení odmítne."
+    },
+    {
+      q: "Kam musí přijít <b>veřejný klíč uživatele</b>, aby se mohl přihlásit klíčem jako <code>zak</code> na Server?",
+      opts: ["Do /etc/ssh/sshd_config na serveru", "Do ~/.ssh/known_hosts na klientu", "Do /home/zak/.ssh/authorized_keys na serveru", "Do /etc/ssh/ssh_host_ed25519_key.pub"],
+      correct: 2,
+      explain: "Server hledá povolené veřejné klíče v <code>~/.ssh/authorized_keys</code> <b>cílového</b> uživatele (výchozí <code>AuthorizedKeysFile</code>). Přesně tam ho připíše <code>ssh-copy-id</code>."
+    },
+    {
+      q: "V <code>/etc/ssh/sshd_config.d/50-test.conf</code> je <code>PasswordAuthentication yes</code>, na konci <code>/etc/ssh/sshd_config</code> je <code>PasswordAuthentication no</code>. Co bude platit?",
+      opts: ["no — poslední řádek vyhrává", "yes — Include je na začátku sshd_config a platí první získaná hodnota", "sshd nenastartuje kvůli konfliktu", "Záleží na abecedním pořadí souborů"],
+      correct: 1,
+      explain: "Podle sshd_config(5) platí pro každé klíčové slovo <b>první získaná hodnota</b>. Debian má <code>Include /etc/ssh/sshd_config.d/*.conf</code> na začátku souboru, takže soubor z <code>sshd_config.d</code> se načte dřív. Ověříte to příkazem <code>sudo sshd -T | grep -i passwordauthentication</code>."
+    },
+    {
+      q: "Jaké je správné pořadí při zavádění přihlašování <b>jen klíči</b>?",
+      opts: [
+        "PasswordAuthentication no → restart → ssh-copy-id",
+        "ssh-keygen → ssh-copy-id → ověřit přihlášení klíčem → PasswordAuthentication no → sshd -t → restart při otevřené relaci → test v nové relaci",
+        "Smazat /etc/shadow, aby hesla nešla použít",
+        "ssh-keygen na serveru → zkopírovat soukromý klíč na klienta"
+      ],
+      correct: 1,
+      explain: "Když zakážete hesla dřív, <code>ssh-copy-id</code> už se nepřihlásí a ke vzdálenému serveru se nedostanete. Soukromý klíč se nikdy nepřenáší — vzniká na klientu a na server jde jen veřejný."
+    },
+    {
+      q: "SSH ohlásí <code>WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!</code> u serveru, na který se denně připojujete. Co uděláte?",
+      opts: [
+        "Hned spustím ssh-keygen -R a připojím se znovu",
+        "Nepřipojím se, ověřím u správce, zda server dostal nové klíče; ssh-keygen -R použiji, až když je změna vysvětlená a nový otisk ověřený",
+        "Smažu celý ~/.ssh",
+        "Přidám -o StrictHostKeyChecking=no"
+      ],
+      correct: 1,
+      explain: "Změněný otisk může znamenat přeinstalovaný server, ale také útok man-in-the-middle. Naslepo smazaný záznam nebo vypnutá kontrola útočníkovi otevře dveře."
+    },
+    {
+      q: "Čím se liší <b>heslová fráze</b> (passphrase) klíče od hesla účtu na serveru?",
+      opts: [
+        "Ničím, jen jiný název",
+        "Fráze šifruje soubor soukromého klíče na klientu a po síti nejde; heslo účtu ověřuje server podle hashe v /etc/shadow",
+        "Fráze je uložená v authorized_keys",
+        "Heslo účtu je uložené v /etc/passwd v čitelné podobě"
+      ],
+      correct: 1,
+      explain: "Útočník by potřeboval soubor soukromého klíče <b>a</b> frázi. Hash hesla účtu je v <code>/etc/shadow</code> (v <code>/etc/passwd</code> je jen <code>x</code>)."
+    }
+  ];
+
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu (odpověď), se NEPÍŠÍ přímo do checklistu.
+  // Vloží se do pole "extra" dané fáze — renderAct je zabalí do rozklikávacího "Zobrazit řešení".
+  // Checklisty = doslovné znění zadání vyučujícího („SSH na Debianu – Zadání pro žáky“).
+  var ACT = [
+    {
+      num: "A", en: "SSH server · Server", title: "3. ČÁST A – SSH SERVER",
+      body: "<p>⏱ orientačně 10 min. Pracujte na <b>Serveru</b> (192.168.1.1). Otisky hostitelských klíčů z úkolu A3 si zapište — v části B je budete porovnávat. Před restartem služby vždy zkontrolujte konfiguraci (<code>sshd -t</code>, viz část D teorie).</p>",
+      checklist: [
+        "<b>3.1 Úkol A1 – Instalace SSH serveru</b> — Nainstaluj SSH server na Debianu.",
+        "<b>3.1.1</b> Ověř, že služba běží.",
+        "<b>3.1.2</b> Ověř, že je spuštěna automaticky po startu.",
+        "<b>3.1.3</b> Zapiš port, na kterém služba naslouchá.",
+        "<b>3.2 Úkol A2 – Zabezpečení serveru</b> — <b>3.2.1</b> Najdi konfigurační soubor SSH serveru.",
+        "<b>3.2.2</b> Zakaž přihlášení uživatele root.",
+        "<b>3.2.3</b> Restartuj službu a ověř funkčnost.",
+        "<b>3.3 Úkol A3 – Hostitelské klíče</b> — <b>3.3.1</b> Zjisti umístění hostitelských klíčů.",
+        "<b>3.3.2</b> Uveď použité algoritmy.",
+        "<b>3.3.3</b> Vysvětli rozdíl mezi hostitelským a uživatelským klíčem."
+      ],
+      extra: cmd(`
+# ===== A1 – instalace (na Serveru) =====
+sudo apt update
+sudo apt install openssh-server
+# 3.1.1 běží?
+systemctl status ssh
+systemctl is-active ssh          # active
+# 3.1.2 start po spuštění systému?
+systemctl is-enabled ssh         # enabled
+# 3.1.3 port
+sudo ss -tlnp | grep sshd
+| LISTEN 0  128   0.0.0.0:22   0.0.0.0:*   users:(("sshd",pid=…,fd=…))
+| LISTEN 0  128      [::]:22      [::]:*   users:(("sshd",pid=…,fd=…))
+sudo sshd -T | grep -i '^port'   # port 22
+
+# ===== A2 – zákaz roota =====
+# 3.2.1 konfigurace SERVERU (s "d"!) + adresář s doplňky, které ji přebíjejí
+ls -l /etc/ssh/sshd_config /etc/ssh/sshd_config.d/
+# 3.2.2 řádek "#PermitRootLogin prohibit-password" změnit na:
+sudo nano /etc/ssh/sshd_config
+| PermitRootLogin no
+# 3.2.3 kontrola, restart, ověření
+sudo sshd -t                                   # bez výpisu = OK
+sudo systemctl restart ssh
+systemctl is-active ssh
+sudo sshd -T | grep -i permitrootlogin         # permitrootlogin no
+ssh root@localhost      # otisk localhostu potvrďte; heslo roota → Permission denied
+ssh zak@localhost       # běžný uživatel se přihlásí → služba funguje (exit)
+
+# ===== A3 – hostitelské klíče =====
+ls -l /etc/ssh/ssh_host_*
+| -rw------- 1 root root  … ssh_host_ecdsa_key
+| -rw-r--r-- 1 root root  … ssh_host_ecdsa_key.pub
+| -rw------- 1 root root  … ssh_host_ed25519_key
+| -rw-r--r-- 1 root root  … ssh_host_ed25519_key.pub
+| -rw------- 1 root root  … ssh_host_rsa_key
+| -rw-r--r-- 1 root root  … ssh_host_rsa_key.pub
+for k in /etc/ssh/ssh_host_*_key.pub; do ssh-keygen -lf "$k"; done
+| 256 SHA256:… root@server (ECDSA)
+| 256 SHA256:… root@server (ED25519)     # ← tento otisk porovnáte v části B
+| 3072 SHA256:… root@server (RSA)
+`) + answers([
+        ["3.3.1 Umístění", "<code>/etc/ssh/ssh_host_*_key</code> (soukromé, 600, root) a <code>/etc/ssh/ssh_host_*_key.pub</code> (veřejné, 644). Vznikly automaticky při instalaci balíku <code>openssh-server</code>."],
+        ["3.3.2 Algoritmy", "RSA (3072 b), ECDSA (NIST P-256), Ed25519. DSA Debian 13 už nepodporuje."],
+        ["3.3.3 Hostitelský × uživatelský klíč", "<b>Hostitelský</b> klíč patří serveru, vzniká při instalaci sshd a dokazuje klientovi identitu <b>serveru</b>; jeho veřejná část se ukládá do <code>known_hosts</code> na klientu. <b>Uživatelský</b> klíč si vytváří uživatel na klientu (<code>ssh-keygen</code>), dokazuje serveru identitu <b>uživatele</b>; jeho veřejná část se ukládá do <code>~/.ssh/authorized_keys</code> na serveru."]
+      ])
+    },
+    {
+      num: "B", en: "SSH klient · Klient", title: "4. ČÁST B – SSH KLIENT",
+      body: "<p>⏱ orientačně 5 min. Pracujte na <b>Klientovi</b> (192.168.1.2), připojujte se na adresu Serveru <code>192.168.1.1</code>. Klient <code>ssh</code> je v balíku <code>openssh-client</code>; pokud chybí, doinstalujte ho. Než odpovíte <code>yes</code>, porovnejte otisk s otiskem z úkolu A3 — znak po znaku.</p>",
+      checklist: [
+        "<b>4.1 Úkol B1 – První připojení</b> — <b>4.1.1</b> Připoj se k serveru pomocí SSH.",
+        "<b>4.1.2</b> Zapiš fingerprint serveru.",
+        "<b>4.1.3</b> Vysvětli, proč se zobrazuje při prvním připojení.",
+        "<b>4.2 Úkol B2 – Known_hosts</b> — <b>4.2.1</b> Najdi soubor known_hosts.",
+        "<b>4.2.2</b> Popiš jeho význam.",
+        "<b>4.2.3</b> Zamysli se nad změnou fingerprintu."
+      ],
+      extra: cmd(`
+# ===== B1 – první připojení (na Klientovi) =====
+ssh zak@192.168.1.1
+| The authenticity of host '192.168.1.1 (192.168.1.1)' can't be established.
+| ED25519 key fingerprint is SHA256:….
+| This key is not known by any other names.
+| Are you sure you want to continue connecting (yes/no/[fingerprint])?
+# 4.1.2 otisk porovnat s výpisem ssh-keygen -lf z úkolu A3 → teprve pak "yes"
+#       (nebo místo yes vložit otisk od správce — ssh ho porovná sám)
+| Warning: Permanently added '192.168.1.1' (ED25519) to the list of known hosts.
+exit
+
+# ===== B2 – known_hosts =====
+ls -l ~/.ssh/known_hosts
+cat ~/.ssh/known_hosts
+| |1|Qm9…=|x3T…= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA…
+# jméno serveru je hashované (Debian: HashKnownHosts yes) → hledání podle jména/IP:
+ssh-keygen -F 192.168.1.1
+| # Host 192.168.1.1 found: line 1
+# (může přibýt i řádek ECDSA/RSA — klient po přihlášení doplní další klíče, UpdateHostKeys)
+
+# 4.2.3 změna otisku → hláška a odmítnutí spojení:
+| @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+| @    WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!     @
+| @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+| Host key verification failed.
+# starý záznam smazat AŽ po ověření nového otisku u správce:
+ssh-keygen -R 192.168.1.1
+`) + answers([
+        ["4.1.3 Proč se otisk zobrazuje", "Klient server ještě nezná — v <code>known_hosts</code> pro něj nemá žádný klíč, se kterým by mohl porovnávat. Neumí tedy sám rozhodnout, jestli klíč patří opravdu Serveru, nebo útočníkovi uprostřed. Rozhodnutí proto nechá na uživateli, který otisk porovná s otiskem získaným od správce jinou cestou."],
+        ["4.2.2 Význam known_hosts", "Seznam veřejných klíčů serverů, které uživatel už ověřil. Při každém dalším připojení klient automaticky porovná klíč serveru se záznamem — tím se identita serveru kontroluje při každém přihlášení, ne jen poprvé."],
+        ["4.2.3 Změna otisku", "Klient vypíše varování a spojení odmítne. Příčinou může být přeinstalace serveru nebo nové hostitelské klíče, ale také útok man-in-the-middle. Správný postup: nepřipojovat se, ověřit u správce nový otisk a teprve pak starý záznam odstranit (<code>ssh-keygen -R</code>) a připojit se znovu s kontrolou otisku."]
+      ])
+    },
+    {
+      num: "C", en: "Klíče · Klient + Server", title: "5. ČÁST C – PŘIHLAŠOVÁNÍ POMOCÍ KLÍČŮ",
+      body: "<p>⏱ orientačně 12 min. Klíč vytvořte na <b>Klientovi</b> a zadejte <b>heslovou frázi</b>. „Bezheslové“ přihlášení znamená, že se server neptá na <b>heslo účtu</b> — klient se zeptá na frázi k vašemu klíči. Úkol C3 měníte na <b>Serveru</b>: <b>nezavírejte</b> otevřenou relaci, dokud v nové relaci neověříte, že se klíčem stále přihlásíte.</p>",
+      checklist: [
+        "<b>5.1 Úkol C1 – Vytvoření klíče</b> — <b>5.1.1</b> Vytvoř SSH klíčový pár.",
+        "<b>5.1.2</b> Uveď, jaké soubory vznikly.",
+        "<b>5.1.3</b> Vysvětli jejich význam.",
+        "<b>5.2 Úkol C2 – Bezheslové přihlášení</b> — <b>5.2.1</b> Nastav bezheslové přihlášení.",
+        "<b>5.2.2</b> Ověř funkčnost přihlášení.",
+        "<b>5.3 Úkol C3 – Zákaz hesel</b> — <b>5.3.1</b> Zakaž přihlašování pomocí hesla.",
+        "<b>5.3.2</b> Otestuj připojení po změně."
+      ],
+      extra: cmd(`
+# ===== C1 – pár klíčů (na Klientovi) =====
+ssh-keygen -t ed25519 -C "zak@klient"
+| Enter file in which to save the key (/home/zak/.ssh/id_ed25519):   ← Enter
+| Enter passphrase … (empty for no passphrase):   ← zadejte heslovou frázi (2×)
+ls -la ~/.ssh/
+| drwx------  … .
+| -rw-------  … id_ed25519        # soukromý klíč
+| -rw-r--r--  … id_ed25519.pub    # veřejný klíč
+| -rw-------  … known_hosts       # z části B
+ssh-keygen -lf ~/.ssh/id_ed25519.pub
+| 256 SHA256:… zak@klient (ED25519)
+
+# ===== C2 – přenos veřejného klíče na Server =====
+ssh-copy-id -i ~/.ssh/id_ed25519.pub zak@192.168.1.1   # naposledy heslo účtu na Serveru
+| Number of key(s) added: 1
+# 5.2.2 ověření: ptá se na frázi klíče, NE na heslo účtu
+ssh zak@192.168.1.1
+| Enter passphrase for key '/home/zak/.ssh/id_ed25519':
+#   na Serveru (v téže relaci) zkontrolovat:
+ls -la ~/.ssh/ && cat ~/.ssh/authorized_keys
+| ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA… zak@klient
+exit
+# důkaz použité metody:
+ssh -v zak@192.168.1.1 exit 2>&1 | grep -i authenticated
+| Authenticated to 192.168.1.1 ([192.168.1.1]:22) using "publickey".
+# volitelně: frázi zadat jen jednou za sezení
+eval "$(ssh-agent)" && ssh-add
+
+# ===== C3 – zákaz hesel (na Serveru, relace zůstává otevřená!) =====
+sudo nano /etc/ssh/sshd_config
+| PasswordAuthentication no
+| KbdInteractiveAuthentication no      # v Debianu už nastaveno, zkontrolovat
+grep -ri "passwordauthentication\\|kbdinteractive" /etc/ssh/sshd_config.d/   # nic tu nesmí přebíjet
+sudo sshd -t
+sudo systemctl restart ssh
+sudo sshd -T | grep -Ei '^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin) '
+| permitrootlogin no
+| pubkeyauthentication yes
+| passwordauthentication no
+| kbdinteractiveauthentication no
+
+# 5.3.2 test z Klienta v NOVÉ relaci
+ssh zak@192.168.1.1                              # klíčem → přihlášení projde
+ssh -o PubkeyAuthentication=no zak@192.168.1.1   # vynucené heslo:
+| zak@192.168.1.1: Permission denied (publickey).
+`) + answers([
+        ["5.1.2 Vzniklé soubory", "<code>~/.ssh/id_ed25519</code> (soukromý klíč, 600) a <code>~/.ssh/id_ed25519.pub</code> (veřejný klíč, 644); adresář <code>~/.ssh</code> má práva 700."],
+        ["5.1.3 Význam", "Soukromý klíč zůstává jen na Klientovi, je zašifrovaný heslovou frází a slouží k podpisu výzvy serveru — kdo ho má, vystupuje jako vy. Veřejný klíč je jeden řádek textu, který se dává na servery do <code>~/.ssh/authorized_keys</code>; z něj nelze soukromý klíč odvodit, proto ho smí vidět kdokoli."],
+        ["5.3.2 Co má test ukázat", "Přihlášení klíčem dál funguje a pokus o heslo končí hláškou <code>Permission denied (publickey)</code> — server nabízí už jen metodu <code>publickey</code>. Bez testu nevíte, jestli nastavení nepřebíjí soubor v <code>sshd_config.d</code>."]
+      ])
+    },
+    {
+      num: "D", en: "Závěrečné otázky", title: "6. ČÁST D – Závěrečné otázky",
+      body: "<p>⏱ orientačně 3 min, případně dokončit doma. Odpovězte vlastními slovy (2–3 věty) do protokolu. Vzorové odpovědi si otevřete až po napsání vlastních.</p>",
+      checklist: [
+        "<b>6.1</b> Co je fingerprint?",
+        "<b>6.2</b> Proč jsou klíče bezpečnější než hesla?",
+        "<b>6.3</b> Jak chránit soukromý klíč?"
+      ],
+      extra: answers([
+        ["6.1 Co je fingerprint?", "Otisk (hash SHA-256) veřejného klíče, zapsaný jako <code>SHA256:</code> a Base64. Je krátký, takže ho člověk může porovnat. U hostitelského klíče slouží k ověření identity serveru při prvním připojení; zjistí se příkazem <code>ssh-keygen -lf</code>."],
+        ["6.2 Proč jsou klíče bezpečnější než hesla?", "Klíč Ed25519 nelze uhodnout ani zkoušet hrubou silou, soukromý klíč ani heslo po síti nejdou (server dostane jen podpis výzvy) a odposlech ani falešný server klíč nezíská. Útočník potřebuje soubor klíče i heslovou frázi. Po zákazu hesel jsou roboti zkoušející hesla bezmocní."],
+        ["6.3 Jak chránit soukromý klíč?", "Heslová fráze při <code>ssh-keygen</code> (změna: <code>ssh-keygen -p</code>), oprávnění 600 a adresář <code>~/.ssh</code> 700, nikdy ho nekopírovat na server ani nikam neposílat, pro každé zařízení vlastní klíč, odemčený klíč držet v <code>ssh-agent</code>. Při podezření na prozrazení smazat odpovídající řádek z <code>authorized_keys</code> na všech serverech a vytvořit nový pár."]
+      ])
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Protokol „SSH na Serveru Školy X“ — screenshoty: stav služby ssh (active, enabled) a naslouchající port, výstup sshd -T s permitrootlogin no a passwordauthentication no, otisky hostitelských klíčů ze Serveru, hláška prvního připojení z Klienta s porovnaným otiskem ED25519, výpis ls -la ~/.ssh na Klientovi, přihlášení klíčem (ssh -v … using \"publickey\") a odmítnuté heslo (Permission denied (publickey)). K tomu odpovědi na vysvětlovací úkoly 3.3.3, 4.1.3, 4.2.2, 4.2.3, 5.1.3 a závěrečné otázky 6.1–6.3.";
+
+  var REFLECT = [
+    "Jak byste spolužákovi vysvětlili, proč existují dva různé páry klíčů a kterým směrem každý z nich „ručí“?",
+    "Co by se stalo, kdybyste při prvním připojení odpověděli yes bez kontroly otisku a mezi vámi a Serverem byl útočník?",
+    "Ve kterém kroku jste měli největší strach, že se ze Serveru zamknete, a co vás v tom ochránilo?",
+    "Kde jinde než na Serveru Školy X se s klíči SSH setkáte (GitHub, hosting, síťové prvky…) a co z dnešní hodiny tam využijete?"
+  ];
+
+  var SOURCES = [
+    {title:"sshd_config(5) — openssh-server (Debian 13)", url:"https://manpages.debian.org/trixie/openssh-server/sshd_config.5.en.html", tag:"official", note:"Direktivy a výchozí hodnoty, pravidlo „první získaná hodnota“, Debianem měněné volby a Include sshd_config.d."},
+    {title:"sshd(8) — openssh-server (Debian 13)", url:"https://manpages.debian.org/trixie/openssh-server/sshd.8.en.html", tag:"official", note:"Volby -t/-T, oprávnění souborů, formát authorized_keys a known_hosts."},
+    {title:"ssh_config(5) — openssh-client (Debian 13)", url:"https://manpages.debian.org/trixie/openssh-client/ssh_config.5.en.html", tag:"official", note:"StrictHostKeyChecking, known_hosts, HashKnownHosts v Debianu, FingerprintHash."},
+    {title:"ssh-keygen(1) — openssh-client (Debian 13)", url:"https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html", tag:"official", note:"Vytvoření klíče, otisk -l, -F/-R pro known_hosts, -p změna fráze."},
+    {title:"ssh-copy-id(1) — openssh-client (Debian 13)", url:"https://manpages.debian.org/trixie/openssh-client/ssh-copy-id.1.en.html", tag:"official", note:"Připsání veřejného klíče do ~/.ssh/authorized_keys na vzdáleném serveru."},
+    {title:"ssh(1) — openssh-client (Debian 13)", url:"https://manpages.debian.org/trixie/openssh-client/ssh.1.en.html", tag:"official", note:"Ověření hostitelského klíče při připojení, volba -v, metody ověření uživatele."},
+    {title:"OpenSSH 9.5 — release notes", url:"https://www.openssh.org/txt/release-9.5", tag:"official", note:"ssh-keygen vytváří klíče Ed25519 jako výchozí."},
+    {title:"OpenSSH — Release notes (přehled)", url:"https://www.openssh.org/releasenotes.html", tag:"official", note:"Historie změn OpenSSH (Debian 13 = OpenSSH 10.0)."},
+    {title:"Debian 13 — poznámky k vydání, kap. 5.1.7 a 5.1.8", url:"https://www.debian.org/releases/trixie/release-notes/issues.en.html", tag:"official", note:"OpenSSH bez podpory klíčů DSA; sshd nečte ~/.pam_environment."},
+    {title:"Debian Administrator's Handbook — Remote Login", url:"https://www.debian.org/doc/manuals/debian-handbook/sect.remote-login.en.html", tag:"official", note:"openssh-server, ověření klíčem, ssh-copy-id, ssh-agent."},
+    {title:"RFC 4251 — The Secure Shell (SSH) Protocol Architecture", url:"https://www.rfc-editor.org/rfc/rfc4251", tag:"official", note:"Vrstvy SSH-2, role hostitelského klíče."},
+    {title:"RFC 4252 — The SSH Authentication Protocol", url:"https://www.rfc-editor.org/rfc/rfc4252", tag:"official", note:"Ověření uživatele veřejným klíčem a heslem."},
+    {title:"RFC 4253 — The SSH Transport Layer Protocol", url:"https://www.rfc-editor.org/rfc/rfc4253", tag:"official", note:"Výměna klíčů, podpis hostitelským klíčem."},
+    {title:"RFC 8709 — Ed25519 and Ed448 Public Key Algorithms for SSH", url:"https://www.rfc-editor.org/rfc/rfc8709", tag:"official", note:"Definice klíčů ssh-ed25519."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+  // Tlačítka „Zastavit animaci“ — SMIL animace v SVG (pauseAnimations/unpauseAnimations).
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll(".svg-figure").forEach(function(fig){
+    var svg = fig.querySelector("svg"), btn = fig.querySelector(".anim-toggle");
+    if(!svg || !btn || !svg.pauseAnimations) { if(btn) btn.style.display = "none"; return; }
+    function set(paused){
+      if(paused){ svg.pauseAnimations(); btn.textContent = "▶ Spustit animaci"; }
+      else { svg.unpauseAnimations(); btn.textContent = "⏸ Zastavit animaci"; }
+      btn.setAttribute("aria-pressed", paused ? "true" : "false");
+    }
+    btn.addEventListener("click", function(){ set(!svg.animationsPaused()); });
+    if(reduce) set(true);
+  });
+
+})();
+</script>
+<script src="../assets/tuxik-agent.js" defer></script>
+</body>
+</html>

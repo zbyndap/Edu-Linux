@@ -1,0 +1,1748 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>8 Symetrické a asymetrické šifrování, hashovací algoritmy · Operační systém Linux</title>
+<meta name="description" content="Symetrické a asymetrické šifrování s animovanými diagramy, hashovací algoritmy (MD5, SHA-2, yescrypt), kontrolní součty souborů, hashe hesel v /etc/shadow, digitální podpis a použití v SSL/TLS a SSH. Kapitola 8, 1 vyučovací hodina.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 8 — Symetrické a asymetrické šifrování, hashovací algoritmy — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html (Robot blue /
+   Electric green dle spsei_logo_manual_tisk.pdf) a strukturně z kapitoly 7 —
+   stejné HTML/CSS/vykreslovací JS, jen obsah (TOPIC/ENGAGE/INVESTIGATE/QUIZ/
+   ACT/REFLECT/SOURCES) a doplňkový statický obsah (tabulky + 6 SVG diagramů).
+   Nové: animace v SVG přes SMIL (animateMotion) s tlačítkem pozastavení,
+   interaktivní Hashovací laboratoř (MD5 + SHA-256 v čistém JS) a rozbor
+   hashe hesla z /etc/shadow.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+@keyframes flowMoveRight{
+  0%{ transform:translateX(0); opacity:.25; }
+  15%{ opacity:1; }
+  85%{ opacity:1; }
+  100%{ transform:translateX(64px); opacity:.25; }
+}
+.flow-dot.right{ animation-name: flowMoveRight; animation-duration:2.2s; animation-timing-function:ease-in-out; }
+
+@keyframes flowLongRight{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(540px); opacity:.2; }
+}
+@keyframes flowLongLeft{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(-540px); opacity:.2; }
+}
+.flow-dot.longr{ animation-name: flowLongRight; animation-duration:3.4s; animation-timing-function:ease-in-out; }
+.flow-dot.longl{ animation-name: flowLongLeft; animation-duration:3.4s; animation-timing-function:ease-in-out; animation-delay:.9s; }
+
+/* štítky rodin adres (IPv4 / IPv6) */
+.fam{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; padding:.08rem .45rem; border-radius:999px; vertical-align:middle; white-space:nowrap;}
+.fam.v4{background:var(--robot-tint); color:var(--robot-deep); border:1px solid var(--robot);}
+.fam.v6{background:var(--electric-tint); color:var(--electric-deep); border:1px solid var(--electric-deep);}
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+
+/* ---------- KAPITOLA 8 — doplňky ---------- */
+/* tlačítko pozastavení animace pod SVG diagramem */
+.anim-toggle{display:block; margin:.6rem auto 0; font-family:inherit; font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.3rem .85rem; cursor:pointer;}
+.anim-toggle:hover{border-color:var(--robot); background:var(--surface);}
+
+/* Hashovací laboratoř */
+.hashlab{margin:.4rem 0 1.4rem; border:1px solid var(--border); border-left:5px solid var(--electric); border-radius:0 var(--radius-lg) var(--radius-lg) 0; background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem 1rem;}
+.hl-label{display:block; font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); margin-bottom:.4rem;}
+.hashlab textarea{min-height:56px; font-size:.95rem;}
+.hl-opt{display:flex; align-items:flex-start; gap:.5rem; font-size:.82rem; color:var(--ink-soft); margin:.55rem 0 .8rem; cursor:pointer;}
+.hl-opt input{margin-top:.25rem; accent-color:var(--robot);}
+.hl-row{display:grid; grid-template-columns:7.2rem 1fr; gap:.7rem; align-items:baseline; padding:.5rem 0; border-top:1px solid var(--border);}
+.hl-name{font-size:.82rem; font-weight:700; color:var(--robot-deep);}
+.hl-name small{display:block; font-weight:500; color:var(--ink-faint); font-size:.7rem;}
+code.hl-out{display:block; word-break:break-all; font-size:.86rem; line-height:1.55; background:var(--surface); padding:.35rem .55rem;}
+.hx-d{background:var(--electric); color:var(--robot-deep); border-radius:2px;}
+.hl-foot{display:flex; flex-wrap:wrap; gap:.6rem 1rem; align-items:center; justify-content:space-between; border-top:1px solid var(--border); padding-top:.7rem; font-size:.84rem; color:var(--ink-soft);}
+.hl-foot b{color:var(--ink);}
+.hl-btn{font-family:inherit; font-size:.8rem; font-weight:600; color:var(--robot-deep); background:var(--electric-tint); border:1px solid var(--electric-deep); border-radius:999px; padding:.35rem .85rem; cursor:pointer;}
+.hl-btn:hover{background:var(--electric);}
+.hl-cmd{margin-top:.6rem; font-size:.8rem; color:var(--ink-faint);}
+.hl-cmd code{word-break:break-all;}
+
+/* rozbor hashe hesla z /etc/shadow */
+.shadow-anatomy{margin:.4rem 0 1.2rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1rem 1.2rem;}
+.sa-line{font-size:.95rem; font-weight:600; word-break:break-all; line-height:2;}
+.sa{padding:.15rem .2rem; border-radius:4px;}
+.sa-id{background:var(--robot); color:#fff;}
+.sa-par{background:var(--robot-tint); color:var(--robot-deep); border:1px solid var(--robot);}
+.sa-sep{color:var(--ink-faint); padding:0;}
+.sa-salt{background:var(--electric-tint); color:var(--electric-deep); border:1px solid var(--electric-deep);}
+.sa-hash{background:var(--surface-2); color:var(--ink);}
+.sa-legend{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:.35rem 1rem; margin-top:.7rem; font-size:.8rem; color:var(--ink-soft);}
+.sa-legend b{color:var(--ink);}
+.sw{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:.4rem; vertical-align:middle;}
+.sw-id{background:var(--robot);} .sw-par{background:var(--robot-tint); border:1px solid var(--robot);}
+.sw-salt{background:var(--electric-tint); border:1px solid var(--electric-deep);} .sw-hash{background:var(--surface-2); border:1px solid var(--border);}
+
+/* datové tabulky v zadání ACT */
+.data-table{margin:.3rem 0 .4rem;}
+.data-table td{padding:.45rem .6rem;}
+@media (max-width:600px){ .hl-row{grid-template-columns:1fr; gap:.25rem;} }
+</style>
+</head>
+<body>
+<!-- sdílené ikony pro SVG diagramy (klíč, zámek) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="ico-key" viewBox="0 0 44 20"><circle cx="9" cy="10" r="6.5" fill="none" stroke="currentColor" stroke-width="3"/><path d="M15.5 10 H41 M33 10 V16 M39 10 V15" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+    <symbol id="ico-lock" viewBox="0 0 24 28"><rect x="3" y="12" width="18" height="14" rx="3" fill="currentColor"/><path d="M7 12 V8 a5 5 0 0 1 10 0 V12" fill="none" stroke="currentColor" stroke-width="2.6"/></symbol>
+  </defs>
+</svg>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Symetrické a asymetrické šifrování</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Server Školy X má od kapitol 6 a 7 trvalou síť. Než na něj pustíme vzdálený přístup (SSH) a web s HTTPS, musíme rozumět tomu, co je chrání: šifrování, hashe a digitální podpisy. Tato kapitola je teoretický základ pro kapitoly SSH a Apache.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>Tři nástroje kryptografie — symetrická šifra, asymetrická šifra a hash</h2>
+      <p class="lede">Každé zabezpečené spojení (HTTPS, SSH, VPN) skládá dohromady tři stavební kameny. <b>Symetrická šifra</b> je rychlá, ale potřebuje sdílené tajemství. <b>Asymetrická kryptografie</b> řeší, jak se na tajemství dohodnout a jak prokázat identitu. <b>Hashovací funkce</b> vytváří otisk dat, podle kterého se pozná každá změna. Diagramy jsou animované — kliknutím na tlačítko pod obrázkem animaci zastavíte.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <!-- ===================== A — SYMETRICKÉ ŠIFROVÁNÍ ===================== -->
+      <h3>A · Symetrické šifrování — jeden klíč pro obě strany</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Odesílatel i příjemce používají <b>tentýž tajný klíč K</b>: jím se zpráva zašifruje i dešifruje. Algoritmy jako <b>AES</b> nebo <b>ChaCha20</b> zvládnou šifrovat gigabajty za sekundu. Proto se jimi šifrují všechna data v HTTPS i SSH.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 350" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgsymt svgsymd">
+          <title id="svgsymt">Symetrické šifrování</title>
+          <desc id="svgsymd">Alice zašifruje zprávu Ahoj Bobe algoritmem AES klíčem K. Šifrový text putuje internetem, kde ho odposlouchá Eva, ale bez klíče K vidí jen šum. Bob zprávu dešifruje stejným klíčem K. Problém: jak Bobovi klíč K bezpečně předat.</desc>
+
+          <text x="450" y="24" text-anchor="middle" font-size="11.5" font-weight="700" fill="#71801A">Oba mají STEJNÝ tajný klíč K</text>
+          <text x="450" y="52" text-anchor="middle" font-size="10.5" fill="#54666F">Internet — poslouchat může kdokoli</text>
+
+          <rect x="20" y="30" width="170" height="110" rx="16" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="105" y="60" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">Alice</text>
+          <text x="105" y="80" text-anchor="middle" font-size="11" fill="#54666F">odesílatel</text>
+          <rect x="710" y="30" width="170" height="110" rx="16" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+          <text x="795" y="60" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">Bob</text>
+          <text x="795" y="80" text-anchor="middle" font-size="11" fill="#54666F">příjemce</text>
+
+          <!-- klíče -->
+          <use href="#ico-key" x="62" y="152" width="44" height="20" style="color:#71801A"/>
+          <text x="112" y="167" font-size="11" font-weight="700" fill="#71801A">klíč K</text>
+          <use href="#ico-key" x="752" y="152" width="44" height="20" style="color:#71801A"/>
+          <text x="802" y="167" font-size="11" font-weight="700" fill="#71801A">klíč K</text>
+          <path d="M104 150 L262 108" stroke="#71801A" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+          <path d="M796 150 L638 108" stroke="#71801A" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+
+          <!-- kanál -->
+          <path d="M190 80 L235 80 M665 80 L710 80" stroke="#47657D" stroke-width="2" fill="none"/>
+          <path d="M355 80 L545 80" stroke="#8698A1" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+          <path d="M450 92 L450 180" stroke="#B5453B" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+
+          <!-- Eva -->
+          <rect x="360" y="180" width="180" height="86" rx="12" fill="#FFFFFF" stroke="#B5453B" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <text x="450" y="200" text-anchor="middle" font-size="11.5" font-weight="700" fill="#B5453B">Eva (útočník)</text>
+          <text x="450" y="256" text-anchor="middle" font-size="10.5" fill="#54666F">bez klíče K jen šum</text>
+
+          <!-- pohybující se zprávy (pod boxy šifrování, aby „zmizely“ uvnitř) -->
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#1E2E38">Ahoj Bobe!</text>
+            <animateMotion dur="8s" repeatCount="indefinite" path="M105 112 L212 80 L295 80" keyPoints="0;0;1;1" keyTimes="0;0.04;0.16;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="8s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.03;0.05;0.15;0.17;1"/>
+          </g>
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#2E4657"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#EAF3F7">7f3a9c…e1</text>
+            <animateMotion dur="8s" repeatCount="indefinite" path="M295 80 L605 80" keyPoints="0;0;1;1" keyTimes="0;0.19;0.5;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="8s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.18;0.2;0.5;0.52;1"/>
+          </g>
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#2E4657"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#EAF3F7">7f3a9c…e1</text>
+            <animateMotion dur="8s" repeatCount="indefinite" path="M450 80 L450 228" keyPoints="0;0;1;1" keyTimes="0;0.34;0.45;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="8s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.335;0.35;0.9;0.95;1"/>
+          </g>
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#1E2E38">Ahoj Bobe!</text>
+            <animateMotion dur="8s" repeatCount="indefinite" path="M605 80 L688 80 L795 112" keyPoints="0;0;1;1" keyTimes="0;0.53;0.66;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="8s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.52;0.54;0.9;0.95;1"/>
+          </g>
+
+          <!-- boxy šifruj / dešifruj -->
+          <rect x="235" y="55" width="120" height="50" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="2"/>
+          <use href="#ico-lock" x="244" y="66" width="18" height="21" style="color:#71801A"/>
+          <text x="308" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">šifruj</text>
+          <text x="308" y="95" text-anchor="middle" font-size="10.5" fill="#54666F">AES + K</text>
+          <rect x="545" y="55" width="120" height="50" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="2"/>
+          <use href="#ico-lock" x="554" y="66" width="18" height="21" style="color:#71801A"/>
+          <text x="618" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">dešifruj</text>
+          <text x="618" y="95" text-anchor="middle" font-size="10.5" fill="#54666F">AES + K</text>
+
+          <!-- problém distribuce klíče -->
+          <path d="M84 176 L84 292 L438 292 M462 292 L816 292 L816 176" stroke="#B5453B" stroke-width="1.8" stroke-dasharray="6 4" fill="none"/>
+          <circle cx="450" cy="292" r="12" fill="#FFFFFF" stroke="#B5453B" stroke-width="1.8"/>
+          <text x="450" y="297" text-anchor="middle" font-size="13" font-weight="700" fill="#B5453B">?</text>
+          <text x="450" y="322" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">Jak Bobovi bezpečně předat klíč K, když Eva poslouchá?</text>
+          <text x="450" y="341" text-anchor="middle" font-size="10.5" fill="#54666F">→ problém distribuce klíče řeší asymetrická kryptografie (část B)</text>
+        </svg>
+        <figcaption>Obr. 1 — Symetrická šifra: tentýž klíč K šifruje i dešifruje. Je rychlá, ale oba musí klíč znát dřív, než si začnou psát.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <!-- ===================== B — ASYMETRICKÉ ŠIFROVÁNÍ ===================== -->
+      <h3>B · Asymetrické šifrování — pár klíčů: veřejný a soukromý</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Každý účastník má <b>dva matematicky svázané klíče</b>. <b>Veřejný klíč</b> může rozdat komukoli. <b>Soukromý klíč</b> nesmí nikdy opustit jeho počítač. Co se zašifruje veřejným klíčem, dešifruje jen odpovídající soukromý klíč. Typické algoritmy: <b>RSA</b>, eliptické křivky (<b>ECDSA, Ed25519, X25519</b>).</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 410" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgasymt svgasymd">
+          <title id="svgasymt">Asymetrické šifrování</title>
+          <desc id="svgasymd">Bob má pár klíčů. Svůj veřejný klíč pošle Alici, i když ho uvidí Eva. Alice zprávu zašifruje Bobovým veřejným klíčem a šifrový text pošle. Dešifrovat ho dokáže jen Bob svým soukromým klíčem. Eva má veřejný klíč i šifrový text, ale bez soukromého klíče zprávu nepřečte.</desc>
+
+          <text x="450" y="46" text-anchor="middle" font-size="11.5" font-weight="700" fill="#71801A">① Bob zveřejní svůj veřejný klíč</text>
+          <text x="450" y="64" text-anchor="middle" font-size="10.5" fill="#54666F">smí ho mít kdokoli — i Eva</text>
+          <path d="M192 82 L710 82" stroke="#71801A" stroke-width="1.8" fill="none"/>
+          <path d="M200 77 L192 82 L200 87" stroke="#71801A" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <rect x="20" y="30" width="170" height="120" rx="16" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+          <text x="105" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">Alice</text>
+          <text x="105" y="76" text-anchor="middle" font-size="11" fill="#54666F">odesílatel</text>
+          <text x="105" y="140" text-anchor="middle" font-size="10" fill="#71801A" opacity="0">Bobův veřejný klíč
+            <animate attributeName="opacity" dur="10s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.21;0.23;0.9;0.95;1"/>
+          </text>
+
+          <rect x="710" y="30" width="170" height="120" rx="16" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+          <text x="795" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#1E2E38">Bob</text>
+          <text x="795" y="76" text-anchor="middle" font-size="11" fill="#54666F">pár klíčů</text>
+          <use href="#ico-key" x="730" y="89" width="40" height="18" style="color:#71801A"/>
+          <text x="776" y="102" font-size="10.5" font-weight="700" fill="#71801A">veřejný</text>
+          <use href="#ico-key" x="730" y="115" width="40" height="18" style="color:#2E4657"/>
+          <text x="776" y="128" font-size="10.5" font-weight="700" fill="#2E4657">soukromý 🔒</text>
+
+          <!-- dolní pruh: šifrovaná zpráva -->
+          <path d="M120 210 L235 210 M665 210 L740 210" stroke="#47657D" stroke-width="2" fill="none"/>
+          <path d="M355 210 L545 210" stroke="#8698A1" stroke-width="2" stroke-dasharray="5 4" fill="none"/>
+          <text x="450" y="246" text-anchor="middle" font-size="10.5" fill="#54666F">šifrový text putuje internetem</text>
+          <path d="M100 150 L258 186" stroke="#71801A" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+          <path d="M752 134 L640 186" stroke="#2E4657" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+          <path d="M450 254 L450 280" stroke="#B5453B" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+
+          <rect x="330" y="280" width="240" height="96" rx="12" fill="#FFFFFF" stroke="#B5453B" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <text x="450" y="300" text-anchor="middle" font-size="11.5" font-weight="700" fill="#B5453B">Eva (útočník)</text>
+          <text x="450" y="350" text-anchor="middle" font-size="10.5" fill="#54666F">má veřejný klíč i šifrový text,</text>
+          <text x="450" y="366" text-anchor="middle" font-size="10.5" fill="#54666F">bez soukromého klíče nic nepřečte</text>
+
+          <!-- pohybující se objekty -->
+          <g opacity="0">
+            <rect x="-28" y="-12" width="56" height="24" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+            <use href="#ico-key" x="-18" y="-8" width="36" height="16" style="color:#71801A"/>
+            <animateMotion dur="10s" repeatCount="indefinite" path="M750 98 L700 82 L200 82 L105 116" keyPoints="0;0;1;1" keyTimes="0;0.03;0.22;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="10s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.02;0.04;0.9;0.95;1"/>
+          </g>
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#1E2E38">Ahoj Bobe!</text>
+            <animateMotion dur="10s" repeatCount="indefinite" path="M120 210 L295 210" keyPoints="0;0;1;1" keyTimes="0;0.27;0.36;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="10s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.26;0.28;0.35;0.37;1"/>
+          </g>
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#2E4657"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#EAF3F7">b81d0f…4a</text>
+            <animateMotion dur="10s" repeatCount="indefinite" path="M295 210 L605 210" keyPoints="0;0;1;1" keyTimes="0;0.38;0.62;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="10s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.37;0.39;0.62;0.64;1"/>
+          </g>
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#2E4657"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#EAF3F7">b81d0f…4a</text>
+            <animateMotion dur="10s" repeatCount="indefinite" path="M450 210 L450 324" keyPoints="0;0;1;1" keyTimes="0;0.5;0.6;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="10s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.495;0.51;0.9;0.95;1"/>
+          </g>
+          <g opacity="0">
+            <rect x="-48" y="-13" width="96" height="26" rx="6" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+            <text y="4" text-anchor="middle" font-size="11" fill="#1E2E38">Ahoj Bobe!</text>
+            <animateMotion dur="10s" repeatCount="indefinite" path="M605 210 L795 210" keyPoints="0;0;1;1" keyTimes="0;0.65;0.74;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="10s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.64;0.66;0.9;0.95;1"/>
+          </g>
+
+          <rect x="235" y="185" width="120" height="50" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="2"/>
+          <text x="295" y="206" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">② šifruj</text>
+          <text x="295" y="223" text-anchor="middle" font-size="9.5" fill="#54666F">veřejným kl. Boba</text>
+          <rect x="545" y="185" width="120" height="50" rx="10" fill="#EAF0F3" stroke="#2E4657" stroke-width="2"/>
+          <text x="605" y="206" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">③ dešifruj</text>
+          <text x="605" y="223" text-anchor="middle" font-size="9.5" fill="#54666F">soukromým kl. Boba</text>
+
+          <text x="450" y="400" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">Co zašifruje veřejný klíč, odemkne jen soukromý klíč téhož páru.</text>
+        </svg>
+        <figcaption>Obr. 2 — Asymetrická šifra: veřejný klíč se smí rozdávat, soukromý klíč zůstává jen u majitele. Problém předání klíče z obr. 1 tím mizí.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Vlastnost</th><th>Symetrická šifra</th><th>Asymetrická kryptografie</th></tr></thead>
+          <tbody>
+            <tr><td><b>Klíče</b></td><td>jeden sdílený tajný klíč</td><td>pár: veřejný + soukromý</td></tr>
+            <tr><td><b>Rychlost</b></td><td>velmi rychlá (i hardwarově v CPU — AES-NI)</td><td>řádově pomalejší</td></tr>
+            <tr><td><b>Algoritmy dnes</b></td><td>AES-128/256 (GCM), ChaCha20-Poly1305</td><td>RSA (≥ 2048 b), ECDSA, Ed25519 (podpisy); X25519, ML-KEM (dohoda na klíči)</td></tr>
+            <tr><td><b>Slabé místo</b></td><td>jak klíč bezpečně předat; pro <i>n</i> lidí je potřeba <i>n·(n−1)/2</i> klíčů</td><td>jak ověřit, že veřejný klíč opravdu patří tomu, za koho se vydává (certifikát, otisk)</td></tr>
+            <tr><td><b>K čemu se používá</b></td><td>šifrování vlastních dat (HTTPS, SSH, VPN, šifrovaný disk)</td><td>dohoda na symetrickém klíči, digitální podpis, ověření identity serveru i uživatele</td></tr>
+            <tr><td><b>Zastaralé — nepoužívat</b></td><td>DES, 3DES, RC4</td><td>RSA &lt; 2048 b, DSA (OpenSSH 10 ho už nepodporuje)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><b>V praxi se obojí kombinuje (hybridní šifrování).</b> Asymetrická kryptografie se použije jen na začátku: strany se dohodnou na <b>symetrickém klíči relace</b> a server prokáže svou identitu. Data se pak šifrují rychlou symetrickou šifrou. Přesně tak pracují <b>TLS</b> (HTTPS) i <b>SSH</b> — viz část D.</p>
+      </div>
+
+      <!-- ===================== C — HASHOVACÍ ALGORITMY ===================== -->
+      <h3>C · Hashovací algoritmy — otisk dat</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Hashovací funkce převede libovolně velká data na <b>krátký otisk pevné délky</b> (hash, digest, kontrolní součet). Stejný vstup dá vždy stejný otisk. Sebemenší změna vstupu dá úplně jiný otisk. <b>Hash není šifra</b> — nemá klíč a z otisku nejde získat původní data zpět. V Linuxu se hash používá k ověření <b>integrity souborů</b> (stažené ISO, zálohy), k ukládání <b>hesel</b> v <code>/etc/shadow</code> a jako součást <b>podpisů</b> v TLS a SSH.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svghasht svghashd">
+          <title id="svghasht">Hashovací funkce SHA-256</title>
+          <desc id="svghashd">Tři vstupy — text kokos s koncem řádku, text Kokos s velkým K a prázdný soubor — projdou funkcí SHA-256. Každý dá otisk stejné délky 64 šestnáctkových znaků, a přestože se první dva vstupy liší jedním písmenem, jejich otisky jsou úplně odlišné. Z otisku nelze získat vstup zpět.</desc>
+
+          <path d="M538 30 L236 30" stroke="#B5453B" stroke-width="1.6" stroke-dasharray="5 4" fill="none"/>
+          <path d="M244 25 L236 30 L244 35" stroke="#B5453B" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="M378 22 L394 38 M394 22 L378 38" stroke="#B5453B" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <text x="386" y="14" text-anchor="middle" font-size="10.5" font-weight="700" fill="#B5453B">zpět nelze — hash není šifra</text>
+
+          <rect x="30" y="50" width="200" height="40" rx="10" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+          <text x="130" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">kokos↵</text>
+          <rect x="30" y="120" width="200" height="40" rx="10" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+          <text x="130" y="145" text-anchor="middle" font-size="13" font-weight="700" fill="#1E2E38">Kokos↵</text>
+          <rect x="30" y="190" width="200" height="40" rx="10" fill="#FFFFFF" stroke="#8698A1" stroke-width="1.6" stroke-dasharray="4 3"/>
+          <text x="130" y="215" text-anchor="middle" font-size="12" fill="#54666F">(prázdný soubor)</text>
+
+          <path d="M230 70 C280 70 290 140 330 140 M230 140 L330 140 M230 210 C280 210 290 140 330 140" stroke="#C4D1D7" stroke-width="1.8" fill="none"/>
+          <path d="M470 140 C510 140 500 70 540 70 M470 140 L540 140 M470 140 C510 140 500 210 540 210" stroke="#C4D1D7" stroke-width="1.8" fill="none"/>
+
+          <circle r="5" fill="#47657D" opacity="0">
+            <animateMotion dur="6s" repeatCount="indefinite" path="M230 70 C280 70 290 140 330 140 L470 140 C510 140 500 70 540 70" keyPoints="0;0;1;1" keyTimes="0;0.04;0.28;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="6s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.03;0.05;0.27;0.29;1"/>
+          </circle>
+          <circle r="5" fill="#71801A" opacity="0">
+            <animateMotion dur="6s" repeatCount="indefinite" path="M230 140 L540 140" keyPoints="0;0;1;1" keyTimes="0;0.36;0.6;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="6s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.35;0.37;0.59;0.61;1"/>
+          </circle>
+          <circle r="5" fill="#8698A1" opacity="0">
+            <animateMotion dur="6s" repeatCount="indefinite" path="M230 210 C280 210 290 140 330 140 L470 140 C510 140 500 210 540 210" keyPoints="0;0;1;1" keyTimes="0;0.68;0.92;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="6s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.67;0.69;0.91;0.93;1"/>
+          </circle>
+
+          <rect x="330" y="60" width="140" height="160" rx="18" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+          <text x="400" y="136" text-anchor="middle" font-size="17" font-weight="700" fill="#1E2E38">SHA-256</text>
+          <text x="400" y="158" text-anchor="middle" font-size="10.5" fill="#54666F">hashovací funkce</text>
+
+          <rect x="540" y="50" width="340" height="40" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+          <text x="710" y="75" text-anchor="middle" font-size="12" fill="#1E2E38">8b963e8f396c0cf2…3a5256d53d</text>
+          <rect x="540" y="120" width="340" height="40" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+          <text x="710" y="145" text-anchor="middle" font-size="12" fill="#1E2E38">61c9eabf46cb6db3…080becc30d</text>
+          <rect x="540" y="190" width="340" height="40" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+          <text x="710" y="215" text-anchor="middle" font-size="12" fill="#1E2E38">e3b0c44298fc1c14…1b7852b855</text>
+          <text x="710" y="109" text-anchor="middle" font-size="10" font-weight="700" fill="#71801A">1 písmeno jinak → úplně jiný otisk</text>
+          <text x="710" y="179" text-anchor="middle" font-size="10" fill="#54666F">i prázdný vstup má otisk stejné délky</text>
+
+          <rect x="20" y="248" width="200" height="54" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="1.4"/>
+          <text x="120" y="270" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">pevná délka</text>
+          <text x="120" y="289" text-anchor="middle" font-size="10" fill="#54666F">SHA-256 = vždy 64 hex znaků</text>
+          <rect x="240" y="248" width="200" height="54" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="1.4"/>
+          <text x="340" y="270" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">jednosměrnost</text>
+          <text x="340" y="289" text-anchor="middle" font-size="10" fill="#54666F">z otisku nezjistíš vstup</text>
+          <rect x="460" y="248" width="200" height="54" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="1.4"/>
+          <text x="560" y="270" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">lavinový efekt</text>
+          <text x="560" y="289" text-anchor="middle" font-size="10" fill="#54666F">malá změna → jiný otisk</text>
+          <rect x="680" y="248" width="200" height="54" rx="12" fill="#F2F6F8" stroke="#D7E3E8" stroke-width="1.4"/>
+          <text x="780" y="270" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">odolnost proti kolizím</text>
+          <text x="780" y="289" text-anchor="middle" font-size="10" fill="#54666F">MD5 a SHA-1 už ji nemají</text>
+        </svg>
+        <figcaption>Obr. 3 — Skutečné otisky SHA-256 (zkrácené). Znak ↵ je konec řádku, který přidá příkaz <code>echo</code> — i ten mění otisk.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <h4>Hashovací algoritmy, se kterými se v Debianu setkáte</h4>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Algoritmus</th><th>Délka otisku</th><th>Nástroj</th><th>Stav dnes</th></tr></thead>
+          <tbody>
+            <tr><td><b>MD5</b></td><td>128 b = 32 hex znaků (2<sup>128</sup> = 16<sup>32</sup> ≈ 3,4·10<sup>38</sup> možností)</td><td><code>md5sum</code></td><td>prolomený (kolize lze najít za sekundy) — jen kontrola náhodného poškození, <b>nikdy pro bezpečnost</b> (RFC 6151)</td></tr>
+            <tr><td><b>SHA-1</b></td><td>160 b = 40 hex</td><td><code>sha1sum</code></td><td>prolomený (prakticky nalezená kolize 2017) — nepoužívat</td></tr>
+            <tr><td><b>SHA-224 / SHA-256</b></td><td>224 b / 256 b = 56 / 64 hex</td><td><code>sha224sum</code>, <code>sha256sum</code></td><td>rodina SHA-2, bezpečné; SHA-256 je dnešní standard (otisky ISO, certifikátů, SSH klíčů)</td></tr>
+            <tr><td><b>SHA-384 / SHA-512</b></td><td>384 b / 512 b = 96 / 128 hex</td><td><code>sha384sum</code>, <code>sha512sum</code></td><td>rodina SHA-2, bezpečné</td></tr>
+            <tr><td><b>yescrypt</b></td><td>— (funkce pro hesla, ne pro soubory)</td><td><code>passwd</code>, <code>mkpasswd</code></td><td>výchozí pro hesla v Debianu od verze 11; záměrně pomalá a paměťově náročná</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4>Hashovací laboratoř — vyzkoušejte si to</h4>
+      <p class="lede" style="margin-bottom:.8rem;">Výpočet běží přímo v prohlížeči a dává <b>stejné otisky jako <code>md5sum</code> a <code>sha256sum</code></b> v terminálu. Změňte jediné písmeno a sledujte, kolik bitů otisku se změní.</p>
+      <div class="hashlab" id="hashlab">
+        <label class="hl-label" for="hl-input">Obsah souboru / text</label>
+        <textarea id="hl-input" spellcheck="false">kokos</textarea>
+        <label class="hl-opt"><input type="checkbox" id="hl-nl" checked> na konec přidat znak nového řádku (jako <code>echo</code>; vypnuto = <code>echo -n</code>)</label>
+        <div class="hl-row"><span class="hl-name">MD5 <small>128 b</small></span><code class="hl-out" id="hl-md5"></code></div>
+        <div class="hl-row"><span class="hl-name">SHA-256 <small>256 b</small></span><code class="hl-out" id="hl-sha"></code></div>
+        <div class="hl-foot">
+          <span id="hl-diff">—</span>
+          <button type="button" class="hl-btn" id="hl-pin">📌 Zapamatovat pro srovnání</button>
+        </div>
+        <div class="hl-cmd">V terminálu: <code id="hl-cmdline"></code></div>
+      </div>
+
+      <div class="callout">
+        <p><b>Pozor na konec řádku.</b> <code>echo kokos | md5sum</code> hashuje 6 bajtů <code>kokos\n</code>, kdežto <code>echo -n kokos | md5sum</code> jen 5 bajtů. Otisky se proto liší — ověřte si to v laboratoři výše. Kontrolní soubor <code>soubor.md5</code> obsahuje otisk <b>i jméno souboru</b>. Proto stačí spustit <code>md5sum -c soubor.md5</code>, ale musíte stát ve stejném adresáři, z jakého byl kontrolní soubor vytvořen (cesty v něm jsou relativní).</p>
+      </div>
+
+      <h4>Hash hesel v <code>/etc/shadow</code></h4>
+      <p class="lede" style="margin-bottom:.8rem;">Heslo se v Linuxu nikde neukládá — uloží se jen jeho hash. Při přihlášení se zadané heslo zahashuje znovu <b>se stejnou solí</b> a porovnají se výsledky. Druhé pole řádku v <code>/etc/shadow</code> má tvar <code>$id$parametry$sůl$hash</code>:</p>
+      <div class="shadow-anatomy" role="img" aria-label="Rozbor hashe hesla: identifikátor y znamená yescrypt, j9T jsou parametry náročnosti, následuje sůl a výsledný hash.">
+        <div class="sa-line"><span class="sa sa-id">$y$</span><span class="sa sa-par">j9T</span><span class="sa sa-sep">$</span><span class="sa sa-salt">Hz2AEyKq9CFcl2Dgs.XHv0</span><span class="sa sa-sep">$</span><span class="sa sa-hash">4CiK..X4uqS2d2H1GKhz2BGe1XOvCRgk5xepSpg3nl3</span></div>
+        <div class="sa-legend">
+          <span><i class="sw sw-id"></i><b>$y$</b> = yescrypt · <b>$6$</b> sha512crypt · <b>$5$</b> sha256crypt · <b>$1$</b> md5crypt (zastaralé)</span>
+          <span><i class="sw sw-par"></i><b>j9T</b> = parametry náročnosti (cost)</span>
+          <span><i class="sw sw-salt"></i><b>sůl</b> — náhodná, pro každé heslo jiná</span>
+          <span><i class="sw sw-hash"></i><b>hash</b> hesla + soli</span>
+        </div>
+      </div>
+
+      <div class="callout">
+        <p><b>Proč sůl a proč pomalá funkce?</b></p>
+        <ul>
+          <li><b>Sůl</b> způsobí, že dva uživatelé se stejným heslem mají v <code>/etc/shadow</code> různé hashe. Útočník pak nemůže použít předem spočítané tabulky (rainbow tables). Proto dá <code>mkpasswd -m yescrypt</code> se stejným heslem pokaždé jiný výsledek.</li>
+          <li><b>Hesla se nikdy nehashují prostým <code>sha256sum</code> nebo <code>openssl dgst</code></b> — ani s ručně přidanou solí. Tyto funkce jsou navržené jako <i>rychlé</i> a grafická karta jich spočítá miliardy za sekundu, takže krátké heslo uhodne hrubou silou. Funkce pro hesla (<b>yescrypt</b>, sha512crypt s mnoha koly) jsou záměrně <i>pomalé</i>.</li>
+          <li>Algoritmus pro příkaz <code>passwd</code> určuje <b>PAM</b> — řádek s <code>pam_unix.so</code> v <code>/etc/pam.d/common-password</code> (v Debianu od verze 11 <code>yescrypt</code>). <code>ENCRYPT_METHOD</code> v <code>/etc/login.defs</code> platí jen pro nástroje <code>chgpasswd</code>, <code>gpasswd</code> a <code>newusers</code>, ne pro <code>passwd</code>.</li>
+          <li><code>openssl passwd</code> yescrypt neumí — zvládne <code>-1</code> (MD5, výchozí, nepoužívat), <code>-5</code> a <code>-6</code>. Pro yescrypt použijte <code>mkpasswd</code> z balíku <code>whois</code>.</li>
+        </ul>
+      </div>
+
+      <h4>Hash + asymetrie = digitální podpis</h4>
+      <p class="lede" style="margin-bottom:.9rem;">Spojením obou nástrojů vznikne <b>digitální podpis</b>. Odesílatel podepíše <i>otisk</i> dokumentu svým soukromým klíčem. Kdokoli pak jeho veřejným klíčem ověří, že dokument <b>napsal on</b> a že ho <b>nikdo nezměnil</b>. Takto se prokazuje server v TLS i v SSH.</p>
+      <figure class="svg-figure">
+        <svg viewBox="0 0 900 312" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgsigt svgsigd">
+          <title id="svgsigt">Digitální podpis</title>
+          <desc id="svgsigd">Alice spočítá SHA-256 otisk dokumentu a podepíše ho svým soukromým klíčem. Dokument i podpis pošle Bobovi. Bob sám spočítá otisk přijatého dokumentu a podpis ověří veřejným klíčem Alice. Shodují-li se oba otisky, podpis je platný.</desc>
+
+          <path d="M450 40 L450 236" stroke="#D7E3E8" stroke-width="1.6" stroke-dasharray="5 5" fill="none"/>
+          <text x="225" y="232" text-anchor="middle" font-size="11" font-weight="700" fill="#47657D">ALICE podepisuje</text>
+          <text x="675" y="232" text-anchor="middle" font-size="11" font-weight="700" fill="#2E4657">BOB ověřuje</text>
+
+          <!-- spojnice -->
+          <path d="M85 50 L85 22 L545 22 L545 50" stroke="#47657D" stroke-width="1.8" fill="none"/>
+          <path d="M540 42 L545 50 L550 42" stroke="#47657D" stroke-width="1.8" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="315" y="16" text-anchor="middle" font-size="10" fill="#54666F">dokument se posílá čitelně</text>
+          <path d="M140 70 L175 70 M275 70 L305 70 M357 85 L357 150 M410 170 L490 170 M600 70 L635 70 M735 70 L765 70 M600 170 L635 170 M735 170 L765 170" stroke="#8698A1" stroke-width="1.8" fill="none"/>
+          <path d="M817 85 L817 150" stroke="#3F7455" stroke-width="2" stroke-dasharray="4 3" fill="none"/>
+
+          <circle r="4.5" fill="#47657D" opacity="0">
+            <animateMotion dur="7s" repeatCount="indefinite" path="M140 70 L305 70 L357 85 L357 150 L410 170 L490 170" keyPoints="0;0;1;1" keyTimes="0;0.03;0.42;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="7s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.02;0.04;0.41;0.43;1"/>
+          </circle>
+          <circle r="4.5" fill="#2E4657" opacity="0">
+            <animateMotion dur="7s" repeatCount="indefinite" path="M600 70 L765 70" keyPoints="0;0;1;1" keyTimes="0;0.47;0.66;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="7s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.46;0.48;0.65;0.67;1"/>
+          </circle>
+          <circle r="4.5" fill="#2E4657" opacity="0">
+            <animateMotion dur="7s" repeatCount="indefinite" path="M600 170 L765 170" keyPoints="0;0;1;1" keyTimes="0;0.47;0.66;1" calcMode="linear"/>
+            <animate attributeName="opacity" dur="7s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.46;0.48;0.65;0.67;1"/>
+          </circle>
+          <circle cx="817" cy="118" r="17" fill="#FFFFFF" stroke="#3F7455" stroke-width="2">
+            <animate attributeName="fill" dur="7s" repeatCount="indefinite" values="#FFFFFF;#FFFFFF;#DBF02A;#DBF02A;#FFFFFF" keyTimes="0;0.68;0.72;0.92;1"/>
+            <animate attributeName="stroke-width" dur="7s" repeatCount="indefinite" values="2;2;3.5;3.5;2" keyTimes="0;0.68;0.72;0.92;1"/>
+          </circle>
+          <text x="817" y="123" text-anchor="middle" font-size="14" font-weight="700" fill="#3F7455">=</text>
+          <text x="845" y="122" font-size="10.5" font-weight="700" fill="#3F7455">✓</text>
+
+          <!-- Alice -->
+          <rect x="30" y="50" width="110" height="40" rx="8" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+          <text x="85" y="75" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">smlouva.txt</text>
+          <rect x="175" y="50" width="100" height="40" rx="8" fill="#EAF0F3" stroke="#2E4657" stroke-width="1.6"/>
+          <text x="225" y="75" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">SHA-256</text>
+          <rect x="305" y="55" width="105" height="30" rx="15" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+          <text x="357" y="75" text-anchor="middle" font-size="10.5" fill="#1E2E38">otisk 3a7f…</text>
+          <rect x="290" y="150" width="120" height="40" rx="8" fill="#EAF0F3" stroke="#2E4657" stroke-width="1.6"/>
+          <text x="350" y="167" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">podepiš</text>
+          <text x="350" y="182" text-anchor="middle" font-size="9.5" fill="#54666F">soukr. klíčem Alice</text>
+          <use href="#ico-key" x="215" y="160" width="44" height="20" style="color:#2E4657"/>
+
+          <!-- Bob -->
+          <rect x="490" y="50" width="110" height="40" rx="8" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+          <text x="545" y="75" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">smlouva.txt</text>
+          <rect x="635" y="50" width="100" height="40" rx="8" fill="#EAF0F3" stroke="#2E4657" stroke-width="1.6"/>
+          <text x="685" y="75" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">SHA-256</text>
+          <rect x="765" y="55" width="105" height="30" rx="15" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+          <text x="817" y="75" text-anchor="middle" font-size="10.5" fill="#1E2E38">otisk A</text>
+          <rect x="490" y="150" width="110" height="40" rx="8" fill="#2E4657"/>
+          <text x="545" y="175" text-anchor="middle" font-size="11.5" font-weight="700" fill="#EAF3F7">podpis</text>
+          <rect x="635" y="150" width="100" height="40" rx="8" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+          <text x="685" y="167" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">ověř</text>
+          <text x="685" y="182" text-anchor="middle" font-size="9.5" fill="#54666F">veř. klíčem Alice</text>
+          <rect x="765" y="155" width="105" height="30" rx="15" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+          <text x="817" y="175" text-anchor="middle" font-size="10.5" fill="#1E2E38">otisk B</text>
+
+          <rect x="60" y="252" width="780" height="50" rx="12" fill="#FFFFFF" stroke="#71801A" stroke-width="1.6" stroke-dasharray="3 3"/>
+          <text x="450" y="273" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">Otisk A = otisk B → dokument je nezměněný a podepsala ho opravdu Alice.</text>
+          <text x="450" y="291" text-anchor="middle" font-size="10.5" fill="#54666F">Změna jediného znaku → jiný otisk → podpis neplatí. (Zjednodušeně, princip RSA; Ed25519 počítá jinak, myšlenka je stejná.)</text>
+        </svg>
+        <figcaption>Obr. 4 — Digitální podpis = hash dokumentu + soukromý klíč odesílatele. Ověřit ho může kdokoli, kdo má veřejný klíč.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <!-- ===================== D — SSL/TLS a SSH ===================== -->
+      <h3>D · Použití v praxi — SSL/TLS a SSH</h3>
+      <p class="lede" style="margin-bottom:.9rem;">TLS i SSH jsou <b>hybridní protokoly</b>: asymetrická kryptografie na dohodu klíče a ověření identity, symetrická šifra na data, hash na kontrolu integrity a odvození klíčů.</p>
+
+      <div class="callout">
+        <p><b>„SSL“ je historický název.</b> Protokoly SSL 2.0 a 3.0 jsou prolomené a zakázané (RFC 7568). Dnes se používá <b>TLS 1.3</b> (RFC 8446), případně ještě TLS 1.2. TLS 1.0 a 1.1 se podle RFC 8996 používat nesmí. Když někdo řekne „SSL certifikát“, myslí tím certifikát pro TLS.</p>
+      </div>
+
+      <h4>TLS 1.3 — co se děje, když otevřete https://</h4>
+      <figure class="svg-figure">
+<svg viewBox="0 0 900 532" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgtlst svgtlsd">
+<title id="svgtlst">TLS 1.3 handshake zjednodušeně</title>
+<desc id="svgtlsd">Klient pošle ClientHello s podporovanými šiframi a svou částí výměny klíčů ECDHE. Server odpoví ServerHello se svou částí, od té chvíle je vše šifrované; pošle certifikát, podpis svým soukromým klíčem a Finished. Klient ověří certifikát podle podpisu certifikační autority. Obě strany odvodí stejné symetrické klíče a dál se data šifrují rychlou symetrickou šifrou AES-GCM nebo ChaCha20-Poly1305.</desc>
+<rect x="30" y="14" width="260" height="46" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+<text x="160" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Klient (prohlížeč)</text>
+<rect x="610" y="14" width="260" height="46" rx="12" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+<text x="740" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Server (https, port 443)</text>
+<path d="M160 60 L160 524" stroke="#C4D1D7" stroke-width="1.6" stroke-dasharray="4 4" fill="none"/>
+<path d="M740 60 L740 524" stroke="#C4D1D7" stroke-width="1.6" stroke-dasharray="4 4" fill="none"/>
+<text x="450" y="92" text-anchor="middle" font-size="11.5" font-weight="700" fill="#47657D">① ClientHello</text>
+<text x="450" y="109" text-anchor="middle" font-size="10.5" fill="#54666F">podporované šifry + key_share (veřejná část ECDHE klienta)</text>
+<path d="M162 121 L738 121" stroke="#47657D" stroke-width="2" fill="none"/>
+<path d="M730 116 L738 121 L730 126" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="450" y="158" text-anchor="middle" font-size="11.5" font-weight="700" fill="#71801A">② ServerHello + key_share</text>
+<text x="450" y="175" text-anchor="middle" font-size="10.5" fill="#54666F">obě strany teď spočítají stejné sdílené tajemství — dál už vše šifrovaně</text>
+<path d="M162 187 L738 187" stroke="#71801A" stroke-width="2" fill="none"/>
+<path d="M170 182 L162 187 L170 192" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="450" y="224" text-anchor="middle" font-size="11.5" font-weight="700" fill="#71801A">③ Certifikát + CertificateVerify + Finished</text>
+<text x="450" y="241" text-anchor="middle" font-size="10.5" fill="#54666F">certifikát serveru (podepsaný CA) a podpis soukromým klíčem serveru</text>
+<path d="M162 253 L738 253" stroke="#71801A" stroke-width="2" fill="none"/>
+<path d="M170 248 L162 253 L170 258" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="20" y="284" width="300" height="72" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<text x="170.0" y="302" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">④ Klient ověří certifikát</text>
+<text x="170.0" y="320" text-anchor="middle" font-size="10.5" fill="#54666F">podpis CA (asymetrie) · jméno · platnost</text>
+<text x="170.0" y="338" text-anchor="middle" font-size="10.5" fill="#54666F">otisk certifikátu = hash SHA-256</text>
+<rect x="70" y="378" width="760" height="54" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<text x="450.0" y="396" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">⑤ Obě strany odvodí stejné symetrické klíče</text>
+<text x="450.0" y="414" text-anchor="middle" font-size="10.5" fill="#54666F">funkce HKDF nad hashem (SHA-256 / SHA-384) celého handshaku</text>
+<text x="450" y="460" text-anchor="middle" font-size="11.5" font-weight="700" fill="#2E4657">⑥ Finished klienta → šifrovaná data HTTP</text>
+<text x="450" y="477" text-anchor="middle" font-size="10.5" fill="#54666F">symetricky: AES-GCM nebo ChaCha20-Poly1305 (rychlé, s kontrolou integrity)</text>
+<path d="M162 489 L738 489" stroke="#2E4657" stroke-width="2" fill="none"/>
+<path d="M730 484 L738 489 L730 494" stroke="#2E4657" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M170 484 L162 489 L170 494" stroke="#2E4657" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<circle r="5" fill="#47657D" opacity="0"><animateMotion dur="8.0s" repeatCount="indefinite" path="M168 121 L732 121" keyPoints="0;0;1;1" keyTimes="0;0.0625;0.1688;1" calcMode="linear"/><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0615;0.0725;0.1588;0.1688;1"/></circle>
+<circle r="5" fill="#71801A" opacity="0"><animateMotion dur="8.0s" repeatCount="indefinite" path="M732 187 L168 187" keyPoints="0;0;1;1" keyTimes="0;0.1875;0.2938;1" calcMode="linear"/><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1865;0.1975;0.2838;0.2938;1"/></circle>
+<circle r="5" fill="#71801A" opacity="0"><animateMotion dur="8.0s" repeatCount="indefinite" path="M732 253 L168 253" keyPoints="0;0;1;1" keyTimes="0;0.3125;0.4188;1" calcMode="linear"/><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3115;0.3225;0.4088;0.4188;1"/></circle>
+<rect x="16" y="280" width="308" height="80" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.4375;0.4575;0.5437;0.5737;1"/></rect>
+<rect x="66" y="374" width="768" height="62" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5625;0.5825;0.6687;0.6987;1"/></rect>
+<circle r="5" fill="#2E4657" opacity="0"><animateMotion dur="8.0s" repeatCount="indefinite" path="M168 489 L732 489" keyPoints="0;0;1;1" keyTimes="0;0.6875;0.7937;1" calcMode="linear"/><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6865;0.6975;0.7837;0.7937;1"/></circle>
+<circle r="5" fill="#2E4657" opacity="0"><animateMotion dur="8.0s" repeatCount="indefinite" path="M732 489 L168 489" keyPoints="0;0;1;1" keyTimes="0;0.6875;0.7937;1" calcMode="linear"/><animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6865;0.6975;0.7837;0.7937;1"/></circle>
+</svg>
+        <figcaption>Obr. 5 — TLS 1.3: výměna klíčů ECDHE (asymetrie), certifikát a podpis serveru (asymetrie + hash), pak data přes AES-GCM / ChaCha20 (symetricky).</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <h4>SSH — co se děje při <code>ssh uzivatel@server</code></h4>
+      <figure class="svg-figure">
+<svg viewBox="0 0 900 580" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgssht svgsshd">
+<title id="svgssht">Navázání spojení SSH zjednodušeně</title>
+<desc id="svgsshd">Klient a server si vymění verze a seznamy algoritmů. Proběhne výměna klíčů hybridním algoritmem mlkem768x25519-sha256 a server ji podepíše svým hostitelským klíčem. Klient porovná otisk hostitelského klíče se souborem known_hosts. Ze sdíleného tajemství vzniknou symetrické klíče relace. Pak se už šifrovaně ověří uživatel heslem nebo podpisem soukromým klíčem a běží šifrovaná relace.</desc>
+<rect x="30" y="14" width="260" height="46" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="2"/>
+<text x="160" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Klient (ssh)</text>
+<rect x="610" y="14" width="260" height="46" rx="12" fill="#EAF0F3" stroke="#2E4657" stroke-width="2.2"/>
+<text x="740" y="42" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Server (sshd, port 22)</text>
+<path d="M160 60 L160 572" stroke="#C4D1D7" stroke-width="1.6" stroke-dasharray="4 4" fill="none"/>
+<path d="M740 60 L740 572" stroke="#C4D1D7" stroke-width="1.6" stroke-dasharray="4 4" fill="none"/>
+<text x="450" y="92" text-anchor="middle" font-size="11.5" font-weight="700" fill="#47657D">① Verze + seznamy algoritmů (KEXINIT)</text>
+<text x="450" y="109" text-anchor="middle" font-size="10.5" fill="#54666F">SSH-2.0-OpenSSH_10.0 · domluví výměnu klíčů, šifru, kontrolu integrity</text>
+<path d="M162 121 L738 121" stroke="#47657D" stroke-width="2" fill="none"/>
+<path d="M730 116 L738 121 L730 126" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M170 116 L162 121 L170 126" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="450" y="158" text-anchor="middle" font-size="11.5" font-weight="700" fill="#47657D">② Klientova část výměny klíčů</text>
+<text x="450" y="175" text-anchor="middle" font-size="10.5" fill="#54666F">mlkem768x25519-sha256 — hybridní, odolná i proti kvantovým počítačům</text>
+<path d="M162 187 L738 187" stroke="#47657D" stroke-width="2" fill="none"/>
+<path d="M730 182 L738 187 L730 192" stroke="#47657D" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="450" y="224" text-anchor="middle" font-size="11.5" font-weight="700" fill="#71801A">③ Serverova část + podpis hostitelským klíčem</text>
+<text x="450" y="241" text-anchor="middle" font-size="10.5" fill="#54666F">důkaz, že server vlastní soukromý klíč /etc/ssh/ssh_host_ed25519_key</text>
+<path d="M162 253 L738 253" stroke="#71801A" stroke-width="2" fill="none"/>
+<path d="M170 248 L162 253 L170 258" stroke="#71801A" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="20" y="284" width="300" height="72" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<text x="170.0" y="302" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">④ Klient zkontroluje otisk serveru</text>
+<text x="170.0" y="320" text-anchor="middle" font-size="10.5" fill="#54666F">SHA256:… porovná s ~/.ssh/known_hosts</text>
+<text x="170.0" y="338" text-anchor="middle" font-size="10.5" fill="#54666F">první připojení → otázka yes/no</text>
+<rect x="70" y="378" width="760" height="36" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.6"/>
+<text x="450.0" y="396" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">⑤ Ze sdíleného tajemství a hashe výměny vzniknou symetrické klíče relace</text>
+<text x="450" y="442" text-anchor="middle" font-size="11.5" font-weight="700" fill="#2E4657">⑥ Ověření uživatele — už šifrovaně</text>
+<text x="450" y="459" text-anchor="middle" font-size="10.5" fill="#54666F">heslem, nebo podpisem soukromým klíčem uživatele (veřejný je v ~/.ssh/authorized_keys)</text>
+<path d="M162 471 L738 471" stroke="#2E4657" stroke-width="2" fill="none"/>
+<path d="M730 466 L738 471 L730 476" stroke="#2E4657" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<text x="450" y="508" text-anchor="middle" font-size="11.5" font-weight="700" fill="#2E4657">⑦ Šifrovaná relace: shell, scp, sftp, tunely</text>
+<text x="450" y="525" text-anchor="middle" font-size="10.5" fill="#54666F">symetricky: chacha20-poly1305 nebo aes-gcm</text>
+<path d="M162 537 L738 537" stroke="#2E4657" stroke-width="2" fill="none"/>
+<path d="M730 532 L738 537 L730 542" stroke="#2E4657" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M170 532 L162 537 L170 542" stroke="#2E4657" stroke-width="2" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
+<circle r="5" fill="#47657D" opacity="0"><animateMotion dur="9.0s" repeatCount="indefinite" path="M168 121 L732 121" keyPoints="0;0;1;1" keyTimes="0;0.0556;0.1500;1" calcMode="linear"/><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0546;0.0656;0.1400;0.1500;1"/></circle>
+<circle r="5" fill="#47657D" opacity="0"><animateMotion dur="9.0s" repeatCount="indefinite" path="M732 121 L168 121" keyPoints="0;0;1;1" keyTimes="0;0.0556;0.1500;1" calcMode="linear"/><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0546;0.0656;0.1400;0.1500;1"/></circle>
+<circle r="5" fill="#47657D" opacity="0"><animateMotion dur="9.0s" repeatCount="indefinite" path="M168 187 L732 187" keyPoints="0;0;1;1" keyTimes="0;0.1667;0.2611;1" calcMode="linear"/><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1657;0.1767;0.2511;0.2611;1"/></circle>
+<circle r="5" fill="#71801A" opacity="0"><animateMotion dur="9.0s" repeatCount="indefinite" path="M732 253 L168 253" keyPoints="0;0;1;1" keyTimes="0;0.2778;0.3722;1" calcMode="linear"/><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.2768;0.2878;0.3622;0.3722;1"/></circle>
+<rect x="16" y="280" width="308" height="80" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3889;0.4089;0.4833;0.5133;1"/></rect>
+<rect x="66" y="374" width="768" height="44" rx="15" fill="none" stroke="#DBF02A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5000;0.5200;0.5944;0.6244;1"/></rect>
+<circle r="5" fill="#2E4657" opacity="0"><animateMotion dur="9.0s" repeatCount="indefinite" path="M168 471 L732 471" keyPoints="0;0;1;1" keyTimes="0;0.6111;0.7056;1" calcMode="linear"/><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6101;0.6211;0.6956;0.7056;1"/></circle>
+<circle r="5" fill="#2E4657" opacity="0"><animateMotion dur="9.0s" repeatCount="indefinite" path="M168 537 L732 537" keyPoints="0;0;1;1" keyTimes="0;0.7222;0.8167;1" calcMode="linear"/><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.7212;0.7322;0.8067;0.8167;1"/></circle>
+<circle r="5" fill="#2E4657" opacity="0"><animateMotion dur="9.0s" repeatCount="indefinite" path="M732 537 L168 537" keyPoints="0;0;1;1" keyTimes="0;0.7222;0.8167;1" calcMode="linear"/><animate attributeName="opacity" dur="9.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.7212;0.7322;0.8067;0.8167;1"/></circle>
+</svg>
+        <figcaption>Obr. 6 — SSH (OpenSSH 10 v Debianu 13): hybridní post-kvantová výměna klíčů, podpis hostitelským klíčem a kontrola jeho otisku, pak symetricky šifrovaná relace.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Stavební kámen</th><th>TLS (HTTPS, port 443)</th><th>SSH (port 22)</th></tr></thead>
+          <tbody>
+            <tr><td><b>Dohoda na klíči</b> (asym.)</td><td>ECDHE — X25519, P-256 (nově i hybrid s ML-KEM)</td><td>mlkem768x25519-sha256 (výchozí od OpenSSH 10.0), curve25519-sha256</td></tr>
+            <tr><td><b>Kdo ručí za server</b></td><td><b>certifikát</b> podepsaný certifikační autoritou (CA), kterou zná prohlížeč</td><td><b>otisk hostitelského klíče</b> — při prvním připojení ho ověří uživatel, pak je uložen v <code>~/.ssh/known_hosts</code></td></tr>
+            <tr><td><b>Podpis</b> (asym. + hash)</td><td>server podepíše handshake klíčem k certifikátu (RSA / ECDSA / Ed25519)</td><td>server podepíše výměnu klíčů hostitelským klíčem (<code>/etc/ssh/ssh_host_*_key</code>)</td></tr>
+            <tr><td><b>Šifrování dat</b> (sym.)</td><td>AES-128/256-GCM, ChaCha20-Poly1305</td><td>chacha20-poly1305, aes128/256-gcm, aes-ctr</td></tr>
+            <tr><td><b>Hash</b></td><td>odvození klíčů (HKDF se SHA-256/384), otisk certifikátu</td><td>hash výměny klíčů, otisky klíčů <code>SHA256:…</code>, integrita (HMAC-SHA2 / AEAD)</td></tr>
+            <tr><td><b>Ověření klienta</b></td><td>obvykle až heslem ve webové aplikaci (volitelně klientský certifikát)</td><td>heslo, nebo <b>pár klíčů uživatele</b> — veřejný klíč v <code>~/.ssh/authorized_keys</code> na serveru</td></tr>
+            <tr><td><b>Nástroje v Debianu</b></td><td><code>openssl s_client</code>, <code>openssl x509</code></td><td><code>ssh</code>, <code>ssh-keygen</code>, <code>ssh -Q</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout">
+        <p><b>Hláška „The authenticity of host … can't be established“</b> se objeví při prvním připojení SSH. Klient ukáže otisk <code>SHA256:…</code> hostitelského klíče serveru. Odpovězte <code>yes</code>, až když otisk porovnáte s tím, který vám dal správce (ten ho zjistí na serveru příkazem <code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>). Když se otisk později <b>změní</b>, SSH spojení odmítne — buď server dostal nové klíče, nebo se mezi vás a server někdo vložil (útok man-in-the-middle).</p>
+      </div>
+
+      <h3>Přehled příkazů pro dnešní zadání</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Rychlá orientační reference — podrobné použití si vyzkoušíte v části Řešení.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz</th><th>Co dělá</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>md5sum</b> · <b>sha256sum</b> · <b>sha512sum</b></td><td>Otisk souboru nebo standardního vstupu</td><td>výstup: <code>otisk␣␣jméno</code>; vstup z roury má jméno <code>-</code></td></tr>
+            <tr><td><b>sha256sum -c SOUBOR</b></td><td>Ověří otisky uložené v kontrolním souboru</td><td>pro každý soubor <code>OK</code> / <code>FAILED</code>, při chybě nenulový návratový kód</td></tr>
+            <tr><td><b>openssl dgst -sha256</b></td><td>Otisk přes OpenSSL</td><td>jiný formát výstupu: <code>SHA2-256(stdin)= …</code>; <code>-r</code> = formát jako sha256sum</td></tr>
+            <tr><td><b>mkpasswd -m yescrypt</b></td><td>Hash hesla pro <code>/etc/shadow</code></td><td>balík <code>whois</code>; heslo zadejte až na výzvu, ať nezůstane v historii</td></tr>
+            <tr><td><b>openssl passwd -6</b></td><td>Hash hesla sha512crypt (<code>$6$</code>)</td><td>bez <code>-6</code> použije zastaralé MD5; sůl se zkrátí na 16 znaků</td></tr>
+            <tr><td><b>openssl rand -base64 N</b></td><td>N náhodných bajtů v Base64</td><td>16 B → 24 znaků (včetně <code>==</code>); 12 B → přesně 16 znaků</td></tr>
+            <tr><td><b>openssl s_client -connect H:443</b></td><td>Naváže TLS spojení a vypíše certifikát, verzi a šifru</td><td><code>-brief</code> = jen souhrn; <code>-servername</code> = jméno webu (SNI)</td></tr>
+            <tr><td><b>ssh-keygen -t ed25519</b> · <b>ssh-keygen -lf KLÍČ.pub</b></td><td>Vytvoří pár klíčů · vypíše otisk klíče</td><td>výchozí otisk je <code>SHA256:</code> v Base64 (<code>-E md5</code> = starý formát)</td></tr>
+            <tr><td><b>ssh -Q kex</b> · <b>ssh -Q cipher</b></td><td>Algoritmy výměny klíčů / symetrické šifry, které klient umí</td><td><code>ssh -V</code> = verze OpenSSH</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>Návrh a realizace řešení</h2>
+      <p class="lede">Hodina má 45 minut: zhruba <b>18 min</b> výklad s diagramy, <b>27 min</b> praktická část ve třech fázích: <b>1</b> otisky souborů a detektivka (12 min) → <b>2</b> hashe hesel (8 min) → <b>3</b> otisky a klíče v TLS a SSH (7 min). <b>Fáze 4</b> je bonus pro rychlé týmy nebo domácí práci. Pracujte na <b>Serveru</b> ve dvojicích. Fáze 3 potřebuje internet — ten má Server od kapitol 6 a 7 přes NAT.</p>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — plete si šifrování a hash, neumí říct, k čemu je veřejný a k čemu soukromý klíč.</li>
+            <li><b>Rozvíjející se</b> — rozliší symetrickou a asymetrickou šifru, ale neumí vysvětlit, proč se v praxi kombinují.</li>
+            <li><b>Očekávaná úroveň</b> — vysvětlí obě šifry, vlastnosti hashe, roli soli a hybridní princip TLS a SSH.</li>
+            <li><b>Nad rámec</b> — vysvětlí digitální podpis a proč se hesla nehashují rychlými funkcemi jako SHA-256.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — nedokáže spočítat ani porovnat otisk souboru.</li>
+            <li><b>Rozvíjející se</b> — spočítá otisky, ale kontrolní soubor a <code>sha256sum -c</code> nepoužije správně.</li>
+            <li><b>Očekávaná úroveň</b> — najde změněný soubor, určí originál podle otisku, rozpozná algoritmus v <code>/etc/shadow</code> a zjistí verzi TLS, šifru a otisky klíčů.</li>
+            <li><b>Nad rámec</b> — dokončí bonusovou fázi 4 (AES, RSA, podpis přes <code>openssl</code>).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — neví, k čemu je otisk staženého ISO nebo SSH klíče.</li>
+            <li><b>Rozvíjející se</b> — ví, že se otisk má porovnat, ale nezná postup.</li>
+            <li><b>Očekávaná úroveň</b> — umí ověřit stažený soubor podle kontrolního součtu a otisk hostitelského klíče při prvním SSH připojení.</li>
+            <li><b>Nad rámec</b> — popíše, jak by poznal útok man-in-the-middle u SSH a u HTTPS.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — potřebuje pomoc u každého příkazu.</li>
+            <li><b>Rozvíjející se</b> — zvládne fázi 1, u dalších potřebuje vést.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, nejasnosti si dohledá v manuálových stránkách.</li>
+            <li><b>Nad rámec</b> — pomáhá spolužákům a ve dvojici aktivně připravuje „podvržený“ soubor pro detektivku.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím vysvětlit rozdíl mezi symetrickou a asymetrickou šifrou a říct, který klíč se používá k šifrování a který k dešifrování.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím vysvětlit, proč TLS a SSH kombinují asymetrickou kryptografii se symetrickou šifrou.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Umím popsat vlastnosti hashovací funkce (pevná délka, jednosměrnost, lavinový efekt, odolnost proti kolizím) a vím, proč nepoužívat MD5 a SHA-1.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím vytvořit kontrolní soubor otisků a ověřit podle něj soubory (sha256sum -c).</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Umím podle prefixu v /etc/shadow určit algoritmus hesla a vysvětlit, k čemu je sůl.</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím zjistit verzi TLS, šifru a otisk certifikátu webového serveru.</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím vytvořit pár SSH klíčů, rozlišit veřejný a soukromý klíč a vypsat otisk klíče.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Vím, co udělat, když SSH při prvním připojení ukáže otisk serveru, a co znamená, když se otisk později změní.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty výstupu sha256sum -c, porovnání kandidátů, řádku z /etc/shadow (hash zakryjte!), dvou výstupů mkpasswd, souhrnu openssl s_client a ssh-keygen -lf ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky CBL — oficiální manuálové stránky Debianu, dokumentace OpenSSL a OpenSSH, standardy IETF (RFC) a NIST a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 8 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 8 — Symetrické a asymetrické šifrování, hashovací algoritmy
+   ========================================================================== */
+
+  // Pomocná funkce: převede prostý text příkazů na barevný terminálový blok.
+  //   řádek začínající "# "  = komentář (barevně)
+  //   řádek začínající "| "  = obsah konfiguračního souboru / ukázkový výstup (barevně, značka "| " se odstraní)
+  //   ostatní řádky           = příkazy
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function cmd(txt){
+    var out = txt.replace(/^\n/,"").replace(/\n$/,"").split("\n").map(function(l){
+      if(l === "#" || l.indexOf("# ") === 0) return '<span class="c">'+esc(l)+'</span>';
+      if(l === "|" || l.indexOf("| ") === 0) return '<span class="c">'+esc(l.slice(2))+'</span>';
+      return esc(l);
+    }).join("\n");
+    return '<pre class="cmdblock"><code>'+out+'</code></pre>';
+  }
+
+  var TOPIC = {
+    num: "8",
+    title: "Symetrické a asymetrické šifrování, hashovací algoritmy",
+    hours: "1 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "Bezpečná komunikace stojí na třech nástrojích: <b>symetrická šifra</b> rychle chrání data, <b>asymetrická kryptografie</b> (veřejný a soukromý klíč) řeší dohodu na klíči a ověření identity a <b>hash</b> vytváří otisk dat, podle kterého se pozná každá změna. <b>TLS (HTTPS)</b> i <b>SSH</b> skládají dohromady všechny tři.",
+    eq: "Jak si dva počítače, které se nikdy neviděly, domluví tajný klíč přes odposlouchávanou síť — a jak poznáme, že soubor, heslo nebo server je opravdu ten pravý?",
+    challenge: "Správce Školy X odjel a nechal na <b>Serveru</b> důležité soubory i s kontrolním souborem otisků. Někdo v jednom souboru změnil jediný znak. <b>Najděte ho pomocí hashů</b> a podle otisku určete, který text byl původní. Pak zjistěte, jakým algoritmem jsou v <code>/etc/shadow</code> uložena hesla a proč dá stejné heslo pokaždé jiný hash. Nakonec se podívejte „pod kapotu“ HTTPS spojení na <b>www.seznam.cz</b> (verze TLS, šifra, otisk certifikátu) a vytvořte si <b>vlastní pár SSH klíčů</b> pro příští kapitolu."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Čím se liší symetrická a asymetrická šifra — kolik mají klíčů, jak jsou rychlé a jaký problém každá z nich řeší?",
+      "Proč se zpráva šifruje veřejným klíčem příjemce, ale podepisuje soukromým klíčem odesílatele?",
+      "Jaké vlastnosti musí mít hashovací funkce a proč se MD5 a SHA-1 už nesmí používat pro bezpečnost?",
+      "Proč se hesla v /etc/shadow ukládají jako solený hash pomalou funkcí (yescrypt), a ne jako prostý SHA-256?",
+      "Jak TLS a SSH kombinují asymetrii, symetrickou šifru a hash — a jak klient pozná, že mluví se správným serverem?"
+    ],
+    resources: [
+      {
+        title: "crypt(5) — formáty hashů hesel v Debianu (libxcrypt)",
+        tag: "official",
+        items: [
+          "Přehled prefixů v <code>/etc/shadow</code>: <code>$y$</code> yescrypt (doporučený pro nová hesla), <code>$6$</code> sha512crypt a <code>$5$</code> sha256crypt (přijatelné, ale výchozích 5000 kol je na dnešní hardware málo), <code>$1$</code> md5crypt (nepoužívat).",
+          "<a href='https://manpages.debian.org/trixie/libcrypt-dev/crypt.5.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/libcrypt-dev/crypt.5.en.html</a>"
+        ]
+      },
+      {
+        title: "Poznámky k vydání Debianu 11 — yescrypt jako výchozí hash hesel",
+        tag: "official",
+        items: [
+          "Kap. 5.1.4: výchozí hash hesel lokálních účtů se změnil ze SHA-512 na yescrypt. Stará hesla dál fungují, nový hash vznikne až při změně hesla (<code>passwd</code>).",
+          "<a href='https://www.debian.org/releases/bullseye/amd64/release-notes.en.txt' target='_blank' rel='noopener'>debian.org/releases/bullseye/…/release-notes.en.txt</a>"
+        ]
+      },
+      {
+        title: "mkpasswd(1) a login.defs(5) — generování hashe hesla",
+        tag: "official",
+        items: [
+          "<code>mkpasswd</code> (balík <code>whois</code>) vytvoří hash zvolenou metodou, seznam metod vypíše <code>mkpasswd -m help</code>. Podle <code>login.defs(5)</code> se <code>ENCRYPT_METHOD</code> týká jen <code>chgpasswd</code>, <code>gpasswd</code> a <code>newusers</code>; hesla uživatelů nastavovaná přes <code>passwd</code> hashuje PAM.",
+          "<a href='https://manpages.debian.org/trixie/whois/mkpasswd.1.en.html' target='_blank' rel='noopener'>…/whois/mkpasswd.1.en.html</a> · <a href='https://manpages.debian.org/trixie/login.defs/login.defs.5.en.html' target='_blank' rel='noopener'>…/login.defs.5.en.html</a>"
+        ]
+      },
+      {
+        title: "sha256sum(1) — GNU coreutils",
+        tag: "official",
+        items: [
+          "Výpočet a kontrola (<code>-c</code>) otisků SHA-256; stejně fungují <code>md5sum</code>, <code>sha1sum</code>, <code>sha512sum</code>.",
+          "<a href='https://manpages.debian.org/trixie/coreutils/sha256sum.1.en.html' target='_blank' rel='noopener'>manpages.debian.org/trixie/coreutils/sha256sum.1.en.html</a>"
+        ]
+      },
+      {
+        title: "OpenSSL 3.5 — passwd, dgst, s_client",
+        tag: "official",
+        items: [
+          "<code>openssl passwd</code> umí <code>-1</code> (MD5, výchozí), <code>-5</code>, <code>-6</code>, yescrypt ne. <code>openssl dgst</code> počítá otisky, <code>openssl s_client</code> naváže TLS spojení (<code>-brief</code>, <code>-servername</code>).",
+          "<a href='https://docs.openssl.org/3.5/man1/openssl-passwd/' target='_blank' rel='noopener'>docs.openssl.org/3.5/man1/openssl-passwd/</a> · <a href='https://docs.openssl.org/3.5/man1/openssl-s_client/' target='_blank' rel='noopener'>…/openssl-s_client/</a>"
+        ]
+      },
+      {
+        title: "ssh-keygen(1), sshd_config(5) a poznámky k OpenSSH 10.0",
+        tag: "official",
+        items: [
+          "<code>ssh-keygen</code> — výchozí typ klíče Ed25519, otisky ve formátu <code>SHA256:</code>. <code>sshd_config(5)</code> — výchozí <code>KexAlgorithms</code> začínají <code>mlkem768x25519-sha256</code>, výchozí <code>Ciphers</code> <code>chacha20-poly1305@openssh.com</code>. OpenSSH 10.0 (duben 2025) zavedl hybridní post-kvantovou výměnu klíčů jako výchozí.",
+          "<a href='https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html' target='_blank' rel='noopener'>…/ssh-keygen.1.en.html</a> · <a href='https://manpages.debian.org/trixie/openssh-server/sshd_config.5.en.html' target='_blank' rel='noopener'>…/sshd_config.5.en.html</a> · <a href='https://www.openssh.org/releasenotes.html' target='_blank' rel='noopener'>openssh.org/releasenotes.html</a>"
+        ]
+      },
+      {
+        title: "RFC 8446 (TLS 1.3), RFC 8996 a RFC 7568 — konec SSL a starých TLS",
+        tag: "official",
+        items: [
+          "Specifikace TLS 1.3 včetně handshaku (ClientHello/ServerHello, key_share, Certificate, CertificateVerify, Finished). RFC 8996 zakazuje TLS 1.0 a 1.1, RFC 7568 zakazuje SSL 3.0.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc8446' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc8446</a> · <a href='https://www.rfc-editor.org/rfc/rfc8996' target='_blank' rel='noopener'>rfc8996</a> · <a href='https://www.rfc-editor.org/rfc/rfc7568' target='_blank' rel='noopener'>rfc7568</a>"
+        ]
+      },
+      {
+        title: "RFC 4251 a RFC 4253 — architektura a transportní vrstva SSH",
+        tag: "official",
+        items: [
+          "Vrstvy SSH-2 (transport, ověření uživatele, spojení), výměna klíčů, ověření hostitelského klíče serveru a odvození symetrických klíčů relace.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc4251' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc4251</a> · <a href='https://www.rfc-editor.org/rfc/rfc4253' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc4253</a>"
+        ]
+      },
+      {
+        title: "RFC 6151 a NIST FIPS 180-4 — MD5 a rodina SHA",
+        tag: "official",
+        items: [
+          "RFC 6151: MD5 už není přijatelná tam, kde je potřeba odolnost proti kolizím (např. podpisy). FIPS 180-4 (Secure Hash Standard) definuje SHA-1 a rodinu SHA-2.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc6151' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc6151</a> · <a href='https://csrc.nist.gov/pubs/fips/180-4/upd1/final' target='_blank' rel='noopener'>csrc.nist.gov/pubs/fips/180-4/upd1/final</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Který z algoritmů je <b>symetrická</b> šifra?",
+      opts: ["RSA", "AES", "Ed25519", "SHA-256"],
+      correct: 1,
+      explain: "AES používá jeden sdílený klíč pro šifrování i dešifrování. RSA a Ed25519 jsou asymetrické (pár klíčů). SHA-256 není šifra vůbec — je to hashovací funkce bez klíče."
+    },
+    {
+      q: "Alice chce Bobovi poslat tajnou zprávu asymetrickým šifrováním. Kterým klíčem ji zašifruje?",
+      opts: ["Svým soukromým klíčem", "Svým veřejným klíčem", "Bobovým veřejným klíčem", "Bobovým soukromým klíčem"],
+      correct: 2,
+      explain: "Šifruje se <b>veřejným klíčem příjemce</b> — dešifrovat pak dokáže jen jeho soukromý klíč. Bobův soukromý klíč Alice nikdy mít nesmí. Soukromým klíčem <i>odesílatele</i> se naopak <b>podepisuje</b>."
+    },
+    {
+      q: "Lze z otisku SHA-256 získat zpět původní text?",
+      opts: ["Ano, stačí znát klíč", "Ano, příkazem sha256sum -d", "Ne — hash je jednosměrná funkce; vstup lze jen hádat a porovnávat otisky", "Jen u krátkých textů do 64 znaků"],
+      correct: 2,
+      explain: "Hash není šifra, nemá klíč a nejde „dešifrovat“. Útočník může jen zkoušet vstupy a porovnávat otisky (hrubá síla, slovník) — proto se hesla hashují záměrně pomalými funkcemi se solí."
+    },
+    {
+      q: "Proč příkaz <code>mkpasswd -m yescrypt</code> vrátí pro stejné heslo pokaždé jiný výsledek?",
+      opts: ["Yescrypt je nedeterministický a hesla se nedají ověřit", "Pokaždé se vygeneruje jiná náhodná sůl, která je uložená přímo v hashi", "Mění se podle aktuálního času", "Jde o chybu — má vyjít stejně"],
+      correct: 1,
+      explain: "Před hashováním se k heslu přidá náhodná <b>sůl</b>. Ta je uložená v hashi mezi znaky <code>$</code>, takže systém při přihlášení zahashuje zadané heslo se stejnou solí a výsledky porovná. Stejná hesla tak mají různé hashe a předpočítané tabulky útočníkovi nepomohou."
+    },
+    {
+      q: "<code>sha256sum -c kontrola.sha256</code> vypíše u souboru <code>motd.txt: FAILED</code>. Co to znamená?",
+      opts: ["Soubor motd.txt neexistuje", "Obsah motd.txt se od vytvoření kontrolního souboru změnil", "Algoritmus SHA-256 selhal", "Soubor je zašifrovaný"],
+      correct: 1,
+      explain: "Otisk aktuálního obsahu se neshoduje s otiskem uloženým v kontrolním souboru → obsah se změnil (stačí jediný znak nebo konec řádku). Kdyby soubor chyběl, objeví se <code>No such file or directory</code> a <code>FAILED open or read</code>."
+    },
+    {
+      q: "Čím se v TLS i SSH šifrují samotná přenášená data?",
+      opts: ["Veřejným klíčem serveru (RSA)", "Symetrickou šifrou (AES-GCM, ChaCha20) s klíčem dohodnutým na začátku spojení", "Hashem SHA-256", "Nešifrují se, šifruje se jen heslo"],
+      correct: 1,
+      explain: "Asymetrie je pomalá, proto se použije jen na dohodu klíče (ECDHE, X25519, ML-KEM) a ověření identity. Data se šifrují rychlou symetrickou šifrou s klíčem relace — hybridní princip."
+    },
+    {
+      q: "Při prvním <code>ssh</code> na server se objeví otisk <code>SHA256:Kw+5e2…</code> a otázka yes/no. Co je správné udělat?",
+      opts: ["Vždy odpovědět yes — je to jen formalita", "Porovnat otisk s otiskem, který zjistil správce na serveru (ssh-keygen -lf), a teprve pak odpovědět yes", "Odpovědět no a připojit se přes telnet", "Smazat ~/.ssh/known_hosts"],
+      correct: 1,
+      explain: "Otisk hostitelského klíče je jediný způsob, jak ověřit, že se připojujete ke správnému serveru, a ne k útočníkovi uprostřed (MITM). Po potvrzení se klíč uloží do <code>~/.ssh/known_hosts</code> a při každém dalším připojení se kontroluje."
+    }
+  ];
+
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu (odpověď), se NEPÍŠÍ přímo do checklistu.
+  // Vloží se do pole "extra" dané fáze — renderAct je zabalí do rozklikávacího "Zobrazit řešení".
+  var ACT = [
+    {
+      num: 1, en: "Otisky souborů · detektivka", title: "Fáze 1 — Otisk souboru a detektivka: který soubor byl změněn?",
+      body: "<p>⏱ orientačně 12 min, ve dvojicích. V domovském adresáři vytvořte složku <code>hash-lab</code> a v ní tři soubory s tímto obsahem (každý soubor = jeden řádek, ukončený koncem řádku):</p>" +
+            "<div style='overflow-x:auto;'><table class='src-table data-table'><thead><tr><th>Soubor</th><th>Obsah</th></tr></thead><tbody>" +
+            "<tr><td><b>zprava.txt</b></td><td><code>Sraz v 10:00 u ucebny 214</code></td></tr>" +
+            "<tr><td><b>server.conf</b></td><td><code>PermitRootLogin no</code></td></tr>" +
+            "<tr><td><b>motd.txt</b></td><td><code>Vitejte na serveru Skoly X</code></td></tr>" +
+            "</tbody></table></div>" +
+            "<p style='margin-top:.9rem;'><b>Poznej soubor podle otisku:</b> správce si zálohoval jen SHA-256 otisk původní zprávy: <code>161c2149…279ab1d1</code> (prvních a posledních 8 znaků). Který z kandidátů je originál?</p>" +
+            "<div style='overflow-x:auto;'><table class='src-table data-table'><thead><tr><th>Kandidát</th><th>Text</th></tr></thead><tbody>" +
+            "<tr><td><b>A</b></td><td><code>Sraz v 10:00 u ucebny 214</code></td></tr>" +
+            "<tr><td><b>B</b></td><td><code>Sraz v 10:00 u ucebny 241</code></td></tr>" +
+            "<tr><td><b>C</b></td><td><code>Sraz v 11:00 u ucebny 214</code></td></tr>" +
+            "</tbody></table></div>",
+      checklist: [
+        "Vytvořena složka <code>~/hash-lab</code> a v ní tři soubory s obsahem z tabulky",
+        "Spočítán otisk MD5 i SHA-256 souboru <code>zprava.txt</code>; zapsáno, kolik hex znaků má každý otisk a kolik je to bitů",
+        "Ověřen lavinový efekt: porovnány otisky textů <code>kokos</code> a <code>Kokos</code> a textu <code>kokos</code> s koncem řádku a bez něj; výsledek porovnán s Hashovací laboratoří v části Zkoumání",
+        "Otisky SHA-256 všech tří souborů uloženy jedním příkazem do kontrolního souboru <code>kontrola.sha256</code> a jeho obsah zobrazen",
+        "Spolužák (bez vašeho vědomí) změnil v jednom ze tří souborů jediný znak; ověřením kontrolního souboru jste zjistili, který soubor to byl — zapsán výstup (<code>OK</code> / <code>FAILED</code>) a návratový kód <code>$?</code>",
+        "Určeno, který kandidát (A, B, C) je originál zprávy se zálohovaným otiskem <code>161c2149…279ab1d1</code>",
+        "Vyzkoušena ukázka ze zdroje: otisk všech souborů <code>/etc/host*</code> jedním příkazem (<code>find … -exec</code>)"
+      ],
+      extra: cmd(`
+# --- příprava souborů ---
+mkdir -p ~/hash-lab && cd ~/hash-lab
+echo "Sraz v 10:00 u ucebny 214" > zprava.txt
+echo "PermitRootLogin no" > server.conf
+echo "Vitejte na serveru Skoly X" > motd.txt
+
+# --- otisky jednoho souboru ---
+md5sum zprava.txt        # 32 hex znaků = 128 bitů
+sha256sum zprava.txt     # 64 hex znaků = 256 bitů
+| 40491a5926b21f0106571fd51af4fa1b0e001db08fb2bc1a29d4baa6c61d3b1f  zprava.txt
+
+# --- lavinový efekt a konec řádku ---
+echo "kokos" | sha256sum
+echo "Kokos" | sha256sum
+echo -n "kokos" | sha256sum    # bez \\n → jiný otisk
+
+# --- kontrolní soubor ---
+sha256sum zprava.txt server.conf motd.txt > kontrola.sha256
+cat kontrola.sha256
+
+# --- spolužák změní jeden znak (např. v motd.txt) ---
+nano motd.txt
+sha256sum -c kontrola.sha256
+| zprava.txt: OK
+| server.conf: OK
+| motd.txt: FAILED
+| sha256sum: WARNING: 1 computed checksum did NOT match
+echo $?        # 1 = nalezena neshoda
+
+# --- poznej originál podle otisku ---
+echo "Sraz v 10:00 u ucebny 214" | sha256sum   # 40491a59…c61d3b1f
+echo "Sraz v 10:00 u ucebny 241" | sha256sum   # 161c2149…279ab1d1  ← originál = B
+echo "Sraz v 11:00 u ucebny 214" | sha256sum   # 5c52285c…a87046a5
+
+# --- ukázka ze zdroje: otisky všech souborů /etc/host* ---
+find /etc/host* -type f -exec sha256sum {} \\;
+`)
+    },
+    {
+      num: 2, en: "Hashe hesel", title: "Fáze 2 — Jak Debian ukládá hesla",
+      body: "<p>⏱ orientačně 8 min. Podívejte se, jak je uložené vaše vlastní heslo, a vyzkoušejte si generování hashe hesla. <b>Na screenshotu řádku z <code>/etc/shadow</code> hash zakryjte</b> — i hash hesla je citlivý údaj.</p>",
+      checklist: [
+        "Zobrazen řádek vašeho uživatele v <code>/etc/shadow</code> (jen root) a podle prefixu určen algoritmus hesla",
+        "V <code>/etc/pam.d/common-password</code> nalezen řádek s <code>pam_unix.so</code> a v něm algoritmus, který používá <code>passwd</code>; zapsáno, proč nastavení <code>ENCRYPT_METHOD</code> v <code>/etc/login.defs</code> pro <code>passwd</code> neplatí",
+        "Nainstalován balík <code>whois</code> a dvakrát za sebou vygenerován yescrypt hash <b>stejného</b> hesla (heslo zadané až na výzvu, ne na příkazové řádce); zapsáno, proč se výsledky liší a kde je v hashi sůl",
+        "Dvakrát vygenerován hash sha512crypt (<code>$6$</code>) se <b>stejnou zadanou solí</b> a jednou bez soli; zapsáno, kdy vyšel stejný výsledek a proč",
+        "Zapsáno vlastními slovy, proč se hesla nehashují prostým <code>sha256sum</code> ani <code>openssl dgst</code>"
+      ],
+      extra: cmd(`
+# --- vlastní řádek v /etc/shadow ---
+sudo grep "^$USER:" /etc/shadow
+| zak:$y$j9T$…$…:20380:0:99999:7:::        # $y$ = yescrypt
+
+# --- kdo určuje algoritmus pro passwd ---
+grep pam_unix /etc/pam.d/common-password
+| password  [success=1 default=ignore]  pam_unix.so obscure yescrypt
+grep -i "^ENCRYPT_METHOD" /etc/login.defs
+# login.defs(5): ENCRYPT_METHOD jen pro chgpasswd, gpasswd, newusers — passwd řídí PAM
+
+# --- yescrypt přes mkpasswd (balík whois) ---
+sudo apt install whois
+mkpasswd -m help          # seznam podporovaných metod
+mkpasswd -m yescrypt      # heslo zadejte na výzvu
+mkpasswd -m yescrypt      # stejné heslo → jiný výsledek (jiná náhodná sůl)
+| $y$j9T$Hz2AEyKq9CFcl2Dgs.XHv0$4CiK…
+| $y$j9T$LLC1.rDMmRTchvLt6clhh.$l5be…
+
+# --- sha512crypt přes openssl: stejná sůl = stejný hash ---
+openssl passwd -6 -salt Skola2026
+openssl passwd -6 -salt Skola2026
+openssl passwd -6         # bez -salt: náhodná sůl, pokaždé jiný výsledek
+# POZOR: bez -6 použije openssl passwd zastaralé MD5 ($1$)
+`)
+    },
+    {
+      num: 3, en: "TLS a SSH v praxi", title: "Fáze 3 — Otisky a klíče v SSL/TLS a SSH",
+      body: "<p>⏱ orientačně 7 min. Podívejte se, jak se teorie z části D projeví ve skutečném HTTPS spojení, a připravte si vlastní pár SSH klíčů — využijete ho v kapitole SSH. Klient <code>ssh</code> je v Debianu nainstalovaný (balík <code>openssh-client</code>); pokud chybí, doinstalujte ho.</p>",
+      checklist: [
+        "Navázáno TLS spojení s <code>www.seznam.cz:443</code> a ze souhrnu zapsána verze protokolu a šifrovací sada; u šifrovací sady (např. <code>TLS_AES_256_GCM_SHA384</code>) určeno, která část je symetrická šifra a která hash",
+        "Zobrazen vlastník certifikátu (subject), vydavatel (CA) a SHA-256 otisk certifikátu www.seznam.cz",
+        "Vytvořen vlastní pár SSH klíčů typu Ed25519; zapsáno, který soubor je veřejný a který soukromý klíč a jaká mají oprávnění",
+        "Vypsán otisk vlastního veřejného klíče (formát <code>SHA256:…</code>) a porovnán se spolužákem — každý má jiný",
+        "Vypsány algoritmy výměny klíčů a symetrické šifry, které umí váš <code>ssh</code> klient; nalezen hybridní <code>mlkem768x25519-sha256</code> a <code>chacha20-poly1305@openssh.com</code>"
+      ],
+      extra: cmd(`
+# --- TLS: verze, šifra, certifikát ---
+openssl s_client -connect www.seznam.cz:443 -servername www.seznam.cz -brief </dev/null
+| Protocol version: TLSv1.3
+| Ciphersuite: TLS_AES_256_GCM_SHA384      # příklad: AES_256_GCM = symetrická šifra, SHA384 = hash
+openssl s_client -connect www.seznam.cz:443 -servername www.seznam.cz </dev/null 2>/dev/null \\
+  | openssl x509 -noout -subject -issuer -fingerprint -sha256
+
+# --- SSH: vlastní pár klíčů ---
+ssh-keygen -t ed25519 -C "$USER@server"
+ls -l ~/.ssh/
+| -rw------- … id_ed25519        # soukromý klíč — jen vlastník
+| -rw-r--r-- … id_ed25519.pub    # veřejný klíč — smí ho vidět kdokoli
+ssh-keygen -lf ~/.ssh/id_ed25519.pub
+| 256 SHA256:… zak@server (ED25519)
+
+# --- co umí klient ---
+ssh -V
+ssh -Q kex
+ssh -Q cipher
+
+# volitelně, je-li na stroji už openssh-server: otisk hostitelského klíče serveru
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
+`)
+    },
+    {
+      num: 4, en: "Bonus: šifrování přes openssl", title: "Fáze 4 — Bonus: symetrická šifra, asymetrická šifra a podpis vlastníma rukama",
+      body: "<p>⏱ bonus pro rychlé týmy nebo domácí práce, orientačně 15 min. Vyzkoušejte si obr. 1, 2 a 4 v praxi nástrojem <code>openssl</code>. Pracujte ve složce <code>~/hash-lab</code>.</p>",
+      checklist: [
+        "Soubor <code>tajne.txt</code> zašifrován symetricky šifrou AES-256 s heslem (klíč odvozený funkcí PBKDF2) a znovu dešifrován; ověřeno, že se špatným heslem dešifrování selže",
+        "Vytvořen pár klíčů RSA 2048 b (soukromý klíč) a z něj vytažen veřejný klíč",
+        "Krátká zpráva zašifrována <b>veřejným</b> klíčem a dešifrována <b>soukromým</b> klíčem (obr. 2)",
+        "Zpráva podepsána soukromým klíčem a podpis ověřen veřejným klíčem (<code>Verified OK</code>); po změně jediného znaku zprávy ověření selže (obr. 4)"
+      ],
+      extra: cmd(`
+cd ~/hash-lab
+echo "Tajna zprava pro Boba" > tajne.txt
+
+# --- symetricky: AES-256 s heslem ---
+openssl enc -aes-256-cbc -pbkdf2 -salt -in tajne.txt -out tajne.enc
+openssl enc -d -aes-256-cbc -pbkdf2 -in tajne.enc
+
+# --- asymetricky: pár klíčů RSA ---
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out bob-soukromy.pem
+openssl pkey -in bob-soukromy.pem -pubout -out bob-verejny.pem
+openssl pkeyutl -encrypt -pubin -inkey bob-verejny.pem -in tajne.txt -out tajne.rsa
+openssl pkeyutl -decrypt -inkey bob-soukromy.pem -in tajne.rsa
+
+# --- digitální podpis = hash + soukromý klíč ---
+openssl dgst -sha256 -sign bob-soukromy.pem -out podpis.bin tajne.txt
+openssl dgst -sha256 -verify bob-verejny.pem -signature podpis.bin tajne.txt
+| Verified OK
+echo "x" >> tajne.txt
+openssl dgst -sha256 -verify bob-verejny.pem -signature podpis.bin tajne.txt
+| Verification failure
+`)
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Protokol „Otisky a klíče“ — screenshoty: výstup sha256sum -c s nalezeným změněným souborem, porovnání kandidátů A–C s označeným originálem, prefix hesla z /etc/shadow (hash zakrytý), dva různé výstupy mkpasswd pro stejné heslo, souhrn openssl s_client (verze TLS, šifra) a otisk certifikátu www.seznam.cz, výstup ssh-keygen -lf vašeho klíče. K tomu krátké vysvětlení (50–100 slov): jak TLS a SSH kombinují asymetrickou kryptografii, symetrickou šifru a hash.";
+
+  var REFLECT = [
+    "Jak byste mladšímu spolužákovi vysvětlili rozdíl mezi šifrováním a hashováním na příkladu ze dnešní hodiny?",
+    "Proč nestačí jen asymetrické šifrování a proč nestačí jen symetrické? Co by se stalo, kdyby TLS používalo jen jedno z nich?",
+    "Kde jste se už s otiskem (hashem) setkali, aniž byste o tom věděli — stažení ISO, Git, SSH, aktualizace balíků…?",
+    "Co uděláte, až vám SSH při připojení na známý server ohlásí, že se otisk jeho klíče změnil?"
+  ];
+
+  var SOURCES = [
+    {title:"crypt(5) — libxcrypt (Debian manpages)", url:"https://manpages.debian.org/trixie/libcrypt-dev/crypt.5.en.html", tag:"official", note:"Formáty hashů hesel: $y$ yescrypt (doporučený), $6$/$5$ sha512/256crypt, $1$ md5crypt (nepoužívat)."},
+    {title:"Debian 11 — poznámky k vydání, kap. 5.1.4", url:"https://www.debian.org/releases/bullseye/amd64/release-notes.en.txt", tag:"official", note:"Výchozí hash hesel změněn ze SHA-512 na yescrypt."},
+    {title:"mkpasswd(1) — whois (Debian manpages)", url:"https://manpages.debian.org/trixie/whois/mkpasswd.1.en.html", tag:"official", note:"Generování hashe hesla, metody (mkpasswd -m help), čtení hesla z výzvy."},
+    {title:"login.defs(5) — login.defs (Debian manpages)", url:"https://manpages.debian.org/trixie/login.defs/login.defs.5.en.html", tag:"official", note:"ENCRYPT_METHOD jen pro chgpasswd/gpasswd/newusers; passwd používá PAM."},
+    {title:"sha256sum(1) — coreutils (Debian manpages)", url:"https://manpages.debian.org/trixie/coreutils/sha256sum.1.en.html", tag:"official", note:"Výpočet a kontrola otisků (-c)."},
+    {title:"openssl-passwd(1) — OpenSSL 3.5", url:"https://docs.openssl.org/3.5/man1/openssl-passwd/", tag:"official", note:"-1 (MD5, výchozí), -5, -6; bez podpory yescrypt."},
+    {title:"openssl-dgst(1) — OpenSSL 3.0", url:"https://docs.openssl.org/3.0/man1/openssl-dgst/", tag:"official", note:"Otisky, podpis (-sign) a ověření (-verify); -r = výstup ve formátu coreutils."},
+    {title:"openssl-s_client(1) — OpenSSL 3.5", url:"https://docs.openssl.org/3.5/man1/openssl-s_client/", tag:"official", note:"TLS klient pro diagnostiku: -connect, -servername, -brief."},
+    {title:"ssh-keygen(1) — openssh-client (Debian manpages)", url:"https://manpages.debian.org/trixie/openssh-client/ssh-keygen.1.en.html", tag:"official", note:"Typy klíčů (výchozí Ed25519), otisk -l, formát SHA256."},
+    {title:"sshd_config(5) — openssh-server (Debian manpages)", url:"https://manpages.debian.org/trixie/openssh-server/sshd_config.5.en.html", tag:"official", note:"Výchozí KexAlgorithms (mlkem768x25519-sha256 …) a Ciphers (chacha20-poly1305 …)."},
+    {title:"OpenSSH — Release notes", url:"https://www.openssh.org/releasenotes.html", tag:"official", note:"OpenSSH 10.0: hybridní post-kvantová výměna klíčů mlkem768x25519-sha256 jako výchozí."},
+    {title:"RFC 8446 — The Transport Layer Security (TLS) Protocol Version 1.3", url:"https://www.rfc-editor.org/rfc/rfc8446", tag:"official", note:"Handshake TLS 1.3, šifrovací sady, odvození klíčů (HKDF)."},
+    {title:"RFC 8996 — Deprecating TLS 1.0 and TLS 1.1", url:"https://www.rfc-editor.org/rfc/rfc8996", tag:"official", note:"TLS 1.0 a 1.1 se nesmí používat."},
+    {title:"RFC 7568 — Deprecating Secure Sockets Layer Version 3.0", url:"https://www.rfc-editor.org/rfc/rfc7568", tag:"official", note:"SSL 3.0 se nesmí používat — „SSL“ dnes znamená TLS."},
+    {title:"RFC 4251 — The Secure Shell (SSH) Protocol Architecture", url:"https://www.rfc-editor.org/rfc/rfc4251", tag:"official", note:"Vrstvy SSH-2, ověření hostitelského klíče."},
+    {title:"RFC 4253 — The SSH Transport Layer Protocol", url:"https://www.rfc-editor.org/rfc/rfc4253", tag:"official", note:"Výměna klíčů, podpis hostitelským klíčem, odvození klíčů relace."},
+    {title:"RFC 6151 — Updated Security Considerations for MD5", url:"https://www.rfc-editor.org/rfc/rfc6151", tag:"official", note:"MD5 se nesmí používat tam, kde je potřeba odolnost proti kolizím."},
+    {title:"NIST FIPS 180-4 — Secure Hash Standard", url:"https://csrc.nist.gov/pubs/fips/180-4/upd1/final", tag:"official", note:"Definice SHA-1 a rodiny SHA-2 (SHA-224/256/384/512)."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+/* ==========================================================================
+   HASHOVACÍ LABORATOŘ + ovládání animací
+   ========================================================================== */
+
+  // Čisté JS implementace MD5 (RFC 1321) a SHA-256 (FIPS 180-4) — fungují i offline a z file://,
+  // nevyžadují Web Crypto API. Vstup: Uint8Array (UTF-8 bajty), výstup: hex řetězec.
+  function md5(bytes){
+    var K=[],S=[7,12,17,22,7,12,17,22,7,12,17,22,7,12,17,22,5,9,14,20,5,9,14,20,5,9,14,20,5,9,14,20,4,11,16,23,4,11,16,23,4,11,16,23,4,11,16,23,6,10,15,21,6,10,15,21,6,10,15,21,6,10,15,21];
+    for(var i=0;i<64;i++) K[i]=Math.floor(Math.abs(Math.sin(i+1))*4294967296)>>>0;
+    var len=bytes.length, nBlocks=((len+8)>>6)+1, w=new Uint32Array(nBlocks*16);
+    for(i=0;i<len;i++) w[i>>2]|=bytes[i]<<((i%4)*8);
+    w[len>>2]|=0x80<<((len%4)*8);
+    w[nBlocks*16-2]=(len*8)>>>0; w[nBlocks*16-1]=Math.floor(len/536870912)>>>0;
+    var a0=0x67452301,b0=0xefcdab89,c0=0x98badcfe,d0=0x10325476;
+    for(var b=0;b<nBlocks;b++){
+      var A=a0,B=b0,C=c0,D=d0;
+      for(i=0;i<64;i++){
+        var F,g;
+        if(i<16){F=(B&C)|(~B&D);g=i;}
+        else if(i<32){F=(D&B)|(~D&C);g=(5*i+1)%16;}
+        else if(i<48){F=B^C^D;g=(3*i+5)%16;}
+        else {F=C^(B|~D);g=(7*i)%16;}
+        F=(F+A+K[i]+w[b*16+g])>>>0;
+        A=D;D=C;C=B;B=(B+((F<<S[i])|(F>>>(32-S[i]))))>>>0;
+      }
+      a0=(a0+A)>>>0;b0=(b0+B)>>>0;c0=(c0+C)>>>0;d0=(d0+D)>>>0;
+    }
+    return [a0,b0,c0,d0].map(function(v){var s="";for(var j=0;j<4;j++)s+=("0"+((v>>>(j*8))&255).toString(16)).slice(-2);return s;}).join("");
+  }
+  function sha256(bytes){
+    var K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+    var H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    var len=bytes.length, nBlocks=((len+8)>>6)+1, w=new Uint32Array(nBlocks*16);
+    for(var i=0;i<len;i++) w[i>>2]|=bytes[i]<<(24-(i%4)*8);
+    w[len>>2]|=0x80<<(24-(len%4)*8);
+    w[nBlocks*16-1]=(len*8)>>>0; w[nBlocks*16-2]=Math.floor(len/536870912)>>>0;
+    var W=new Uint32Array(64);
+    function r(x,n){return (x>>>n)|(x<<(32-n));}
+    for(var b=0;b<nBlocks;b++){
+      for(i=0;i<16;i++) W[i]=w[b*16+i];
+      for(i=16;i<64;i++){
+        var s0=r(W[i-15],7)^r(W[i-15],18)^(W[i-15]>>>3), s1=r(W[i-2],17)^r(W[i-2],19)^(W[i-2]>>>10);
+        W[i]=(W[i-16]+s0+W[i-7]+s1)>>>0;
+      }
+      var a=H[0],bb=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+      for(i=0;i<64;i++){
+        var S1=r(e,6)^r(e,11)^r(e,25), ch=(e&f)^(~e&g), t1=(h+S1+ch+K[i]+W[i])>>>0;
+        var S0=r(a,2)^r(a,13)^r(a,22), mj=(a&bb)^(a&c)^(bb&c), t2=(S0+mj)>>>0;
+        h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=bb;bb=a;a=(t1+t2)>>>0;
+      }
+      H[0]=(H[0]+a)>>>0;H[1]=(H[1]+bb)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;
+      H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0;
+    }
+    return H.map(function(v){return ("00000000"+v.toString(16)).slice(-8);}).join("");
+  }
+
+
+  var hlIn = document.getElementById("hl-input"), hlNl = document.getElementById("hl-nl");
+  var hlMd5 = document.getElementById("hl-md5"), hlSha = document.getElementById("hl-sha");
+  var hlDiff = document.getElementById("hl-diff"), hlCmd = document.getElementById("hl-cmdline");
+  var enc = window.TextEncoder ? new TextEncoder() : null;
+  function utf8(s){
+    if(enc) return enc.encode(s);
+    var b = unescape(encodeURIComponent(s)), a = new Uint8Array(b.length);
+    for(var i=0;i<b.length;i++) a[i]=b.charCodeAt(i);
+    return a;
+  }
+  function popcnt(n){ n = n - ((n>>1)&5); return (n&3) + ((n>>2)&3); }
+  var pinMd5 = null, pinSha = null;
+  function markDiff(cur, base){
+    if(!base) return esc(cur);
+    var out = "";
+    for(var i=0;i<cur.length;i++){
+      out += cur[i] === base[i] ? cur[i] : '<span class="hx-d">'+cur[i]+'</span>';
+    }
+    return out;
+  }
+  function shQuote(s){ return "'" + s.replace(/'/g, "'\\''") + "'"; }
+  function hlUpdate(){
+    var text = hlIn.value.replace(/\r/g,"");
+    var data = text + (hlNl.checked ? "\n" : "");
+    var m = md5(utf8(data)), s = sha256(utf8(data));
+    hlMd5.innerHTML = markDiff(m, pinMd5);
+    hlSha.innerHTML = markDiff(s, pinSha);
+    if(pinSha){
+      var bits = 0;
+      for(var i=0;i<64;i++) bits += popcnt(parseInt(s[i],16) ^ parseInt(pinSha[i],16));
+      hlDiff.innerHTML = "Oproti zapamatovanému otisku se v SHA-256 liší <b>" + bits + " z 256 bitů</b> (" + Math.round(bits/2.56) + " %).";
+    } else {
+      hlDiff.textContent = "Zapamatujte si otisk a pak změňte jediný znak.";
+    }
+    var oneLine = text.indexOf("\n") === -1;
+    hlCmd.textContent = oneLine
+      ? (hlNl.checked ? "echo " : "echo -n ") + shQuote(text) + " | sha256sum"
+      : "printf '%s" + (hlNl.checked ? "\\n" : "") + "' " + shQuote(text) + " | sha256sum";
+  }
+  if(hlIn){
+    hlIn.addEventListener("input", hlUpdate);
+    hlNl.addEventListener("change", hlUpdate);
+    document.getElementById("hl-pin").addEventListener("click", function(){
+      var data = hlIn.value.replace(/\r/g,"") + (hlNl.checked ? "\n" : "");
+      pinMd5 = md5(utf8(data)); pinSha = sha256(utf8(data));
+      hlUpdate();
+    });
+    pinMd5 = md5(utf8("kokos\n")); pinSha = sha256(utf8("kokos\n"));
+    hlUpdate();
+  }
+
+  // Tlačítka „Zastavit animaci“ — SMIL animace v SVG (pauseAnimations/unpauseAnimations).
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll(".svg-figure").forEach(function(fig){
+    var svg = fig.querySelector("svg"), btn = fig.querySelector(".anim-toggle");
+    if(!svg || !btn || !svg.pauseAnimations) { if(btn) btn.style.display = "none"; return; }
+    function set(paused){
+      if(paused){ svg.pauseAnimations(); btn.textContent = "▶ Spustit animaci"; }
+      else { svg.unpauseAnimations(); btn.textContent = "⏸ Zastavit animaci"; }
+      btn.setAttribute("aria-pressed", paused ? "true" : "false");
+    }
+    btn.addEventListener("click", function(){ set(!svg.animationsPaused()); });
+    if(reduce) set(true);
+  });
+
+})();
+</script>
+<script src="../assets/tuxik-agent.js" defer></script>
+</body>
+</html>
