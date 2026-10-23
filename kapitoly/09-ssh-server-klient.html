@@ -314,7 +314,16 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
 .model-answers dt:first-child{margin-top:0;}
 .model-answers dd{margin:.15rem 0 0; font-size:.86rem; color:var(--ink-soft);}
 .ap-num{min-width:2rem;}
-.lede code, .callout code, .src-table code, .model-answers code{overflow-wrap:anywhere;}
+/* doporučení k základnímu zabezpečení */
+.sec-reco{margin:.4rem 0 1.4rem; background:#fff; border:1px solid var(--border); border-left:5px solid var(--robot); border-radius:0 var(--radius-lg) var(--radius-lg) 0; box-shadow:var(--shadow-sm); padding:1rem 1.3rem;}
+.sec-reco > ol{margin:0; padding-left:1.4rem;}
+.sec-reco > ol > li{margin:.7rem 0; font-size:.92rem;}
+.sec-reco > ol > li::marker{font-weight:700; color:var(--robot);}
+.sec-reco ol[type="a"]{margin:.4rem 0 0; padding-left:1.4rem;}
+.sec-reco ol[type="a"] li{margin:.35rem 0; font-size:.86rem; color:var(--ink-soft);}
+.sec-reco ol[type="a"] li b, .sec-reco ol[type="a"] li code{color:var(--ink);}
+.reco-why{margin:.25rem 0 0; font-size:.84rem; color:var(--ink-soft);}
+.lede code, .callout code, .src-table code, .model-answers code, .sec-reco code{overflow-wrap:anywhere;}
 </style>
 </head>
 <body>
@@ -636,6 +645,34 @@ footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-t
           <li>Test: přihlášení klíčem projde, vynucené heslo skončí hláškou <code>Permission denied (publickey)</code>.</li>
         </ul>
         <p style="margin:.6rem 0 0;"><b>Ochrana soukromého klíče:</b> heslová fráze, oprávnění <code>600</code>, nikdy ho nekopírovat na server ani nikam neposílat, pro každé zařízení vlastní klíč. Aby nebylo nutné zadávat frázi pořád, drží odemčený klíč v paměti <code>ssh-agent</code> (<code>eval "$(ssh-agent)"</code>, <code>ssh-add</code>). Když je klíč prozrazený, smažte jeho řádek z <code>authorized_keys</code> na všech serverech a vytvořte nový.</p>
+      </div>
+
+      <!-- ===================== F — DOPORUČENÍ K ZÁKLADNÍMU ZABEZPEČENÍ ===================== -->
+      <h3>F · Doporučení k základnímu zabezpečení</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Shrnutí toho, co musí správce na každém SSH serveru zkontrolovat. Zápis <code>%h</code> pochází z <code>sshd_config</code> a znamená <b>domovský adresář uživatele</b> — totéž co <code>~</code> v shellu (např. <code>%h/.ssh/known_hosts</code> = <code>~/.ssh/known_hosts</code>).</p>
+      <div class="sec-reco">
+        <ol>
+          <li><b>Klíče komunikace</b> — zkontrolovat otisky klíčů, ověřený veřejný klíč na klientovi se ukládá do <code>%h/.ssh/known_hosts</code>.
+            <p class="reco-why">Otisk hostitelského klíče porovnat při prvním připojení s otiskem od správce (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code>), viz část C. Při změně otisku se nepřipojovat, dokud není změna vysvětlená.</p></li>
+          <li><b>Autorizace jen pomocí klíčů</b>
+            <p class="reco-why">Uživatelé se přihlašují párem klíčů Ed25519 s heslovou frází; přihlášení heslem se vypne až po ověření, že klíč funguje (část E a bod 4c).</p></li>
+          <li><b>Nastavit správně souborová oprávnění</b>
+            <ol type="a">
+              <li><b>konfigurační soubory serveru</b> — <code>/etc/ssh/sshd_config</code> a <code>/etc/ssh/sshd_config.d/*.conf</code>: vlastník root, zapisovat smí jen root (<code>644</code>).</li>
+              <li><b>klíčů</b> — soukromé hostitelské klíče <code>/etc/ssh/ssh_host_*_key</code> <code>600</code> root (s volnějšími právy <code>sshd</code> nenastartuje), veřejné <code>*.pub</code> <code>644</code>; soukromý klíč uživatele <code>~/.ssh/id_ed25519</code> <code>600</code> (jinak ho <code>ssh</code> odmítne použít).</li>
+              <li><b><code>%h/.ssh/*</code></b> — adresář <code>~/.ssh</code> <code>700</code>, <code>authorized_keys</code> <code>600</code>; domovský adresář ani <code>~/.ssh</code> nesmí mít právo zápisu pro skupinu a ostatní — při <code>StrictModes yes</code> (výchozí) <code>sshd</code> přihlášení klíčem odmítne.</li>
+            </ol></li>
+          <li><b>Konfigurace daemona</b> (<code>/etc/ssh/sshd_config</code>)
+            <ol type="a">
+              <li><code>PermitRootLogin no</code> — root se přes SSH nepřihlásí vůbec (výchozí <code>prohibit-password</code> dovoluje roota klíčem); správce se přihlásí jako běžný uživatel a použije <code>sudo</code>.</li>
+              <li><code>PermitEmptyPasswords no</code> — účet s prázdným heslem se heslem nepřihlásí (výchozí hodnota, ponechat).</li>
+              <li><code>PasswordAuthentication no</code> — spolu s <code>KbdInteractiveAuthentication no</code> (v Debianu už nastaveno), jinak by šlo heslo zadat přes PAM.</li>
+              <li><code>AllowUsers user1 user2</code>, <code>DenyUsers</code>, <code>DenyGroups</code>, <code>AllowGroups</code> — kdo se smí přihlásit. Je-li nastaveno <code>AllowUsers</code>, smí se přihlásit <b>jen</b> uvedení uživatelé (lze i <code>user@192.168.1.*</code>). Pořadí vyhodnocení: <code>DenyUsers</code>, <code>AllowUsers</code>, <code>DenyGroups</code>, nakonec <code>AllowGroups</code>.</li>
+              <li><code>ListenAddress</code> — na kterých adresách <code>sshd</code> naslouchá; výchozí jsou všechny. Pro Server Školy X např. <code>ListenAddress 192.168.1.1</code> = SSH jen z intranetu, ne z NAT/školní sítě.</li>
+              <li><b>Změna defaultního portu</b> — např. <code>Port 2222</code>; klient pak <code>ssh -p 2222 …</code>. Sníží počet automatických pokusů v logu, ale skutečnou bezpečnost nezvyšuje (port najde každý skener); případný firewall musí nový port povolit.</li>
+            </ol></li>
+        </ol>
+        <p class="reco-why" style="margin-top:.8rem;"><b>Po každé změně:</b> <code>sudo sshd -t</code> → <code>sudo systemctl restart ssh</code> při otevřené relaci → ověření v nové relaci a <code>sudo sshd -T | grep -Ei 'permitrootlogin|permitemptypasswords|passwordauthentication|allowusers|listenaddress|^port'</code>.</p>
       </div>
 
       <h3>Přehled příkazů pro dnešní zadání</h3>

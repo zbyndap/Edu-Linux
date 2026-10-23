@@ -1,0 +1,1747 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 DNS server BIND · Operační systém Linux</title>
+<meta name="description" content="DNS server BIND 9.20 v Debianu 13: konfigurační soubory (named.conf, options, local, root-hints), typy zón primary/secondary/forward, zónový soubor a typy záznamů (SOA, NS, A, AAAA, CNAME, MX, PTR, TXT), přenos zóny NOTIFY/AXFR (animace), praktická úloha vyuka.cz v modelu master–slave.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 11 — DNS server BIND — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html a strukturně
+   z kapitol 9 a 10 — stejné HTML/CSS/vykreslovací JS (SMIL animace s tlačítkem
+   pozastavení, vzorové odpovědi .model-answers v „Zobrazit řešení“).
+   Přehrávač SMIL animace (.video-figure) z kapitoly 10 — zde animace
+   přenosu zóny (NOTIFY → SOA → AXFR), 10 kroků × 3 s.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+@keyframes flowMoveRight{
+  0%{ transform:translateX(0); opacity:.25; }
+  15%{ opacity:1; }
+  85%{ opacity:1; }
+  100%{ transform:translateX(64px); opacity:.25; }
+}
+.flow-dot.right{ animation-name: flowMoveRight; animation-duration:2.2s; animation-timing-function:ease-in-out; }
+
+@keyframes flowLongRight{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(540px); opacity:.2; }
+}
+@keyframes flowLongLeft{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(-540px); opacity:.2; }
+}
+.flow-dot.longr{ animation-name: flowLongRight; animation-duration:3.4s; animation-timing-function:ease-in-out; }
+.flow-dot.longl{ animation-name: flowLongLeft; animation-duration:3.4s; animation-timing-function:ease-in-out; animation-delay:.9s; }
+
+/* štítky rodin adres (IPv4 / IPv6) */
+.fam{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; padding:.08rem .45rem; border-radius:999px; vertical-align:middle; white-space:nowrap;}
+.fam.v4{background:var(--robot-tint); color:var(--robot-deep); border:1px solid var(--robot);}
+.fam.v6{background:var(--electric-tint); color:var(--electric-deep); border:1px solid var(--electric-deep);}
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+
+/* ---------- doplňky převzaté z kapitoly 9 ---------- */
+/* tlačítko pozastavení animace pod SVG diagramem */
+.anim-toggle{display:block; margin:.6rem auto 0; font-family:inherit; font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.3rem .85rem; cursor:pointer;}
+.anim-toggle:hover{border-color:var(--robot); background:var(--surface);}
+
+/* datové tabulky v zadání ACT */
+.data-table{margin:.3rem 0 .4rem;}
+.data-table td{padding:.45rem .6rem;}
+
+
+/* vzorové odpovědi v rozbaleném řešení */
+.model-answers{margin-top:.9rem; background:#fff; border:1px solid var(--border); border-left:3px solid var(--robot); border-radius:var(--radius); padding:.8rem 1rem;}
+.model-answers .ma-head{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); margin:0 0 .4rem;}
+.model-answers dl{margin:0;}
+.model-answers dt{font-weight:700; font-size:.86rem; color:var(--ink); margin-top:.55rem;}
+.model-answers dt:first-child{margin-top:0;}
+.model-answers dd{margin:.15rem 0 0; font-size:.86rem; color:var(--ink-soft);}
+.ap-num{min-width:2rem;}
+.lede code, .callout code, .src-table code, .model-answers code{overflow-wrap:anywhere;}
+
+/* ---------- KAPITOLA 10 — video přehrávač animace DNS dotazu ---------- */
+.video-figure{padding-bottom:1.1rem;}
+.vp-controls{display:flex; align-items:center; gap:.5rem; margin-top:.8rem; flex-wrap:wrap;}
+.vp-btn{font-family:inherit; font-size:.78rem; font-weight:700; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.35rem .8rem; cursor:pointer; white-space:nowrap;}
+.vp-btn:hover{border-color:var(--robot); background:var(--surface);}
+.vp-btn.primary{background:var(--robot); color:#fff; border-color:var(--robot);}
+.vp-btn.primary:hover{background:var(--robot-deep);}
+.vp-track{flex:1 1 160px; height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; cursor:pointer; min-width:120px;}
+.vp-track > span{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--robot),var(--electric));}
+.vp-time{font-size:.75rem; color:var(--ink-faint); font-variant-numeric:tabular-nums; min-width:5.5em; text-align:right;}
+.vp-steps{display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.7rem;}
+.vp-step{font-family:inherit; width:2rem; height:2rem; border-radius:8px; border:1px solid var(--border); background:#fff; color:var(--ink-soft); font-size:.75rem; font-weight:700; cursor:pointer;}
+.vp-step:hover{border-color:var(--robot);}
+.vp-step.active{background:var(--electric); border-color:var(--electric-deep); color:var(--robot-deep);}
+.vp-caption{margin-top:.8rem; background:var(--surface); border-left:3px solid var(--electric); border-radius:var(--radius); padding:.75rem 1rem; min-height:5.2rem;}
+.vp-caption .vc-title{font-size:.86rem; font-weight:700; color:var(--robot-deep); margin-bottom:.25rem;}
+.vp-caption .vc-text{font-size:.85rem; color:var(--ink-soft);}
+/* rozbor výstupu dig */
+pre.digout{background:#fff; color:var(--ink); border:1px solid var(--border); border-radius:var(--radius); padding:.9rem 1rem; font-size:.78rem; line-height:1.6; overflow-x:auto; margin:.6rem 0 1rem;}
+pre.digout .m{display:inline-block; min-width:1.35rem; height:1.35rem; line-height:1.35rem; text-align:center; border-radius:6px; background:var(--electric); color:var(--robot-deep); font-weight:800; font-size:.7rem; margin-right:.35rem;}
+pre.digout .k{color:var(--robot); font-weight:700;}
+pre.digout .d{color:var(--ink-faint);}
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — DNS server BIND</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">V kapitole 10 jste se naučili DNS <b>číst</b> — ptát se nástroji dig, host a nslookup a rozebírat odpovědi. Dnes se role obrátí: Server i Klient Školy X dostanou vlastní DNS server <b>BIND 9</b> a doména <code>vyuka.cz</code> přestane žít jen v souborech <code>/etc/hosts</code>. Server bude zónu spravovat jako <b>primární</b> (master), Klient bude její <b>sekundární</b> (slave) kopie — když Server vypadne, jména dál fungují. Na tento DNS server budou navazovat další služby školy.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>BIND 9 — konfigurační soubory, zóny a záznamy</h2>
+      <p class="lede"><b>BIND 9</b> (Berkeley Internet Name Domain, vyvíjí ISC) je nejrozšířenější DNS server. Démon se jmenuje <code>named</code> a umí obě role, které znáte z kapitoly 10: <b>autoritativní server</b> (za své zóny odpovídá s příznakem <code>aa</code>) a <b>rekurzivní resolver s cache</b> (dohledává cizí jména za klienty). Teorie zabere asi 25 minut, zbytek dvou hodin je praxe. Vše níže platí pro <b>Debian 13 „trixie“ s BIND 9.20</b>. Starší návody (i starší školní skripta) se v několika bodech liší — na každý rozdíl upozorníme.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <!-- ===================== A — BIND V DEBIANU 13 ===================== -->
+      <h3>A · BIND 9 v Debianu 13 — balíky, služba, adresáře</h3>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Co</th><th>V Debianu 13</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>Balík serveru</b></td><td><code>bind9</code> (BIND 9.20)</td><td>s sebou přinese <code>bind9-utils</code> (<code>named-checkconf</code>, <code>named-checkzone</code>, <code>rndc</code>) a <code>dns-root-data</code> (adresy kořenových serverů)</td></tr>
+            <tr><td><b>Dotazovací nástroje</b></td><td><code>bind9-dnsutils</code></td><td><code>dig</code>, <code>host</code>, <code>nslookup</code> — balík <code>bind9</code> je jen <i>navrhuje</i>, na Serveru je proto doinstalujte (Klient je má z kapitoly 10)</td></tr>
+            <tr><td><b>Služba systemd</b></td><td><code>named.service</code></td><td><code>bind9.service</code> je jen <b>alias</b> — <code>systemctl status named</code> i <code>systemctl status bind9</code> ukážou totéž</td></tr>
+            <tr><td><b>Uživatel</b></td><td><code>bind</code></td><td>named se spustí jako root, otevře port 53 a přepne se na uživatele <code>bind</code> (<code>OPTIONS="-u bind"</code> v <code>/etc/default/named</code>)</td></tr>
+            <tr><td><b>Konfigurace</b></td><td><code>/etc/bind/</code></td><td>pro named <b>jen ke čtení</b>; sem patří i zónové soubory, které píšete vy (primární zóny)</td></tr>
+            <tr><td><b>Pracovní adresář</b></td><td><code>/var/cache/bind/</code></td><td>named sem smí zapisovat: <b>kopie zón sekundárního serveru</b>, výpis cache <code>named_dump.db</code></td></tr>
+            <tr><td><b>Dynamické zóny</b></td><td><code>/var/lib/bind/</code></td><td>zóny měněné za běhu (např. DDNS z DHCP serveru) a jejich žurnály</td></tr>
+            <tr><td><b>Ovládání</b></td><td><code>rndc</code> + <code>/etc/bind/rndc.key</code></td><td>klíč se vygeneruje při instalaci; <code>rndc</code> mluví s named přes 127.0.0.1, port 953</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>AppArmor hlídá, kam smí named psát.</b> Profil <code>/etc/apparmor.d/usr.sbin.named</code> dovoluje <code>/etc/bind/**</code> jen číst a zapisovat jen do <code>/var/cache/bind</code> a <code>/var/lib/bind</code>. Když na sekundárním serveru nastavíte soubor zóny do <code>/etc/bind</code>, přenos zóny skončí chybou <i>permission denied</i>.</p>
+        <p style="margin-bottom:0;"><b>Soužití se systemd-resolved.</b> Od kapitoly 6 běží na obou strojích <code>systemd-resolved</code>, který poslouchá na <code>127.0.0.53</code> a <code>127.0.0.54</code>. named poslouchá na <code>127.0.0.1</code> a na adresách síťových karet — porty 53 se nepřekrývají a obě služby běží vedle sebe. Důsledek: <code>dig jméno</code> <b>bez</b> <code>@serveru</code> se pořád ptá systemd-resolved (a ten 8.8.8.8), ne vašeho BINDu. Svůj server oslovíte jen zápisem <code>dig @127.0.0.1 …</code> nebo <code>dig @192.168.1.1 …</code>.</p>
+      </div>
+
+      <!-- ===================== B — KONFIGURAČNÍ SOUBORY ===================== -->
+      <h3>B · Konfigurační soubory BIND serveru</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Hlavní soubor <code>/etc/bind/named.conf</code> v Debianu sám nic nenastavuje — jen příkazem <code>include</code> vkládá další soubory. Globální volby, vlastní zóny a kořenové servery jsou tak oddělené a při úpravě zón nesaháte do voleb serveru.</p>
+      <figure class="svg-figure">
+<svg viewBox="0 0 900 362" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgcft svgcfd" font-family="JetBrains Mono, Consolas, monospace">
+<title id="svgcft">Struktura konfigurace BIND 9 v Debianu 13</title>
+<desc id="svgcfd">Soubor named.conf vkládá tři soubory: named.conf.options s globálními volbami, named.conf.local s registrací vlastních zón a named.conf.root-hints se zónou typu hint. Volba directory v options určuje pracovní adresář /var/cache/bind. Zóny z named.conf.local odkazují na zónové soubory: primární zónu v /etc/bind, kterou píše správce, a sekundární kopii v /var/cache/bind, kterou zapisuje named ve formátu raw. Zóna hint odkazuje na soubor /usr/share/dns/root.hints z balíku dns-root-data.</desc>
+<text x="450" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">named.conf jen skládá části dohromady — vy upravujete hlavně options a local</text>
+<path d="M450 82 L450 104 M170 104 L730 104 M170 104 L170 128 M450 104 L450 128 M730 104 L730 128" stroke="#47657D" stroke-width="1.8" fill="none"/>
+<path d="M170 212 L125 262 M410 212 L345 262 M490 212 L560 262 M730 212 L777 262" stroke="#C9D6DC" stroke-width="1.8" fill="none" stroke-dasharray="5 4"/>
+<rect x="340" y="34" width="220" height="48" rx="14" fill="#2E4657"/>
+<text x="450" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">/etc/bind/named.conf</text>
+<text x="450" y="72" text-anchor="middle" font-size="9.5" fill="#C9D6DC">jen 3 × include</text>
+<rect x="30" y="128" width="280" height="84" rx="12" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="170" y="150" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">named.conf.options</text>
+<text x="170" y="168" text-anchor="middle" font-size="9.5" fill="#54666F">options { … } — globální volby</text>
+<text x="170" y="184" text-anchor="middle" font-size="9.5" fill="#2E4657">directory · recursion · allow-recursion</text>
+<text x="170" y="200" text-anchor="middle" font-size="9.5" fill="#2E4657">forwarders · listen-on · dnssec-validation</text>
+<rect x="320" y="128" width="260" height="84" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="2"/>
+<text x="450" y="150" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">named.conf.local</text>
+<text x="450" y="168" text-anchor="middle" font-size="9.5" fill="#54666F">registrace VAŠICH zón</text>
+<text x="450" y="184" text-anchor="middle" font-size="9.5" fill="#2E4657">zone "jméno" { type …; file …; };</text>
+<text x="450" y="200" text-anchor="middle" font-size="9.5" font-weight="700" fill="#71801A">sem přidáte vyuka.cz</text>
+<rect x="590" y="128" width="280" height="84" rx="12" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="730" y="150" text-anchor="middle" font-size="11.5" font-weight="700" fill="#1E2E38">named.conf.root-hints</text>
+<text x="730" y="168" text-anchor="middle" font-size="9.5" fill="#54666F">zone "." { type hint; }</text>
+<text x="730" y="184" text-anchor="middle" font-size="9.5" fill="#2E4657">odkud začít rekurzi —</text>
+<text x="730" y="200" text-anchor="middle" font-size="9.5" fill="#2E4657">adresy kořenových serverů</text>
+<rect x="20" y="262" width="210" height="62" rx="12" fill="#EAF0F3" stroke="#C9D6DC" stroke-width="1.4"/>
+<text x="125" y="283" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">/var/cache/bind/</text>
+<text x="125" y="300" text-anchor="middle" font-size="9.5" fill="#54666F">pracovní adresář</text>
+<text x="125" y="315" text-anchor="middle" font-size="9.5" fill="#54666F">(directory, named_dump.db)</text>
+<rect x="245" y="262" width="200" height="62" rx="12" fill="#EAF0F3" stroke="#47657D" stroke-width="1.4"/>
+<text x="345" y="283" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">/etc/bind/db.ZÓNA</text>
+<text x="345" y="300" text-anchor="middle" font-size="9.5" fill="#54666F">zóna type primary</text>
+<text x="345" y="315" text-anchor="middle" font-size="9.5" fill="#54666F">text · píše správce</text>
+<rect x="460" y="262" width="200" height="62" rx="12" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+<text x="560" y="283" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">/var/cache/bind/db.ZÓNA</text>
+<text x="560" y="300" text-anchor="middle" font-size="9.5" fill="#54666F">zóna type secondary</text>
+<text x="560" y="315" text-anchor="middle" font-size="9.5" fill="#54666F">raw · zapisuje named</text>
+<rect x="675" y="262" width="205" height="62" rx="12" fill="#EAF0F3" stroke="#C9D6DC" stroke-width="1.4"/>
+<text x="777" y="283" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">/usr/share/dns/root.hints</text>
+<text x="777" y="300" text-anchor="middle" font-size="9.5" fill="#54666F">balík dns-root-data</text>
+<text x="777" y="315" text-anchor="middle" font-size="9.5" fill="#54666F">13 kořenových serverů</text>
+<text x="450" y="350" text-anchor="middle" font-size="9.5" fill="#B5453B">Debian 13: named.conf.default-zones, db.local, db.127, db.0, db.255, db.empty a zones.rfc1918 už neexistují</text>
+</svg>
+        <figcaption>Obr. 1 — Konfigurace BIND 9 v Debianu 13. Modře <code>include</code> z <code>named.conf</code>, čárkovaně odkazy na soubory a adresáře. Zónové soubory se podle zvyku jmenují <code>db.</code> + jméno zóny.</figcaption>
+      </figure>
+
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Soubor</th><th>K čemu slouží</th><th>Co v něm je po instalaci (Debian 13)</th></tr></thead>
+          <tbody>
+            <tr><td><code>/etc/bind/named.conf</code></td><td>hlavní soubor — jen vkládá ostatní</td><td><code>include "/etc/bind/named.conf.options";</code> + <code>.local</code> + <code>.root-hints</code></td></tr>
+            <tr><td><code>/etc/bind/named.conf.options</code></td><td>globální volby serveru v bloku <code>options { … };</code></td><td>jen <code>directory "/var/cache/bind";</code> — vše ostatní má výchozí hodnoty (tabulka níže)</td></tr>
+            <tr><td><code>/etc/bind/named.conf.local</code></td><td><b>registrace vlastních zón</b> — sem patří <code>zone "vyuka.cz" { … };</code></td><td>prázdný, jen komentář</td></tr>
+            <tr><td><code>/etc/bind/named.conf.root-hints</code></td><td>zóna <code>"."</code> typu <code>hint</code> — adresy kořenových serverů pro rekurzi</td><td><code>file "/usr/share/dns/root.hints";</code></td></tr>
+            <tr><td><code>/etc/bind/rndc.key</code></td><td>sdílený klíč (HMAC-SHA256) pro ovládání named příkazem <code>rndc</code></td><td>vygeneruje se při instalaci, čitelný jen pro root a skupinu bind</td></tr>
+            <tr><td><code>/etc/bind/db.*</code></td><td>zónové soubory, které vytvoříte vy</td><td>v Debianu 13 po instalaci <b>žádné</b> nejsou</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p style="margin-bottom:0;"><b>Pozor na starší návody (Debian 12 a dřív, BIND 9.18):</b> tam byly v <code>/etc/bind</code> ještě soubory <code>named.conf.default-zones</code>, <code>db.local</code>, <code>db.127</code>, <code>db.0</code>, <code>db.255</code>, <code>db.empty</code> a <code>zones.rfc1918</code>. Balík BIND 9.20 v Debianu je odstranil — prázdné zóny pro <code>localhost</code> a privátní reverzní rozsahy teď BIND vytváří sám (volba <code>empty-zones-enable yes;</code>, výchozí). Pokud by na ně váš <code>named.conf</code> odkazoval, named nenastartuje.</p>
+      </div>
+
+      <p class="lede" style="margin:.4rem 0 .6rem;">Nejdůležitější volby v bloku <code>options</code> a jejich <b>výchozí hodnoty v BIND 9.20</b> (platí, i když je v souboru nevidíte):</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Volba</th><th>Význam</th><th>Výchozí hodnota</th></tr></thead>
+          <tbody>
+            <tr><td><code>directory</code></td><td>pracovní adresář; relativní cesty v konfiguraci se počítají od něj</td><td>v Debianu <code>/var/cache/bind</code></td></tr>
+            <tr><td><code>recursion</code></td><td>má server za klienty dohledávat cizí jména (být resolverem s cache)?</td><td><code>yes</code></td></tr>
+            <tr><td><code>allow-recursion</code> / <code>allow-query-cache</code></td><td>kdo smí rekurzi a cache používat</td><td><code>{ localnets; localhost; }</code> — stroje z přímo připojených sítí, tj. i Klient z 192.168.1.0/24</td></tr>
+            <tr><td><code>allow-query</code></td><td>kdo se smí ptát na data autoritativních zón</td><td><code>any</code> (každý)</td></tr>
+            <tr><td><code>listen-on</code> / <code>listen-on-v6</code></td><td>na kterých adresách named poslouchá</td><td>všechny IPv4 / všechny IPv6 rozhraní, port 53</td></tr>
+            <tr><td><code>forwarders</code> + <code>forward first|only</code></td><td>přeposílat cizí dotazy jinému resolveru místo vlastní rekurze od kořene</td><td>prázdný seznam = žádné přeposílání; <code>forward first</code></td></tr>
+            <tr><td><code>dnssec-validation</code></td><td>ověřovat podpisy DNSSEC</td><td><code>auto</code> (kotva důvěry kořenové zóny je zabudovaná)</td></tr>
+            <tr><td><code>allow-transfer</code></td><td>kdo smí stáhnout celou zónu (AXFR)</td><td><b><code>none</code></b> — <span style="color:#B5453B">nové v BIND 9.20</span>, dřív <code>any</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p style="margin-bottom:0;"><b>Syntaxe <code>named.conf</code>:</b> každý příkaz končí <b>středníkem</b> — i za zavírací složenou závorkou bloku (<code>};</code>). Seznamy adres jsou ve složených závorkách a každá položka má svůj středník: <code>{ 192.168.1.2; 192.168.1.3; }</code>. Komentáře: <code>//</code>, <code>#</code> nebo <code>/* … */</code>. Chybějící středník je nejčastější chyba — odhalí ji <code>named-checkconf</code> dřív, než restart shodí službu.</p>
+      </div>
+
+      <!-- ===================== C — TYPY ZÓN ===================== -->
+      <h3>C · Zóna v named.conf a její typy</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Zónu „zaregistrujete“ (dáte serveru najevo, že za ni odpovídá) blokem <code>zone "jméno" { … };</code> v <code>named.conf.local</code>. Nejdůležitější je <b>typ</b> zóny:</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Typ (BIND 9.20)</th><th>Starší název</th><th>Co server se zónou dělá</th><th>Povinné klauzule</th></tr></thead>
+          <tbody>
+            <tr><td><b><code>primary</code></b></td><td><code>master</code></td><td>má <b>hlavní kopii</b> dat ze souboru, který píše správce; odpovídá autoritativně; při změně posílá NOTIFY</td><td><code>file</code></td></tr>
+            <tr><td><b><code>secondary</code></b></td><td><code>slave</code></td><td>má <b>kopii</b> stáhnutou přenosem zóny z primárního serveru; odpovídá také autoritativně</td><td><code>primaries</code> (dříve <code>masters</code>), doporučeně <code>file</code></td></tr>
+            <tr><td><b><code>forward</code></b></td><td>—</td><td>zónu <b>nemá vůbec</b> — dotazy na jména v ní jen přeposílá zadaným serverům (a výsledek ukládá do cache); neodpovídá autoritativně</td><td><code>forwarders</code></td></tr>
+            <tr><td><b><code>hint</code></b></td><td>—</td><td>jen pro kořen <code>"."</code> — počáteční seznam kořenových serverů pro rekurzi</td><td><code>file</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Klauzule v bloku zone</th><th>Význam</th></tr></thead>
+          <tbody>
+            <tr><td><code>type primary;</code></td><td>typ zóny (viz výše)</td></tr>
+            <tr><td><code>file "cesta";</code></td><td>zónový soubor — u primary ho čte, u secondary do něj zapisuje stáhnutou kopii</td></tr>
+            <tr><td><code>allow-transfer { adresy; };</code></td><td>(na primary) kdo smí zónu stáhnout; bez této klauzule v BIND 9.20 <b>nikdo</b></td></tr>
+            <tr><td><code>primaries { adresy; };</code></td><td>(na secondary) odkud zónu stahovat; starý název <code>masters</code> BIND 9.20 ještě přijme</td></tr>
+            <tr><td><code>also-notify { adresy; };</code></td><td>(na primary) komu poslat NOTIFY navíc k serverům uvedeným v NS záznamech</td></tr>
+            <tr><td><code>forwarders { adresy; };</code></td><td>(u forward zóny) kam dotazy přeposílat</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p style="margin-bottom:0;"><b>Master/slave × primary/secondary.</b> Dokumentace BIND 9.20 uvádí <code>primary</code> a <code>secondary</code>; starší <code>master</code> a <code>slave</code> jsou podle ní <b>synonyma</b> a fungují stejně. V zadání úloh najdete starší názvy, ve vzorovém řešení novější — můžete použít kterékoli.</p>
+      </div>
+
+      <!-- ===================== D — ZÓNOVÝ SOUBOR A ZÁZNAMY ===================== -->
+      <h3>D · Zónový soubor a typy zónových záznamů</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Zónový soubor je obyčejný text ve formátu podle RFC 1035. Každý řádek je jeden <b>záznam</b> (resource record) ve tvaru <code>jméno  [TTL]  třída  typ  data</code>. Ukázka je pro vymyšlenou doménu <code>firma.test</code> — koncovka <code>.test</code> a adresy <code>192.0.2.0/24</code> a <code>2001:db8::/32</code> jsou vyhrazené pro dokumentaci (RFC 2606, RFC 5737, RFC 3849), takže nikdy nekolidují se skutečným internetem. Vaše zóna <code>vyuka.cz</code> bude mít stejnou stavbu, ale jiný obsah.</p>
+<pre class="digout"><span class="m">1</span><span class="k">$TTL 86400</span>
+<span class="m">2</span><span class="k">@</span>       IN  SOA  <span class="m">3</span>ns.firma.test. <span class="m">4</span>hostmaster.firma.test. (
+                 2026102301  ; serial     <span class="m">5</span>
+                 7200        ; refresh
+                 1800        ; retry
+                 1209600     ; expire
+                 3600 )      ; negative TTL
+<span class="m">6</span>@       IN  NS     ns.firma.test.
+<span class="m">7</span>@       IN  MX  10 mail.firma.test.
+@       IN  A      192.0.2.10
+<span class="m">8</span>ns      IN  A      192.0.2.53
+mail    IN  A      192.0.2.25
+<span class="m">9</span>www     IN  CNAME  firma.test.
+web6    IN  AAAA   2001:db8::10
+@       IN  TXT    "v=spf1 mx -all"     <span class="d">; středník = komentář do konce řádku</span></pre>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>#</th><th>Část</th><th>Jak ji číst</th></tr></thead>
+          <tbody>
+            <tr><td><b>1</b></td><td><code>$TTL</code></td><td>výchozí TTL (v sekundách) pro záznamy, které vlastní TTL nemají. 86400 = 1 den. Lze psát i <code>1d</code>, <code>3h</code>, <code>15m</code>, <code>2w</code>.</td></tr>
+            <tr><td><b>2</b></td><td><code>@</code></td><td>zkratka pro <b>jméno zóny</b> (tzv. origin) — to, co je v <code>zone "firma.test"</code>. <code>@ IN A …</code> je tedy adresa samotné domény <code>firma.test</code>.</td></tr>
+            <tr><td><b>3</b></td><td>MNAME</td><td>primární jmenný server zóny</td></tr>
+            <tr><td><b>4</b></td><td>RNAME</td><td>e-mail správce — <b>zavináč se nahradí tečkou</b>: <code>hostmaster@firma.test</code> → <code>hostmaster.firma.test.</code> (RFC 1912)</td></tr>
+            <tr><td><b>5</b></td><td>časovače SOA</td><td>viz tabulka SOA níže; text za <code>;</code> je komentář</td></tr>
+            <tr><td><b>6</b></td><td>NS</td><td>jmenné servery zóny — musí jít na jméno se záznamem A/AAAA, <b>ne na CNAME</b> (RFC 2181, odst. 10.3)</td></tr>
+            <tr><td><b>7</b></td><td>MX</td><td>poštovní server s <b>prioritou</b> — nižší číslo = vyšší přednost. Cíl také nesmí být CNAME.</td></tr>
+            <tr><td><b>8</b></td><td>relativní jméno</td><td>jméno <b>bez tečky na konci</b> se doplní o origin: <code>ns</code> → <code>ns.firma.test.</code></td></tr>
+            <tr><td><b>9</b></td><td>CNAME</td><td>alias — <code>www.firma.test</code> je jen jiný název pro <code>firma.test</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Past č. 1 — koncová tečka.</b> Jméno s tečkou na konci je úplné (FQDN), jméno bez tečky BIND doplní o název zóny. Zapomenutá tečka v <code>@ IN NS ns1.vyuka.cz</code> vytvoří jméno <code>ns1.vyuka.cz.vyuka.cz.</code> — a <code>named-checkzone</code> zónu odmítne: <i>NS 'ns1.vyuka.cz.vyuka.cz' has no address records</i>.</p>
+        <p style="margin-bottom:0;"><b>Past č. 2 — sériové číslo.</b> Sekundární server přenese zónu jen tehdy, když je <code>serial</code> na primárním serveru <b>vyšší</b> než jeho. Při každé změně zóny ho proto zvyšte. Doporučený formát je <code>RRRRMMDDnn</code> (rok, měsíc, den, pořadí změny v daném dni): <code>2026102301</code>, <code>2026102302</code>… Když zapomenete, BIND při načtení jen zaprotestuje <i>zone serial unchanged</i> a sekundární server dál rozdává stará data.</p>
+      </div>
+
+      <p class="lede" style="margin:.4rem 0 .6rem;"><b>Záznam SOA</b> (Start of Authority) musí být v každé zóně právě jeden a je první. Říká, kdo za zónu odpovídá, a jeho časovače řídí sekundární servery:</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Pole SOA</th><th>Význam</th><th>Doporučení</th></tr></thead>
+          <tbody>
+            <tr><td><b>MNAME</b></td><td>primární (hlavní) jmenný server zóny</td><td>FQDN s tečkou; na tento server se NOTIFY neposílá</td></tr>
+            <tr><td><b>RNAME</b></td><td>e-mail správce, <code>@</code> → <code>.</code></td><td><code>admin@vyuka.cz</code> → <code>admin.vyuka.cz.</code></td></tr>
+            <tr><td><b>Serial</b></td><td>verze zóny; podle ní sekundární server pozná změnu</td><td><code>RRRRMMDDnn</code>, vždy jen zvyšovat</td></tr>
+            <tr><td><b>Refresh</b></td><td>po jaké době se sekundární server sám zeptá primárního na SOA (když nepřišel NOTIFY)</td><td>RFC 1912: 20 min – 2 h (u pomalých linek až 12 h)</td></tr>
+            <tr><td><b>Retry</b></td><td>za jak dlouho to sekundární server zkusí znovu, když primární neodpověděl</td><td>zlomek hodnoty Refresh</td></tr>
+            <tr><td><b>Expire</b></td><td>jak dlouho smí sekundární server poskytovat svou kopii, když se s primárním vůbec nespojí; pak odpovídá SERVFAIL</td><td>RFC 1912: 2–4 týdny</td></tr>
+            <tr><td><b>Minimum / negative TTL</b></td><td>jak dlouho si resolvery pamatují <b>zápornou</b> odpověď (NXDOMAIN) — význam podle RFC 2308</td><td>RFC 2308: 1–3 hodiny</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="lede" style="margin:.4rem 0 .6rem;">Typy záznamů, které v zónovém souboru použijete nejčastěji:</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Typ</th><th>Obsah</th><th>Příklad zápisu</th><th>Pravidla</th></tr></thead>
+          <tbody>
+            <tr><td><b>SOA</b></td><td>začátek autority, správce, časovače</td><td><code>@ IN SOA ns.firma.test. hostmaster.firma.test. ( … )</code></td><td>právě jeden, na začátku zóny</td></tr>
+            <tr><td><b>NS</b></td><td>jmenný server zóny</td><td><code>@ IN NS ns.firma.test.</code></td><td>aspoň dva (primary + secondary); cíl má A/AAAA, ne CNAME</td></tr>
+            <tr><td><b>A</b></td><td>IPv4 adresa jména</td><td><code>mail IN A 192.0.2.25</code></td><td>jedno jméno může mít víc A záznamů</td></tr>
+            <tr><td><b>AAAA</b></td><td>IPv6 adresa jména</td><td><code>web6 IN AAAA 2001:db8::10</code></td><td>RFC 3596</td></tr>
+            <tr><td><b>CNAME</b></td><td>alias — jiné jméno pro existující jméno</td><td><code>www IN CNAME firma.test.</code></td><td>jméno s CNAME <b>nesmí mít žádný jiný záznam</b>; nesmí být na <code>@</code> (tam je SOA a NS)</td></tr>
+            <tr><td><b>MX</b></td><td>poštovní server s prioritou</td><td><code>@ IN MX 10 mail.firma.test.</code></td><td>nižší číslo = přednost; cíl má A/AAAA, ne CNAME</td></tr>
+            <tr><td><b>PTR</b></td><td>reverzní záznam: adresa → jméno</td><td><code>10 IN PTR firma.test.</code> (v zóně <code>2.0.192.in-addr.arpa</code>)</td><td>jen v reverzních zónách</td></tr>
+            <tr><td><b>TXT</b></td><td>libovolný text (SPF, ověření domény)</td><td><code>@ IN TXT "v=spf1 mx -all"</code></td><td>text v uvozovkách</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p style="margin-bottom:0;"><b>Glue záznamy uvnitř zóny.</b> Když jmenné servery leží uvnitř vlastní zóny (<code>ns1.vyuka.cz</code> pro zónu <code>vyuka.cz</code>), musí zóna obsahovat i jejich A záznamy — jinak by se nikdo nedozvěděl, kde je hledat. U skutečně registrované domény se tyto adresy zadávají i u registrátora do nadřazené zóny (<code>cz.</code>), jak jste viděli v kapitole 10 u <code>seznam.cz</code>.</p>
+      </div>
+
+      <!-- ===================== E — PŘENOS ZÓNY ===================== -->
+      <h3>E · Primary a secondary — jak se zóna přenáší</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Proč dva servery? Kdyby jediný DNS server školy vypadl, přestala by fungovat všechna jména. Proto mívá každá zóna aspoň dva autoritativní servery. Data se ale <b>upravují jen na jednom</b> — na primárním. Sekundární si je stahuje <b>přenosem zóny</b> (zone transfer). Animace ukazuje, co se děje, když správce na Serveru změní zónu:</p>
+      <figure class="svg-figure video-figure" id="video-fig">
+<svg id="xfer-video" viewBox="0 0 900 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgxt svgxd" font-family="JetBrains Mono, Consolas, monospace">
+<title id="svgxt">Animace: přenos zóny vyuka.cz z primárního serveru (Server) na sekundární (Klient)</title>
+<desc id="svgxd">Správce na Serveru upraví zónový soubor a zvýší sériové číslo, zkontroluje ho a načte příkazem rndc reload. Server pošle Klientovi zprávu NOTIFY. Klient se zeptá na záznam SOA, porovná sériové číslo se svým a protože je vyšší, požádá po TCP o přenos celé zóny (AXFR). Server ověří, že adresa Klienta je v allow-transfer, a zónu odešle. Klient ji uloží do /var/cache/bind ve formátu raw a odpovídá autoritativně. Bez zprávy NOTIFY se Klient zeptá sám po uplynutí času Refresh, při neúspěchu to zkouší po Retry a po uplynutí Expire přestane zónu poskytovat.</desc>
+<defs>
+<marker id="xa-47657D" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#47657D"/></marker>
+<marker id="xa-71801A" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#71801A"/></marker>
+<marker id="xa-3F7455" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3F7455"/></marker>
+</defs>
+<text x="450" y="20" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">Změna zóny na primárním serveru a její přenos na sekundární — NOTIFY, SOA, AXFR</text>
+<rect x="20" y="40" width="300" height="330" rx="16" fill="#FFFFFF" stroke="#47657D" stroke-width="2"/>
+<text x="170" y="66" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Server</text>
+<text x="170" y="84" text-anchor="middle" font-size="10" fill="#54666F">ns1.vyuka.cz · 192.168.1.1</text>
+<rect x="40" y="96" width="260" height="26" rx="13" fill="#2E4657"/>
+<text x="170" y="113" text-anchor="middle" font-size="10.5" font-weight="700" fill="#FFFFFF">named · zone vyuka.cz · type primary</text>
+<rect x="40" y="136" width="260" height="70" rx="10" fill="#EAF0F3" stroke="#47657D" stroke-width="1.4"/>
+<text x="170" y="157" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">/etc/bind/db.vyuka.cz</text>
+<text x="170" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38" opacity="1">SOA serial 2026102301<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="1;1;0;0" keyTimes="0;0.0533;0.0547;1"/></text>
+<text x="170" y="178" text-anchor="middle" font-size="11" font-weight="700" fill="#3F7455" opacity="0">SOA serial 2026102302<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1" keyTimes="0;0.0533;0.0547;1"/></text>
+<text x="170" y="197" text-anchor="middle" font-size="9.5" fill="#54666F">text · píše ho správce</text>
+<rect x="40" y="220" width="260" height="50" rx="10" fill="#FFFFFF" stroke="#47657D" stroke-width="1.4"/>
+<text x="170" y="241" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">allow-transfer { 192.168.1.2; }</text>
+<text x="170" y="259" text-anchor="middle" font-size="9.5" fill="#54666F" opacity="1">bez něj: přenos zakázán (9.20)<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="1;1;0;0" keyTimes="0;0.6017;0.6030;1"/></text>
+<text x="170" y="259" text-anchor="middle" font-size="9.5" font-weight="700" fill="#3F7455" opacity="0">✓ 192.168.1.2 smí zónu stáhnout<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6017;0.6030;0.7983;0.7997;1"/></text>
+<text x="170" y="259" text-anchor="middle" font-size="9.5" fill="#54666F" opacity="0">bez něj: přenos zakázán (9.20)<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1" keyTimes="0;0.7983;0.7997;1"/></text>
+<rect x="40" y="284" width="260" height="72" rx="10" fill="#2E4657"/>
+<text x="54" y="302" font-size="9" font-weight="700" fill="#9FD1C7">konzole správce</text>
+<text x="54" y="322" font-size="9.5" fill="#EAF3F7" opacity="0">$ sudo nano /etc/bind/db.vyuka.cz<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0017;0.0030;0.0983;0.0997;1"/></text>
+<text x="54" y="341" font-size="9.5" fill="#EAF3F7" opacity="0">  serial  …01  →  …02<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0017;0.0030;0.0983;0.0997;1"/></text>
+<text x="54" y="322" font-size="9.5" fill="#EAF3F7" opacity="0">$ sudo named-checkzone … → OK<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1017;0.1030;0.1983;0.1997;1"/></text>
+<text x="54" y="341" font-size="9.5" fill="#EAF3F7" opacity="0">$ sudo rndc reload<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1017;0.1030;0.1983;0.1997;1"/></text>
+<rect x="580" y="40" width="300" height="330" rx="16" fill="#FFFFFF" stroke="#47657D" stroke-width="2"/>
+<text x="730" y="66" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Klient</text>
+<text x="730" y="84" text-anchor="middle" font-size="10" fill="#54666F">ns2.vyuka.cz · 192.168.1.2</text>
+<rect x="600" y="96" width="260" height="26" rx="13" fill="#71801A"/>
+<text x="730" y="113" text-anchor="middle" font-size="10.5" font-weight="700" fill="#FFFFFF">named · zone vyuka.cz · type secondary</text>
+<rect x="600" y="136" width="260" height="50" rx="10" fill="#FFFFFF" stroke="#71801A" stroke-width="1.4"/>
+<text x="730" y="157" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">primaries { 192.168.1.1; }</text>
+<text x="730" y="175" text-anchor="middle" font-size="9.5" fill="#54666F">odkud zónu stahovat</text>
+<rect x="600" y="200" width="260" height="70" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+<text x="730" y="221" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">/var/cache/bind/db.vyuka.cz</text>
+<text x="730" y="242" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38" opacity="1">SOA serial 2026102301<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="1;1;0;0" keyTimes="0;0.8400;0.8413;1"/></text>
+<text x="730" y="242" text-anchor="middle" font-size="11" font-weight="700" fill="#3F7455" opacity="0">SOA serial 2026102302<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1" keyTimes="0;0.8400;0.8413;1"/></text>
+<text x="730" y="261" text-anchor="middle" font-size="9.5" fill="#54666F">formát raw (binární) · píše named</text>
+<rect x="600" y="284" width="260" height="72" rx="10" fill="#FFFFFF" stroke="#71801A" stroke-width="1.4" stroke-dasharray="5 4"/>
+<text x="614" y="302" font-size="9" font-weight="700" fill="#71801A">rozhodnutí sekundárního serveru</text>
+<text x="614" y="322" font-size="9.5" fill="#1E2E38" opacity="0">Server:  2026102302<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5017;0.5030;0.5983;0.5997;1"/></text>
+<text x="614" y="341" font-size="9.5" font-weight="700" fill="#3F7455" opacity="0">já:      2026102301 → stáhnu<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5017;0.5030;0.5983;0.5997;1"/></text>
+<text x="614" y="322" font-size="9.5" fill="#1E2E38" opacity="0">zóna uložena a načtena<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.8017;0.8030;0.8983;0.8997;1"/></text>
+<text x="614" y="341" font-size="9.5" font-weight="700" fill="#3F7455" opacity="0">odpovídám autoritativně (aa)<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.8017;0.8030;0.8983;0.8997;1"/></text>
+<text x="614" y="322" font-size="9.5" fill="#1E2E38" opacity="0">bez NOTIFY: po Refresh se ptám<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.9017;0.9030;0.9983;0.9997;1"/></text>
+<text x="614" y="341" font-size="9.5" fill="#B5453B" opacity="0">Server mlčí → Retry … Expire<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.9017;0.9030;0.9983;0.9997;1"/></text>
+<path d="M326 150 L574 150" stroke="#47657D" stroke-width="2" fill="none" marker-end="url(#xa-47657D)"/>
+<text x="450" y="141" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">3 · NOTIFY vyuka.cz · UDP 53</text>
+<path d="M574 196 L326 196" stroke="#71801A" stroke-width="2" fill="none" marker-end="url(#xa-71801A)"/>
+<text x="450" y="187" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">4 · dotaz: vyuka.cz SOA ?</text>
+<path d="M326 238 L574 238" stroke="#47657D" stroke-width="2" fill="none" stroke-dasharray="6 5" marker-end="url(#xa-47657D)"/>
+<text x="450" y="229" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">5 · odpověď: SOA … 2026102302</text>
+<path d="M574 290 L326 290" stroke="#71801A" stroke-width="3.4" fill="none" marker-end="url(#xa-71801A)"/>
+<text x="450" y="281" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">7 · AXFR vyuka.cz · TCP 53</text>
+<path d="M326 336 L574 336" stroke="#3F7455" stroke-width="3.4" fill="none" stroke-dasharray="6 5" marker-end="url(#xa-3F7455)"/>
+<text x="450" y="327" text-anchor="middle" font-size="10" font-weight="700" fill="#1E2E38">8 · celá zóna · 18 záznamů</text>
+<circle r="6" fill="#47657D" opacity="0"><animateMotion dur="30.0s" repeatCount="indefinite" path="M326 150 L574 150" keyPoints="0;0;1;1" keyTimes="0;0.2117;0.2817;1" calcMode="linear"/><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.2110;0.2123;0.2817;0.2830;1"/></circle>
+<circle r="6" fill="#71801A" opacity="0"><animateMotion dur="30.0s" repeatCount="indefinite" path="M574 196 L326 196" keyPoints="0;0;1;1" keyTimes="0;0.3117;0.3817;1" calcMode="linear"/><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3110;0.3123;0.3817;0.3830;1"/></circle>
+<circle r="6" fill="#47657D" opacity="0"><animateMotion dur="30.0s" repeatCount="indefinite" path="M326 238 L574 238" keyPoints="0;0;1;1" keyTimes="0;0.4117;0.4817;1" calcMode="linear"/><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.4110;0.4123;0.4817;0.4830;1"/></circle>
+<circle r="7" fill="#71801A" opacity="0"><animateMotion dur="30.0s" repeatCount="indefinite" path="M574 290 L326 290" keyPoints="0;0;1;1" keyTimes="0;0.6117;0.6817;1" calcMode="linear"/><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6110;0.6123;0.6817;0.6830;1"/></circle>
+<circle r="7" fill="#3F7455" opacity="0"><animateMotion dur="30.0s" repeatCount="indefinite" path="M326 336 L574 336" keyPoints="0;0;1;1" keyTimes="0;0.7117;0.7817;1" calcMode="linear"/><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.7110;0.7123;0.7817;0.7830;1"/></circle>
+<text x="450" y="366" text-anchor="middle" font-size="9.5" fill="#54666F">číslo = krok animace</text>
+<text x="20" y="398" font-size="10.5" font-weight="700" fill="#1E2E38">Časovače ze SOA řídí sekundární server, když NOTIFY nepřijde:</text>
+<rect x="20" y="408" width="260" height="46" rx="12" fill="#FFFFFF" stroke="#71801A" stroke-width="1.4"/>
+<text x="150" y="427" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">Refresh 3600 s</text>
+<text x="150" y="444" text-anchor="middle" font-size="9.5" fill="#54666F">za jak dlouho se zeptat na SOA</text>
+<rect x="320" y="408" width="260" height="46" rx="12" fill="#FFFFFF" stroke="#71801A" stroke-width="1.4"/>
+<text x="450" y="427" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">Retry 900 s</text>
+<text x="450" y="444" text-anchor="middle" font-size="9.5" fill="#54666F">další pokus, když primary mlčí</text>
+<rect x="620" y="408" width="260" height="46" rx="12" fill="#FFFFFF" stroke="#71801A" stroke-width="1.4"/>
+<text x="750" y="427" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1E2E38">Expire 1209600 s</text>
+<text x="750" y="444" text-anchor="middle" font-size="9.5" fill="#54666F">pak zónu přestane poskytovat</text>
+<path d="M282 431 L316 431" stroke="#C9D6DC" stroke-width="1.6"/>
+<path d="M582 431 L616 431" stroke="#C9D6DC" stroke-width="1.6"/>
+<path d="M20 478 L60 478" stroke="#47657D" stroke-width="2"/>
+<text x="68" y="482" font-size="9.5" fill="#1E2E38"><tspan font-weight="700">UDP</tspan> zpráva</text>
+<path d="M200 478 L240 478" stroke="#71801A" stroke-width="3.4"/>
+<text x="248" y="482" font-size="9.5" fill="#1E2E38"><tspan font-weight="700">TCP</tspan> (přenos zóny)</text>
+<path d="M420 478 L460 478" stroke="#54666F" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="468" y="482" font-size="9.5" fill="#1E2E38"><tspan font-weight="700">odpověď</tspan> (čárkovaně)</text>
+<text x="880" y="482" text-anchor="end" font-size="9.5" fill="#54666F">port 53 · RFC 1996 · RFC 5936</text>
+<rect x="36" y="132" width="268" height="78" rx="13" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0017;0.0030;0.0983;0.0997;1"/></rect>
+<rect x="36" y="280" width="268" height="80" rx="13" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1017;0.1030;0.1983;0.1997;1"/></rect>
+<rect x="596" y="92" width="268" height="34" rx="16" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.2017;0.2030;0.2983;0.2997;1"/></rect>
+<rect x="596" y="280" width="268" height="80" rx="13" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5017;0.5030;0.5983;0.5997;1"/></rect>
+<rect x="36" y="216" width="268" height="58" rx="13" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6017;0.6030;0.6983;0.6997;1"/></rect>
+<rect x="596" y="196" width="268" height="78" rx="13" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.8017;0.8030;0.8983;0.8997;1"/></rect>
+<rect x="16" y="404" width="868" height="54" rx="15" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.9017;0.9030;0.9983;0.9997;1"/></rect>
+<rect x="20" y="500" width="860" height="44" rx="10" fill="#2E4657"/>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">1 · Správce upraví zónový soubor a ZVÝŠÍ sériové číslo (…01 → …02)<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0007;0.0020;0.0993;0.1007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">2 · named-checkzone ověří syntaxi, rndc reload načte novou verzi zóny<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1007;0.1020;0.1993;0.2007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">3 · Server pošle NOTIFY serverům z NS záznamů zóny (kromě sebe = SOA MNAME)<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.2007;0.2020;0.2993;0.3007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">4 · Klient se zeptá Serveru na záznam SOA zóny vyuka.cz<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3007;0.3020;0.3993;0.4007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">5 · Server odpoví SOA se sériovým číslem 2026102302<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.4007;0.4020;0.4993;0.5007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">6 · Klient porovná: 2026102302 > 2026102301 → jeho kopie je zastaralá<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.5007;0.5020;0.5993;0.6007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">7 · Klient požádá po TCP o AXFR; Server ověří allow-transfer → povoleno<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.6007;0.6020;0.6993;0.7007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">8 · Server pošle celou zónu (SOA na začátku i na konci přenosu)<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.7007;0.7020;0.7993;0.8007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">9 · Klient uloží zónu do /var/cache/bind (raw) a odpovídá s příznakem aa<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.8007;0.8020;0.8993;0.9007;1"/></text>
+<text x="36" y="527" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">10 · Když NOTIFY nedorazí, Klient se zeptá sám po Refresh, pak po Retry<animate attributeName="opacity" dur="30.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.9007;0.9020;0.9993;1.0000;1"/></text>
+</svg>
+        <div class="vp-controls">
+          <button type="button" class="vp-btn primary" id="vp-play" aria-pressed="false">⏸ Pauza</button>
+          <button type="button" class="vp-btn" id="vp-prev" aria-label="Předchozí krok">⏮</button>
+          <button type="button" class="vp-btn" id="vp-next" aria-label="Další krok">⏭</button>
+          <button type="button" class="vp-btn" id="vp-restart">↺ Od začátku</button>
+          <div class="vp-track" id="vp-track" title="Klikněte pro posun"><span id="vp-bar"></span></div>
+          <span class="vp-time" id="vp-time">0:00 / 0:30</span>
+        </div>
+        <div class="vp-steps" id="vp-steps"></div>
+        <div class="vp-caption" aria-live="polite"><div class="vc-title" id="vp-title"></div><div class="vc-text" id="vp-text"></div></div>
+        <figcaption>Obr. 2 — Přenos zóny <code>vyuka.cz</code> ze Serveru (primary) na Klienta (secondary), 10 kroků po 3 s. Plnou čarou dotaz, čárkovaně odpověď, silnou čarou spojení TCP. Krokovat můžete tlačítky nebo čísly pod obrázkem.</figcaption>
+      </figure>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Mechanismus</th><th>Co dělá</th><th>Kde se nastavuje</th></tr></thead>
+          <tbody>
+            <tr><td><b>NOTIFY</b> (RFC 1996)</td><td>primární server po načtení změněné zóny <b>upozorní</b> sekundární servery — pošle je na adresy serverů z NS záznamů zóny (kromě serveru v SOA MNAME) a na adresy z <code>also-notify</code></td><td>výchozí <code>notify yes;</code></td></tr>
+            <tr><td><b>Refresh / Retry</b></td><td>pojistka, když NOTIFY nedorazí: sekundární server se sám pravidelně ptá na SOA a porovná serial</td><td>časovače v SOA</td></tr>
+            <tr><td><b>AXFR</b> (RFC 5936)</td><td>přenos <b>celé</b> zóny po <b>TCP</b>, port 53; začíná i končí záznamem SOA</td><td><code>allow-transfer</code> na primary</td></tr>
+            <tr><td><b>IXFR</b> (RFC 1995)</td><td>přírůstkový přenos jen změn — BIND ho použije sám, má-li k dispozici historii změn</td><td>automaticky</td></tr>
+            <tr><td><b>Expire</b></td><td>když se sekundární server s primárním dlouho nespojí, zónu přestane poskytovat (raději žádná odpověď než zastaralá)</td><td>časovač v SOA</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Tři věci, které se v BIND 9.20 změnily nebo se snadno přehlédnou:</b></p>
+        <ul>
+          <li><b>Přenos je ve výchozím stavu zakázaný.</b> Od BIND 9.20 je výchozí <code>allow-transfer { none; }</code>. Bez explicitního povolení adresy sekundárního serveru se zóna nepřenese (sekundární server v logu hlásí <i>REFUSED</i>).</li>
+          <li><b>Kopie zóny na sekundárním serveru je binární.</b> Sekundární zóny ukládá BIND ve formátu <code>raw</code> (výchozí <code>masterfile-format</code> pro secondary). Příkazem <code>cat</code> ji nepřečtete — převedete ji na text příkazem <code>named-compilezone -f raw -F text -o - vyuka.cz soubor</code>.</li>
+          <li><b>Kopii zapisuje named</b>, proto musí ležet v <code>/var/cache/bind</code> (README.Debian, AppArmor) — ne v <code>/etc/bind</code>.</li>
+        </ul>
+      </div>
+
+      <!-- ===================== F — NÁSTROJE SPRÁVCE ===================== -->
+      <h3>F · Nástroje správce BIND a diagnostika</h3>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz</th><th>Co dělá</th><th>Kdy ho použít</th></tr></thead>
+          <tbody>
+            <tr><td><b>named-checkconf</b></td><td>zkontroluje syntaxi <code>named.conf</code> a všech vložených souborů; nic nevypíše = v pořádku</td><td>po <b>každé</b> úpravě konfigurace, před reloadem</td></tr>
+            <tr><td><b>named-checkzone ZÓNA SOUBOR</b></td><td>zkontroluje zónový soubor; vypíše <code>loaded serial …</code> a <code>OK</code></td><td>po každé úpravě zóny</td></tr>
+            <tr><td><b>named-compilezone -f raw -F text -o - ZÓNA SOUBOR</b></td><td>převede binární kopii zóny na text</td><td>kontrola přenesené zóny na secondary</td></tr>
+            <tr><td><b>rndc reload</b> · <b>rndc reload ZÓNA</b></td><td>načte znovu konfiguraci a zóny bez restartu služby (totéž <code>systemctl reload named</code>)</td><td>po změně konfigurace nebo zóny</td></tr>
+            <tr><td><b>rndc status</b> · <b>rndc zonestatus ZÓNA</b></td><td>stav serveru · typ, soubor, serial a časy zóny</td><td>ověření, že zóna je načtená</td></tr>
+            <tr><td><b>rndc retransfer ZÓNA</b> · <b>rndc notify ZÓNA</b></td><td>(secondary) stáhni zónu znovu · (primary) pošli znovu NOTIFY</td><td>ruční vyvolání přenosu</td></tr>
+            <tr><td><b>rndc dumpdb -cache</b> · <b>rndc flush</b></td><td>vypíše cache do <code>/var/cache/bind/named_dump.db</code> · vyprázdní cache</td><td>práce s cache</td></tr>
+            <tr><td><b>journalctl -u named</b></td><td>log služby — načtení zón, NOTIFY, přenosy, chyby</td><td><code>-f</code> sledování živě, <code>-n 30</code> posledních 30 řádků</td></tr>
+            <tr><td><b>dig @SERVER JMÉNO TYP</b></td><td>dotaz přímo na zadaný server (kapitola 10)</td><td><code>+short</code>, <code>+norec</code>, <code>+noall +answer</code></td></tr>
+            <tr><td><b>dig @SERVER ZÓNA AXFR</b></td><td>pokus o přenos celé zóny — odhalí, zda <code>allow-transfer</code> pustí jen, koho má</td><td>z nepovolené adresy: <i>Transfer failed.</i></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Jak poznáte odpověď vlastního serveru.</b> Autoritativní odpověď ze zóny má příznak <code>aa</code>. Server, který zároveň dělá resolver, má i <code>ra</code>. BIND 9.20 odpovídá „úsporně“ (<code>minimal-responses no-auth-recursive</code>): na běžný dotaz s příznakem RD vrátí jen sekci ANSWER; sekce AUTHORITY (NS) a ADDITIONAL (adresy NS) uvidíte s volbou <code>dig +norec</code>.</p>
+        <p style="margin-bottom:0;"><b>Postup při chybě:</b> 1) <code>named-checkconf</code> a <code>named-checkzone</code>; 2) <code>systemctl status named</code> a <code>journalctl -u named -n 30</code>; 3) <code>dig @127.0.0.1 …</code> přímo na server — <b>SERVFAIL</b> (zóna se nenačetla nebo nefunguje rekurze), <b>REFUSED</b> (server se zeptat nedovolí — <code>allow-recursion</code>, <code>allow-transfer</code>), <b>NXDOMAIN</b> (jméno v zóně není — překlep, chybějící tečka), <b>timeout</b> (služba neběží nebo poslouchá jinde).</p>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>DNS server BIND v modelu master–slave – Zadání pro žáky</h2>
+      <p class="lede">Dvě vyučovací hodiny (90 min): zhruba <b>25 min</b> teorie s animací, <b>65 min</b> praxe: <b>A</b> Server — instalace a cache (10 min) → <b>B</b> Server — zóna <code>vyuka.cz</code> (25 min) → <b>C</b> Server — lokální × veřejný DNS (5 min) → <b>D</b> Klient — sekundární server (20 min) → <b>E</b> otázky pro protokol (5 min, dokončit doma). <b>F</b> rozšiřující úlohy jsou pro rychlejší týmy. Časy jsou orientační. Výstupy si průběžně zapisujte do protokolu.</p>
+      <div class="callout">
+        <p><b>1. Cíl cvičení</b><br>Student nakonfiguruje službu DNS pomocí systému BIND tak, aby správně fungovala doména vyuka.cz v modelu master–slave. Naučí se vytvořit zónový soubor, registrovat zónu, ověřit její funkčnost a provádět základní diagnostiku.</p>
+        <p style="margin:.7rem 0 0;"><b>2. Výchozí stav (kapitoly 5–10)</b></p>
+        <ul>
+          <li>2.1 <b>Server</b> — 192.168.1.1/24 v intranetu, druhá karta do školní sítě (NAT), trvalá síť, <code>systemd-resolved</code> s <code>DNS=8.8.8.8</code>.</li>
+          <li>2.2 <b>Klient</b> — 192.168.1.2/24, brána 192.168.1.1, <code>systemd-resolved</code> (od kapitoly 10 <code>DNS=8.8.8.8 1.1.1.1</code>), nástroje <code>dig</code>, <code>host</code>, <code>nslookup</code>.</li>
+          <li>2.3 Klient jde do internetu přes Server (NAT) — <code>apt install</code> na Klientovi funguje.</li>
+        </ul>
+        <p style="margin:.7rem 0 0;"><b>3. Organizační pokyny</b></p>
+        <ul>
+          <li>3.1 Pracujte ve dvojici: jeden obsluhuje Server, druhý Klienta, role si v polovině vyměňte.</li>
+          <li>3.2 Po <b>každé</b> úpravě konfigurace spusťte <code>named-checkconf</code>, po úpravě zóny <code>named-checkzone</code> — teprve pak reload.</li>
+          <li>3.3 Svůj DNS server oslovujte vždy přes <code>dig @adresa</code> — bez <code>@</code> se ptáte systemd-resolved, tedy 8.8.8.8.</li>
+        </ul>
+      </div>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — ví, že BIND je DNS server, ale nerozliší konfigurační soubor od zónového.</li>
+            <li><b>Rozvíjející se</b> — popíše účel named.conf.options a named.conf.local a vyjmenuje typy záznamů, plete si význam časovačů SOA.</li>
+            <li><b>Očekávaná úroveň</b> — vysvětlí typy zón primary/secondary/forward, všechna pole SOA, pravidla pro CNAME, MX a NS a průběh přenosu zóny (NOTIFY, SOA, AXFR).</li>
+            <li><b>Nad rámec</b> — vysvětlí změny v BIND 9.20 (allow-transfer none, formát raw, odstraněné default-zones), negativní cache podle RFC 2308 a rozdíl AXFR × IXFR.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — nainstaluje BIND a ověří cache, zónu nenačte.</li>
+            <li><b>Rozvíjející se</b> — zóna vyuka.cz na Serveru odpovídá, ale chybí některé záznamy nebo nefunguje přenos na Klienta.</li>
+            <li><b>Očekávaná úroveň</b> — splní kroky 1–11: kompletní zóna s aa odpovědí, přenos na Klienta doložený logem a shodným serialem, dotazy na Klienta fungují.</li>
+            <li><b>Nad rámec</b> — splní rozšiřující úlohy (reverzní zóna, forwardery, skola.cz) a doloží přenos změny po zvýšení serialu.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — při chybě restartuje službu bez kontroly konfigurace.</li>
+            <li><b>Rozvíjející se</b> — použije named-checkconf a named-checkzone, log nečte.</li>
+            <li><b>Očekávaná úroveň</b> — podle statusu odpovědi (SERVFAIL, REFUSED, NXDOMAIN) a logu named najde příčinu chyby.</li>
+            <li><b>Nad rámec</b> — navrhne nastavení pro provoz školy (TTL před plánovanou změnou, umístění sekundárního serveru, omezení rekurze).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — potřebuje vést u každého kroku.</li>
+            <li><b>Rozvíjející se</b> — zónový soubor napíše sám, s přenosem zóny potřebuje pomoc.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, nejasnosti dohledá v <code>man named.conf</code>, <code>man rndc</code> a v dokumentaci BIND.</li>
+            <li><b>Nad rámec</b> — pomůže jinému týmu najít chybu v zóně nebo v přenosu.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Vím, k čemu slouží named.conf, named.conf.options, named.conf.local a named.conf.root-hints a kam patří zónové soubory primary a secondary.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím nainstalovat BIND, ovládat službu named a ověřit, že funguje jako cache.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Umím napsat zónový soubor se záznamy SOA, NS, A, MX a CNAME a vím, kde musí být koncová tečka.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím vysvětlit všechna pole SOA a vím, proč se musí při změně zvýšit serial.</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Umím zaregistrovat zónu typu primary i secondary a povolit přenos zóny jen vybrané adrese.</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím ověřit přenos zóny (log, serial, zonestatus, odpověď s aa ze sekundárního serveru).</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím zkontrolovat konfiguraci (named-checkconf, named-checkzone) a podle statusu odpovědi a logu najít chybu.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Umím vysvětlit, proč lokální a veřejný DNS server odpovídají na vyuka.cz jinak.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Do sdílené složky týmu uložte: oba soubory named.conf.local (Server, Klient), zónový soubor db.vyuka.cz, výstupy named-checkconf a named-checkzone, dvojí dotaz do cache (Query time), dotazy na A, NS, MX, SOA a CNAME, porovnání lokální × veřejný DNS, log přenosu zóny z Klienta a rndc zonestatus na obou strojích.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky CBL — dokumentace BIND 9.20 od ISC (Administrator Reference Manual), manuálové stránky a dokumentace balíku bind9 v Debianu 13, standardy IETF (RFC) a materiály školy. Všechny postupy byly vyzkoušené na BIND 9 se zónou vyuka.cz v modelu primary–secondary.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 11 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 11 — DNS server BIND
+   ========================================================================== */
+
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function cmd(txt){
+    var out = txt.replace(/^\n/,"").replace(/\n$/,"").split("\n").map(function(l){
+      if(l === "#" || l.indexOf("# ") === 0) return '<span class="c">'+esc(l)+'</span>';
+      if(l === "|" || l.indexOf("| ") === 0) return '<span class="c">'+esc(l.slice(2))+'</span>';
+      return esc(l);
+    }).join("\n");
+    return '<pre class="cmdblock"><code>'+out+'</code></pre>';
+  }
+  function answers(list){
+    return '<div class="model-answers"><p class="ma-head">Vzorové odpovědi</p><dl>' +
+      list.map(function(a){ return '<dt>'+a[0]+'</dt><dd>'+a[1]+'</dd>'; }).join("") + '</dl></div>';
+  }
+
+  var TOPIC = {
+    num: "11",
+    title: "DNS server BIND",
+    hours: "2 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "DNS server BIND má dvě tváře: <b>autoritativní</b> — za svou zónu odpovídá podle zónového souboru, který napíše správce — a <b>rekurzivní s cache</b> — cizí jména dohledává za klienty a pamatuje si je po dobu TTL. Zónu upravujete jen na <b>primárním</b> serveru; <b>sekundární</b> server si ji podle sériového čísla v záznamu SOA přenáší sám. Díky tomu jména fungují, i když jeden server vypadne.",
+    eq: "Jak zařídit, aby si všechny počítače školy správně přeložily jména jako www.vyuka.cz nebo smtp2.vyuka.cz — a aby to fungovalo, i když jeden DNS server vypadne?",
+    challenge: "Škola X už nechce spravovat jména v <code>/etc/hosts</code> na každém počítači zvlášť. Na <b>Serveru</b> zprovozněte BIND jako cache a jako <b>primární</b> server zóny <code>vyuka.cz</code> — se správcem, dvěma jmennými servery, dvěma poštovními servery, adresami a aliasy. Na <b>Klientovi</b> zprovozněte druhý BIND jako <b>sekundární</b> server, který si zónu stáhne a odpovídá za ni také. Funkčnost doložte dotazy <code>dig</code>, logem přenosu zóny a porovnáním s veřejným DNS serverem."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Proč je konfigurace BIND rozdělená do několika souborů a do kterého z nich patří registrace vlastní zóny?",
+      "Co všechno musí obsahovat zónový soubor, aby ho BIND načetl — a co způsobí jedna zapomenutá tečka na konci jména?",
+      "Jaké údaje nese záznam SOA a jak podle nich sekundární server pozná, že má zónu stáhnout znovu?",
+      "Proč nesmí záznam MX ani NS ukazovat na alias (CNAME) a proč jméno s CNAME nesmí mít žádný jiný záznam?",
+      "Proč odpoví váš Server na dotaz vyuka.cz jinak než veřejný DNS server 8.8.8.8 — a který z nich má pravdu?"
+    ],
+    resources: [
+      {
+        title: "BIND 9 Administrator Reference Manual 9.20 (ISC) — Configuration Reference",
+        tag: "official",
+        items: [
+          "Typy zón: <code>primary</code> (synonymum <code>master</code>), <code>secondary</code> (synonymum <code>slave</code>), <code>forward</code>, <code>hint</code>; klauzule <code>primaries</code>, <code>allow-transfer</code>, <code>also-notify</code>, <code>forwarders</code>.",
+          "Výchozí hodnoty: <code>allow-transfer</code> = <b>none</b> (BIND 9.20), <code>allow-recursion</code> a <code>allow-query-cache</code> = <code>localnets; localhost;</code>, <code>allow-query</code> = všichni, <code>recursion yes</code>, <code>forward first</code>, <code>dnssec-validation auto</code>, <code>masterfile-format raw</code> u sekundárních zón, <code>minimal-responses no-auth-recursive</code>.",
+          "NOTIFY se posílá serverům z NS záznamů zóny kromě serveru v SOA MNAME a serverům z <code>also-notify</code>.",
+          "<a href='https://bind9.readthedocs.io/en/stable/reference.html' target='_blank' rel='noopener'>bind9.readthedocs.io/en/stable/reference.html</a>"
+        ]
+      },
+      {
+        title: "Balík bind9 v Debianu 13 — README.Debian a NEWS.Debian",
+        tag: "official",
+        items: [
+          "Od verze balíku 1:9.20.5-1 odstraněny <code>named.conf.default-zones</code>, <code>db.local</code>, <code>db.127</code>, <code>db.0</code>, <code>db.255</code>, <code>db.empty</code>, <code>zones.rfc1918</code> (prázdné zóny řeší BIND sám) a změněn výchozí <code>allow-transfer</code> na zákaz. Přidán <code>named.conf.root-hints</code>.",
+          "Zóny, pro které je server primární, patří do <code>/etc/bind</code>; sekundární zóny do <code>/var/cache/bind</code>; dynamicky měněné do <code>/var/lib/bind</code>. Služba <code>named.service</code> s aliasem <code>bind9.service</code>.",
+          "<a href='https://metadata-backend.ftp-master.debian.org/changelogs/main/b/bind9/stable_bind9.NEWS' target='_blank' rel='noopener'>NEWS.Debian (bind9, stable)</a> · <a href='https://tracker.debian.org/pkg/bind9' target='_blank' rel='noopener'>tracker.debian.org/pkg/bind9</a>"
+        ]
+      },
+      {
+        title: "named.conf(5), named(8), rndc(8), named-checkconf(1), named-checkzone(1), named-compilezone(1) — Debian 13",
+        tag: "official",
+        items: [
+          "Gramatika <code>named.conf</code> pro BIND 9.20; ovládání <code>rndc reload | status | zonestatus | retransfer | notify | dumpdb -cache | flush</code>; kontrola konfigurace a zón; převod zóny z formátu raw na text: <code>named-compilezone -f raw -F text -o - ZÓNA SOUBOR</code>.",
+          "<a href='https://manpages.debian.org/trixie/bind9/named.conf.5.en.html' target='_blank' rel='noopener'>…/named.conf.5</a> · <a href='https://manpages.debian.org/trixie/bind9-utils/rndc.8.en.html' target='_blank' rel='noopener'>…/rndc.8</a> · <a href='https://manpages.debian.org/trixie/bind9-utils/named-checkzone.1.en.html' target='_blank' rel='noopener'>…/named-checkzone.1</a> · <a href='https://manpages.debian.org/trixie/bind9-utils/named-checkconf.1.en.html' target='_blank' rel='noopener'>…/named-checkconf.1</a>"
+        ]
+      },
+      {
+        title: "RFC 1034 a RFC 1035 — zóny, formát zónového souboru, záznam SOA",
+        tag: "official",
+        items: [
+          "Tvar záznamu <code>jméno TTL třída typ data</code>, direktivy <code>$ORIGIN</code> a <code>$TTL</code>, znak <code>@</code>, relativní jména a koncová tečka, pole SOA (MNAME, RNAME, SERIAL, REFRESH, RETRY, EXPIRE, MINIMUM), typy A, NS, CNAME, SOA, PTR, MX, TXT.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc1034' target='_blank' rel='noopener'>rfc1034</a> · <a href='https://www.rfc-editor.org/rfc/rfc1035' target='_blank' rel='noopener'>rfc1035</a>"
+        ]
+      },
+      {
+        title: "RFC 1912 a RFC 2181 — běžné chyby a pravidla pro CNAME, MX a NS",
+        tag: "official",
+        items: [
+          "RFC 1912: e-mail správce v SOA (<code>@</code> → <code>.</code>), serial ve tvaru <code>RRRRMMDDnn</code>, doporučené hodnoty Refresh (20 min – 2 h), Expire (2–4 týdny); CNAME nesmí koexistovat s jinými daty.",
+          "RFC 2181, odst. 10.3: cílem záznamů NS a MX nesmí být alias (CNAME), musí mít vlastní A/AAAA záznamy.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc1912' target='_blank' rel='noopener'>rfc1912</a> · <a href='https://www.rfc-editor.org/rfc/rfc2181' target='_blank' rel='noopener'>rfc2181</a>"
+        ]
+      },
+      {
+        title: "RFC 1996, RFC 5936, RFC 1995 — NOTIFY, AXFR, IXFR",
+        tag: "official",
+        items: [
+          "NOTIFY: primární server oznámí změnu zóny, sekundární se zeptá na SOA a podle serialu rozhodne o přenosu. AXFR: přenos celé zóny po TCP, začíná i končí SOA. IXFR: přírůstkový přenos jen změn.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc1996' target='_blank' rel='noopener'>rfc1996</a> · <a href='https://www.rfc-editor.org/rfc/rfc5936' target='_blank' rel='noopener'>rfc5936</a> · <a href='https://www.rfc-editor.org/rfc/rfc1995' target='_blank' rel='noopener'>rfc1995</a>"
+        ]
+      },
+      {
+        title: "RFC 2308 — negativní cache (význam pole MINIMUM v SOA)",
+        tag: "official",
+        items: [
+          "Poslední pole SOA určuje, jak dlouho resolvery pamatují zápornou odpověď (NXDOMAIN); doporučeno 1–3 hodiny.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc2308' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc2308</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Do kterého souboru v Debianu 13 zapíšete registraci vlastní zóny <code>zone \"vyuka.cz\" { … };</code>?",
+      opts: ["/etc/bind/named.conf.options", "/etc/bind/named.conf.local", "/etc/bind/named.conf.default-zones", "/var/cache/bind/named.conf"],
+      correct: 1,
+      explain: "Vlastní zóny patří do <code>named.conf.local</code>. Soubor <code>named.conf.default-zones</code> v Debianu 13 (BIND 9.20) už vůbec neexistuje; <code>named.conf.options</code> je pro globální volby."
+    },
+    {
+      q: "Správce zóny je <code>admin@vyuka.cz</code>. Jak se zapíše do záznamu SOA?",
+      opts: ["admin@vyuka.cz", "\"admin@vyuka.cz\"", "admin.vyuka.cz.", "vyuka.cz.admin"],
+      correct: 2,
+      explain: "V poli RNAME se zavináč nahradí tečkou a jméno je úplné (s koncovou tečkou) — RFC 1912."
+    },
+    {
+      q: "V zónovém souboru <code>vyuka.cz</code> je řádek <code>@ IN NS ns1.vyuka.cz</code> (bez tečky na konci). Co z něj BIND udělá?",
+      opts: ["ns1.vyuka.cz.", "ns1.vyuka.cz.vyuka.cz.", "Chybu syntaxe kvůli chybějící tečce", "Řádek ignoruje"],
+      correct: 1,
+      explain: "Jméno bez koncové tečky je relativní — BIND k němu připojí origin (jméno zóny). <code>named-checkzone</code> pak zónu odmítne, protože <code>ns1.vyuka.cz.vyuka.cz</code> nemá žádný A záznam."
+    },
+    {
+      q: "Na Serveru jste změnili adresu v zóně a dali <code>rndc reload</code>. Klient (secondary) ale pořád vrací starou adresu. Nejpravděpodobnější příčina?",
+      opts: ["Klient nemá restartovaný počítač", "Nezvýšili jste sériové číslo v SOA — sekundární server nemá důvod zónu stahovat", "Chybí záznam MX", "NOTIFY funguje jen po IPv6"],
+      correct: 1,
+      explain: "Sekundární server přenáší zónu, jen když je serial na primárním serveru vyšší. BIND při reloadu varuje <i>zone serial unchanged</i>."
+    },
+    {
+      q: "Jaká je výchozí hodnota <code>allow-transfer</code> v BIND 9.20, když ji neuvedete?",
+      opts: ["any — zónu si stáhne kdokoli", "localnets — jen stroje z lokální sítě", "none — přenos zóny je zakázán", "Sekundární servery z NS záznamů"],
+      correct: 2,
+      explain: "Od BIND 9.20 je výchozí <code>none</code> (dřív <code>any</code>). Proto v zadání musíte přenos na Klienta 192.168.1.2 povolit výslovně."
+    },
+    {
+      q: "Proč na Klientovi (secondary) nemá být soubor zóny v <code>/etc/bind/</code>?",
+      opts: ["Do /etc/bind named smí jen číst (AppArmor, README.Debian) — kopii zóny zapisuje sám, proto patří do /var/cache/bind", "Protože /etc/bind je jen pro IPv6", "Je to jen doporučení, funguje to stejně", "Protože tam leží named.conf.default-zones"],
+      correct: 0,
+      explain: "Kopii sekundární zóny zapisuje named. AppArmor profil mu dovoluje psát jen do <code>/var/cache/bind</code> a <code>/var/lib/bind</code>; zápis do <code>/etc/bind</code> skončí chybou <i>permission denied</i>."
+    },
+    {
+      q: "Smí být záznam <code>@ IN MX 10 smtp1.vyuka.cz.</code>, když je <code>smtp1</code> CNAME na <code>server</code>?",
+      opts: ["Ano, CNAME se automaticky rozbalí", "Ne — cílem MX (a NS) nesmí být alias, musí to být jméno s A/AAAA záznamem (RFC 2181)", "Ano, ale jen s prioritou 20", "Ne, protože MX musí mít prioritu 0"],
+      correct: 1,
+      explain: "RFC 2181, odst. 10.3. <code>named-checkzone</code> to hlásí jako <i>MX 'smtp1.vyuka.cz' is a CNAME (illegal)</i>. Proto MX v zadání ukazují na <code>server</code> a <code>klient</code>."
+    },
+    {
+      q: "Příkaz <code>cat /var/cache/bind/db.vyuka.cz</code> na Klientovi vypíše nečitelné znaky. Proč?",
+      opts: ["Přenos zóny selhal", "Zóna je zašifrovaná DNSSEC", "Sekundární zóny ukládá BIND ve formátu raw (binárně); na text je převede named-compilezone -f raw -F text", "Soubor patří uživateli bind"],
+      correct: 2,
+      explain: "Výchozí <code>masterfile-format</code> je pro sekundární zóny <code>raw</code> — rychleji se načítá. Je to v pořádku, nejde o chybu."
+    }
+  ];
+
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu, jsou v poli "extra" (renderAct je skryje
+  // za "Zobrazit řešení"); vysvětlovací úkoly mají vzorové odpovědi přes answers().
+  // Položky checklistu = DOSLOVNÉ znění zadání vyučujícího (nepřeformulovávat).
+  var ACT = [
+    {
+      num: "A", en: "Instalace a cache · Server", title: "4. ČÁST A – POČÍTAČ SERVER: INSTALACE A CACHE",
+      body: "<p>⏱ orientačně 10 min. Pracujte na <b>Serveru</b> (192.168.1.1). Kromě balíku serveru doinstalujte i <code>bind9-dnsutils</code> (dig) — balík <code>bind9</code> ho sám nepřinese. Služba se jmenuje <code>named</code>.</p>",
+      checklist: [
+        "<b>1.</b> Nainstaluj a spusť službu DNS.",
+        "<b>2.</b> Ověř, že DNS server funguje jako vyrovnávací paměť (cache)."
+      ],
+      extra: cmd(`
+# ===== 1 – instalace a spuštění (Server) =====
+sudo apt update
+sudo apt install bind9 bind9-dnsutils
+systemctl status named                    # bind9.service je jen alias
+| ● named.service - BIND Domain Name Server
+|      Loaded: loaded (/usr/lib/systemd/system/named.service; enabled; …)
+|      Active: active (running) since …
+sudo systemctl enable --now named         # jen pokud by neběžela (Debian ji po instalaci spouští sám)
+ls /etc/bind
+| named.conf  named.conf.local  named.conf.options  named.conf.root-hints  rndc.key
+sudo ss -ulpn 'sport = :53'               # kdo poslouchá na portu 53
+| … 192.168.1.1:53  …  users:(("named",…))
+| … 127.0.0.1:53    …  users:(("named",…))
+| … 127.0.0.53%lo:53 … users:(("systemd-resolve",…))    # resolved dál běží vedle
+
+# ===== 2 – funguje jako cache? =====
+dig @127.0.0.1 www.seznam.cz | grep -E 'status|flags|IN\\s+A|Query time'
+| ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: …
+| ;; flags: qr rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+| www.seznam.cz.      300   IN  A   77.75.77.222
+| ;; Query time: 140 msec               # 1. dotaz: celá cesta od kořene
+dig @127.0.0.1 www.seznam.cz | grep -E 'IN\\s+A|Query time'
+| www.seznam.cz.      291   IN  A   77.75.77.222
+| ;; Query time: 0 msec                 # 2. dotaz: z cache, TTL se odpočítává
+sudo rndc dumpdb -cache                   # výpis cache do souboru
+sudo grep -i 'seznam' /var/cache/bind/named_dump.db | head
+`) + answers([
+        ["1 Kontrola instalace", "Služba <code>named</code> je <i>active (running)</i> a <i>enabled</i> (spustí se i po restartu). V <code>/etc/bind</code> jsou jen <code>named.conf</code>, <code>named.conf.options</code>, <code>named.conf.local</code>, <code>named.conf.root-hints</code> a <code>rndc.key</code> — žádné <code>db.*</code> soubory (Debian 13). named poslouchá na 127.0.0.1 a adresách karet, systemd-resolved dál na 127.0.0.53."],
+        ["2 Jak poznám, že jde o cache", "Odpověď má příznak <code>ra</code> (rekurze je dostupná) a <b>nemá</b> <code>aa</code> — server není za seznam.cz autoritativní, odpověď dohledal. Při prvním dotazu je <i>Query time</i> desítky až stovky ms (cesta přes kořen, cz a seznam.cz), při druhém kolem 0 ms a TTL je menší o uplynulé sekundy — odpověď přišla z cache. Záznam je vidět i ve výpisu <code>named_dump.db</code>.<br><b>Když dostanete SERVFAIL nebo timeout:</b> školní síť pravděpodobně nepouští dotazy přímo na kořenové servery. Řešením je přeposílání na veřejný resolver (rozšiřující úloha 2 — <code>forwarders</code>); domluvte se s vyučujícím."]
+      ])
+    },
+    {
+      num: "B", en: "Zóna vyuka.cz · Server", title: "5. ČÁST B – POČÍTAČ SERVER: ZÓNA VYUKA.CZ",
+      body: "<p>⏱ orientačně 25 min. „Soubor pro registraci zón“ je <code>/etc/bind/named.conf.local</code>, vlastní zónový soubor vytvořte jako <code>/etc/bind/db.vyuka.cz</code>. <b>Pořadí:</b> v kroku 3 zónu jen zapíšete do konfigurace (zónový soubor ještě neexistuje — službu zatím nenačítejte), v kroku 4 vytvoříte zónový soubor a v kroku 5 obojí zkontrolujete, načtete a ověříte. Hodnoty časovačů SOA a TTL zadání neurčuje — zvolte rozumné (viz tabulka SOA v teorii) a zdůvodněte je v protokolu.</p>",
+      checklist: [
+        "<b>3.</b> Do souboru pro registraci zón přidej novou zónu vyuka.cz typu master. Použij vlastní soubor se zónou, který vytvoříš v systému. Povol přenos zóny na počítač Klient s adresou 192.168.1.2.",
+        "<b>4.</b> Vytvoř nový zónový soubor pro doménu vyuka.cz, který bude obsahovat tyto údaje:<ul style=\"margin:.35rem 0 0 1.1rem;\"><li>Správce zóny: admin@vyuka.cz</li><li>Name servery: ns1.vyuka.cz., ns2.vyuka.cz.</li><li>Poštovní servery (MX): hlavní: server.vyuka.cz. (priorita 10) · záložní: klient.vyuka.cz. (priorita 20)</li><li>IPv4 adresy: 192.168.1.1 → vyuka.cz., server.vyuka.cz., ns1.vyuka.cz. · 192.168.1.2 → klient.vyuka.cz., ns2.vyuka.cz.</li><li>Aliasové záznamy (CNAME): Na Serveru: ssh, smtp1, smb, sftp, ntp, www · Na Klientovi: smtp2</li></ul>",
+        "<b>5.</b> Zaregistruj zónu do konfigurace a ověř její správnou funkčnost."
+      ],
+      extra: cmd(`
+# ===== 3 – registrace zóny (Server) =====
+sudo nano /etc/bind/named.conf.local
+| zone "vyuka.cz" {
+|     type primary;                        // = master (synonymum)
+|     file "/etc/bind/db.vyuka.cz";        // vlastní zónový soubor
+|     allow-transfer { 192.168.1.2; };     // přenos zóny jen na Klienta
+| };
+# službu zatím NEnačítat — zónový soubor ještě neexistuje
+
+# ===== 4 – zónový soubor =====
+sudo nano /etc/bind/db.vyuka.cz
+| ; zóna vyuka.cz — Server (primary)
+| $TTL 3600                                ; výchozí TTL záznamů: 1 hodina
+| @   IN  SOA ns1.vyuka.cz. admin.vyuka.cz. (
+|             2026102301  ; serial  (RRRRMMDDnn) — při každé změně zvýšit!
+|             3600        ; refresh (1 h)
+|             900         ; retry   (15 min)
+|             1209600     ; expire  (2 týdny)
+|             3600 )      ; negative TTL (1 h)
+|
+| ; jmenné servery
+| @       IN  NS      ns1.vyuka.cz.
+| @       IN  NS      ns2.vyuka.cz.
+|
+| ; poštovní servery (nižší číslo = vyšší priorita)
+| @       IN  MX  10  server.vyuka.cz.
+| @       IN  MX  20  klient.vyuka.cz.
+|
+| ; IPv4 adresy
+| @       IN  A       192.168.1.1
+| server  IN  A       192.168.1.1
+| ns1     IN  A       192.168.1.1
+| klient  IN  A       192.168.1.2
+| ns2     IN  A       192.168.1.2
+|
+| ; aliasy — Server
+| ssh     IN  CNAME   server.vyuka.cz.
+| smtp1   IN  CNAME   server.vyuka.cz.
+| smb     IN  CNAME   server.vyuka.cz.
+| sftp    IN  CNAME   server.vyuka.cz.
+| ntp     IN  CNAME   server.vyuka.cz.
+| www     IN  CNAME   server.vyuka.cz.
+| ; aliasy — Klient
+| smtp2   IN  CNAME   klient.vyuka.cz.
+
+# ===== 5 – kontrola, načtení, ověření =====
+sudo named-checkconf                      # nic nevypíše = konfigurace je v pořádku
+sudo named-checkzone vyuka.cz /etc/bind/db.vyuka.cz
+| zone vyuka.cz/IN: loaded serial 2026102301
+| OK
+sudo rndc reload                          # nebo: sudo systemctl reload named
+| server reload successful
+sudo rndc zonestatus vyuka.cz | head -4
+| name: vyuka.cz
+| type: primary
+| files: /etc/bind/db.vyuka.cz
+| serial: 2026102301
+sudo journalctl -u named -n 20 --no-pager | grep vyuka
+| … zone vyuka.cz/IN: loaded serial 2026102301
+| … zone vyuka.cz/IN: sending notifies (serial 2026102301)
+dig @127.0.0.1 vyuka.cz SOA +noall +comments +answer | grep -E 'status|flags|SOA'
+| ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: …
+| ;; flags: qr aa rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 1
+| vyuka.cz.   3600  IN  SOA  ns1.vyuka.cz. admin.vyuka.cz. 2026102301 3600 900 1209600 3600
+dig @127.0.0.1 vyuka.cz NS +short
+| ns1.vyuka.cz.
+| ns2.vyuka.cz.
+dig @127.0.0.1 vyuka.cz MX +short
+| 10 server.vyuka.cz.
+| 20 klient.vyuka.cz.
+for h in vyuka.cz server.vyuka.cz ns1.vyuka.cz klient.vyuka.cz ns2.vyuka.cz; do echo -n "$h: "; dig @127.0.0.1 $h +short; done
+for h in ssh smtp1 smb sftp ntp www smtp2; do echo -n "$h: "; dig @127.0.0.1 $h.vyuka.cz +short | tr '\\n' ' '; echo; done
+| ssh: server.vyuka.cz. 192.168.1.1
+| …
+| smtp2: klient.vyuka.cz. 192.168.1.2
+dig @192.168.1.1 vyuka.cz +norec         # bez RD: navíc AUTHORITY (NS) a ADDITIONAL (adresy ns1, ns2)
+dig @127.0.0.1 vyuka.cz AXFR             # z localhostu přenos zóny projít NESMÍ
+| ; Transfer failed.
+`) + answers([
+        ["3 Co znamená každá klauzule", "<code>type primary</code> (= <code>master</code>) — Server má hlavní kopii zóny. <code>file</code> — odkud ji čte. <code>allow-transfer { 192.168.1.2; }</code> — celou zónu si smí stáhnout jen Klient; v BIND 9.20 by bez této klauzule nesměl nikdo."],
+        ["4 Proč tyto hodnoty SOA", "Serial <code>2026102301</code> = datum + pořadí změny. Refresh 1 h a Retry 15 min jsou v rozsahu doporučeném RFC 1912 a v laboratoři se změny brzy projeví i bez NOTIFY. Expire 2 týdny (RFC 1912: 2–4 týdny) — tak dlouho Klient vydrží odpovídat i bez Serveru. Negative TTL 1 h (RFC 2308: 1–3 h). <code>$TTL 3600</code> — záznamy smí resolvery držet v cache hodinu.<br><b>Proč MX nemíří na smtp1/smtp2:</b> to jsou aliasy (CNAME) a cíl MX ani NS nesmí být alias (RFC 2181) — proto zadání správně používá <code>server</code> a <code>klient</code>, které mají A záznamy."],
+        ["5 Jak ověřím správnou funkčnost", "<code>named-checkconf</code> nic nevypíše, <code>named-checkzone</code> hlásí <code>OK</code> a serial; <code>rndc zonestatus</code> ukazuje typ primary a serial; log obsahuje <i>loaded serial</i> a <i>sending notifies</i>. Odpovědi mají status NOERROR a příznak <b>aa</b> (Server je za zónu autoritativní). Každé jméno ze zadání vrací správnou adresu, aliasy vrací CNAME + adresu. Pokus o AXFR z localhostu skončí <i>Transfer failed.</i> — důkaz, že <code>allow-transfer</code> pouští jen Klienta."]
+      ])
+    },
+    {
+      num: "C", en: "Lokální × veřejný DNS · Server", title: "6. ČÁST C – POČÍTAČ SERVER: LOKÁLNÍ A VEŘEJNÝ DNS",
+      body: "<p>⏱ orientačně 5 min. Lokální DNS server = váš BIND (<code>@127.0.0.1</code> nebo <code>@192.168.1.1</code>), veřejný DNS server = např. <code>@8.8.8.8</code>. Výsledek dotazu na veřejný server nelze předem přesně říct — záleží na tom, zda je doména <code>vyuka.cz</code> v internetu skutečně registrovaná a co v ní její majitel má. Zapište, co jste dostali, a vysvětlete proč.</p>",
+      checklist: [
+        "<b>6.</b> Proveď dotaz na doménu vyuka.cz nejprve na lokální DNS server, poté na veřejný DNS server a vysvětli rozdíl."
+      ],
+      extra: cmd(`
+# ===== 6 – lokální × veřejný DNS (Server) =====
+dig @127.0.0.1 vyuka.cz +noall +comments +answer | grep -E 'status|flags|IN'
+| ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: …
+| ;; flags: qr aa rd ra; …
+| vyuka.cz.        3600   IN  A   192.168.1.1
+dig @8.8.8.8 vyuka.cz +noall +comments +answer +authority | grep -E 'status|flags|IN'
+# → buď status: NXDOMAIN (doména v zóně cz. neexistuje — v AUTHORITY je SOA zóny cz.),
+#   nebo NOERROR se skutečnými veřejnými záznamy jejího majitele.
+#   V obou případech NE 192.168.1.1 a bez příznaku aa.
+dig @8.8.8.8 vyuka.cz NS +short          # kdo je za vyuka.cz autoritativní ve veřejném DNS?
+dig vyuka.cz +short                       # POZOR: bez @ = systemd-resolved → 8.8.8.8 = veřejná odpověď
+`) + answers([
+        ["6 Proč se odpovědi liší", "Lokální BIND je pro <code>vyuka.cz</code> <b>autoritativní</b> — odpovídá z vlastního zónového souboru (příznak <code>aa</code>, adresa 192.168.1.1). Veřejný resolver 8.8.8.8 o vašem souboru neví nic: projde strom od kořene přes zónu <code>cz.</code> (CZ.NIC) a skončí tam, kam ho pošle <b>delegace</b> v zóně <code>cz.</code>. Naši zónu nikdo do <code>cz.</code> nedelegoval (doménu nevlastníme), takže dostanete NXDOMAIN, nebo data skutečného majitele domény. Adresy 192.168.x.x jsou navíc privátní (RFC 1918) a z internetu by nebyly dostupné. Platí tedy: <b>naše jména fungují jen pro ty, kdo se ptají našeho serveru</b>. Pozor i na <code>dig vyuka.cz</code> bez <code>@</code> — jde přes systemd-resolved na 8.8.8.8, tedy na veřejnou odpověď."]
+      ])
+    },
+    {
+      num: "D", en: "Sekundární server · Klient", title: "7. ČÁST D – POČÍTAČ KLIENT: SEKUNDÁRNÍ (SLAVE) SERVER",
+      body: "<p>⏱ orientačně 20 min. Pracujte na <b>Klientovi</b> (192.168.1.2). Soubor sekundární zóny uveďte v <code>/var/cache/bind</code> — named do něj zapisuje stáhnutou kopii a do <code>/etc/bind</code> psát nesmí. Kopie je v binárním formátu <code>raw</code>, na text ji převede <code>named-compilezone</code>.</p>",
+      checklist: [
+        "<b>7.</b> Nainstaluj a spusť službu DNS.",
+        "<b>8.</b> Ověř, že DNS server funguje jako cache.",
+        "<b>9.</b> Zaregistruj zónu vyuka.cz jako slave, která bude přebírat data ze serveru s adresou 192.168.1.1.",
+        "<b>10.</b> Ověř, že zóna byla přenesena z hlavního serveru.",
+        "<b>11.</b> Otestuj funkčnost dotazů na doménu vyuka.cz směrem na klienta."
+      ],
+      extra: cmd(`
+# ===== 7 – instalace a spuštění (Klient) =====
+sudo apt install bind9                    # dig už Klient má z kapitoly 10
+systemctl status named
+| ● named.service - BIND Domain Name Server
+|      Active: active (running) since …
+
+# ===== 8 – cache =====
+dig @127.0.0.1 www.seznam.cz | grep 'Query time'
+| ;; Query time: 152 msec
+dig @127.0.0.1 www.seznam.cz | grep 'Query time'
+| ;; Query time: 0 msec
+
+# ===== 9 – sekundární zóna =====
+sudo nano /etc/bind/named.conf.local
+| zone "vyuka.cz" {
+|     type secondary;                       // = slave (synonymum)
+|     file "/var/cache/bind/db.vyuka.cz";   // kopii zapisuje named — ne do /etc/bind!
+|     primaries { 192.168.1.1; };           // = masters — odkud zónu stahovat
+| };
+sudo named-checkconf
+sudo rndc reload
+
+# ===== 10 – byla zóna přenesena? =====
+sudo journalctl -u named -n 30 --no-pager | grep -i transfer
+| … zone vyuka.cz/IN: Transfer started.
+| … zone vyuka.cz/IN: transferred serial 2026102301
+| … transfer of 'vyuka.cz/IN' from 192.168.1.1#53: Transfer completed: 1 messages, 18 records, … (serial 2026102301)
+ls -l /var/cache/bind/db.vyuka.cz
+| -rw-r--r-- 1 bind bind … /var/cache/bind/db.vyuka.cz
+sudo rndc zonestatus vyuka.cz
+| name: vyuka.cz
+| type: secondary
+| files: /var/cache/bind/db.vyuka.cz
+| serial: 2026102301
+| …
+| next refresh: …
+| expires: …
+sudo named-compilezone -f raw -F text -o - vyuka.cz /var/cache/bind/db.vyuka.cz | head -6
+| zone vyuka.cz/IN: loaded serial 2026102301
+| vyuka.cz.     3600 IN SOA  ns1.vyuka.cz. admin.vyuka.cz. 2026102301 3600 900 1209600 3600
+| vyuka.cz.     3600 IN NS   ns1.vyuka.cz.
+| vyuka.cz.     3600 IN NS   ns2.vyuka.cz.
+| …
+dig @192.168.1.1 vyuka.cz SOA +short; dig @192.168.1.2 vyuka.cz SOA +short   # serial musí být stejný
+
+# ===== 11 – dotazy směrem na Klienta =====
+dig @192.168.1.2 vyuka.cz +noall +comments +answer | grep -E 'flags|IN'
+| ;; flags: qr aa rd ra; …                  # aa — i Klient odpovídá autoritativně
+| vyuka.cz.        3600   IN  A   192.168.1.1
+dig @192.168.1.2 vyuka.cz MX +short
+dig @192.168.1.2 smtp2.vyuka.cz +short
+| klient.vyuka.cz.
+| 192.168.1.2
+# a ze Serveru po síti:
+dig @192.168.1.2 www.vyuka.cz +short
+| server.vyuka.cz.
+| 192.168.1.1
+# zkouška změny: na Serveru upravte zónu, ZVYŠTE serial, named-checkzone, rndc reload
+# a na Klientovi sledujte příchod NOTIFY a nový přenos:
+sudo journalctl -u named -f
+`) + answers([
+        ["8 Cache na Klientovi", "Stejně jako na Serveru: první dotaz trvá desítky ms, druhý kolem 0 ms a TTL klesá. Klient se ptá svého BINDu (127.0.0.1); ten dotazy na kořenové servery posílá přes Server (NAT)."],
+        ["10 Důkazy přenosu zóny", "1) Log named: <i>Transfer completed … 18 records … (serial 2026102301)</i>. 2) Soubor <code>/var/cache/bind/db.vyuka.cz</code> existuje a patří uživateli <code>bind</code> (zapsal ho named). 3) <code>rndc zonestatus</code> ukazuje <code>type: secondary</code>, stejný serial jako na Serveru a časy <i>next refresh</i> a <i>expires</i>. 4) Obsah po převodu <code>named-compilezone</code> odpovídá zóně na Serveru. 5) Serial ze SOA je na obou serverech stejný. Na Serveru je v logu protějšek: <i>AXFR started / AXFR ended</i> pro klienta 192.168.1.2."],
+        ["11 Dotazy na Klienta", "Klient odpovídá na všechna jména zóny se statusem NOERROR a příznakem <b>aa</b> — sekundární server je stejně autoritativní jako primární. Kdyby Server vypadl, Klient bude dál odpovídat, dokud nevyprší <b>Expire</b> (2 týdny). Pokud se zóna nepřenesla, typické příčiny jsou: chybějící/špatná adresa v <code>allow-transfer</code> na Serveru (Klient hlásí REFUSED), soubor zóny v <code>/etc/bind</code> (permission denied), nedostupný TCP port 53 (firewall)."]
+      ])
+    },
+    {
+      num: "E", en: "Protokol", title: "8. ČÁST E – Otázky pro protokol",
+      body: "<p>⏱ orientačně 5 min, dokončit doma. Odpovězte vlastními slovy (2–4 věty) do protokolu. Vzorové odpovědi si otevřete až po napsání vlastních.</p>",
+      checklist: [
+        "Jaký je rozdíl mezi typem zóny master, slave a forward?",
+        "Jaké typy záznamů se používají v zónovém souboru (uveď alespoň pět)?",
+        "Jaký je účel záznamu SOA?",
+        "Jak DNS server pozná, že má provést přenos zóny?",
+        "Co znamenají parametry Refresh, Retry, Expire v SOA záznamu?",
+        "Jaký je rozdíl mezi záznamy A, CNAME, MX a NS?",
+        "Proč se liší odpověď lokálního a veřejného DNS serveru?"
+      ],
+      extra: answers([
+        ["Master × slave × forward", "<b>Master</b> (primary) má hlavní kopii zóny v souboru, který píše správce, odpovídá autoritativně a změny rozesílá (NOTIFY, přenos). <b>Slave</b> (secondary) má kopii stáhnutou z mastera přenosem zóny, také odpovídá autoritativně, ale data se na něm neupravují. <b>Forward</b> zónu vůbec nemá — dotazy na jména v ní jen přeposílá zadaným serverům (<code>forwarders</code>), odpovědi ukládá do cache a odpovídá neautoritativně."],
+        ["Typy záznamů", "<b>SOA</b> (začátek autority), <b>NS</b> (jmenný server), <b>A</b> (IPv4 adresa), <b>AAAA</b> (IPv6 adresa), <b>CNAME</b> (alias), <b>MX</b> (poštovní server s prioritou), <b>PTR</b> (reverzní záznam adresa → jméno), <b>TXT</b> (text, např. SPF)."],
+        ["Účel SOA", "Záznam SOA je v každé zóně právě jeden a označuje začátek autority: kdo je primární server (MNAME), kdo zónu spravuje (RNAME, e-mail s tečkou místo @), jaká je verze zóny (serial) a časovače, kterými se řídí sekundární servery (Refresh, Retry, Expire) a resolvery u záporných odpovědí (negative TTL)."],
+        ["Kdy se zóna přenáší", "Sekundární server se zeptá primárního na SOA, když (a) dostane zprávu <b>NOTIFY</b> (primární ji pošle po načtení změněné zóny serverům z NS záznamů), (b) uplyne <b>Refresh</b>, (c) se sám restartuje nebo dostane <code>rndc refresh</code>. Porovná <b>serial</b>: je-li na primárním vyšší, požádá o přenos (AXFR celé zóny nebo IXFR změn) po TCP. Primární server přenos provede, jen pokud je adresa žadatele v <code>allow-transfer</code>."],
+        ["Refresh, Retry, Expire", "<b>Refresh</b> — jak často se sekundární server sám ptá na SOA primárního (pojistka, když nepřijde NOTIFY). <b>Retry</b> — za jak dlouho to zkusí znovu, když primární neodpověděl. <b>Expire</b> — jak dlouho smí zónu dál poskytovat, když se s primárním vůbec nespojí; pak ji přestane poskytovat (SERVFAIL), aby nešířil zastaralá data."],
+        ["A × CNAME × MX × NS", "<b>A</b> přiřazuje jménu IPv4 adresu. <b>CNAME</b> říká, že jméno je jen alias jiného jména — překlad pokračuje u cíle; jméno s CNAME nesmí mít jiný záznam. <b>MX</b> určuje poštovní server domény s prioritou (nižší = přednost). <b>NS</b> určuje autoritativní jmenné servery zóny (a v nadřazené zóně tvoří delegaci). Cíl MX a NS musí mít vlastní A/AAAA záznam, nesmí to být CNAME."],
+        ["Lokální × veřejný DNS", "Lokální server je pro <code>vyuka.cz</code> autoritativní a odpovídá z vlastního zónového souboru (aa, 192.168.1.1). Veřejný resolver se dopracuje od kořene přes zónu <code>cz.</code>, kde naše zóna delegovaná není — dostane NXDOMAIN, nebo data skutečného majitele domény. Interní jména tak platí jen pro klienty, kteří se ptají našeho serveru."]
+      ])
+    },
+    {
+      num: "F", en: "Bonus", title: "9. ČÁST F – Rozšiřující úlohy",
+      body: "<p>Pro týmy, které mají hotovo, a pro zájemce. Každou úlohu zakončete kontrolou (<code>named-checkconf</code>, <code>named-checkzone</code>) a ověřením dotazem.</p>",
+      checklist: [
+        "Vytvoř reverzní zónu pro síť 192.168.1.0/24 a ověř funkčnost PTR záznamů.",
+        "Nastav DNS server tak, aby neznámé dotazy přeposílal na veřejný DNS server (např. 8.8.8.8).",
+        "Přidej druhou zónu skola.cz se stejnou strukturou jako vyuka.cz.",
+        "Vyzkoušej dotazy typu MX a CNAME a ověř správnost odpovědí.",
+        "Sniž hodnotu TTL v zóně a sleduj změny v chování cache"
+      ],
+      extra: cmd(`
+# ===== F1 – reverzní zóna 192.168.1.0/24 (Server) =====
+sudo nano /etc/bind/named.conf.local      # přidat:
+| zone "1.168.192.in-addr.arpa" {
+|     type primary;
+|     file "/etc/bind/db.192.168.1";
+|     allow-transfer { 192.168.1.2; };
+| };
+sudo nano /etc/bind/db.192.168.1
+| $TTL 3600
+| @   IN  SOA ns1.vyuka.cz. admin.vyuka.cz. ( 2026102301 3600 900 1209600 3600 )
+| @   IN  NS  ns1.vyuka.cz.
+| @   IN  NS  ns2.vyuka.cz.
+| 1   IN  PTR server.vyuka.cz.            ; 192.168.1.1
+| 2   IN  PTR klient.vyuka.cz.            ; 192.168.1.2
+sudo named-checkzone 1.168.192.in-addr.arpa /etc/bind/db.192.168.1
+sudo named-checkconf && sudo rndc reload
+dig @127.0.0.1 -x 192.168.1.2 +short
+| klient.vyuka.cz.
+# volitelně i na Klientovi jako secondary (primaries { 192.168.1.1; }, soubor v /var/cache/bind)
+
+# ===== F2 – přeposílání neznámých dotazů (forwarders) =====
+sudo nano /etc/bind/named.conf.options
+| options {
+|     directory "/var/cache/bind";
+|     forwarders { 8.8.8.8; };
+|     forward only;      // jen přes 8.8.8.8; „forward first“ = při neúspěchu zkusí sám od kořene
+| };
+sudo named-checkconf && sudo rndc reload && sudo rndc flush
+sudo apt install tcpdump
+sudo tcpdump -ni any udp port 53 and host 8.8.8.8      # ve druhém terminálu
+dig @127.0.0.1 www.debian.org +short                    # dotaz teď odchází na 8.8.8.8, ne na kořenové servery
+dig @127.0.0.1 www.vyuka.cz +short                      # vlastní zóna se NEpřeposílá — odpovídá BIND sám (aa)
+
+# ===== F3 – druhá zóna skola.cz =====
+sed 's/vyuka\\.cz/skola.cz/g' /etc/bind/db.vyuka.cz | sudo tee /etc/bind/db.skola.cz >/dev/null
+sudo nano /etc/bind/named.conf.local      # přidat (Server):
+| zone "skola.cz" {
+|     type primary;
+|     file "/etc/bind/db.skola.cz";
+|     allow-transfer { 192.168.1.2; };
+| };
+sudo named-checkzone skola.cz /etc/bind/db.skola.cz && sudo named-checkconf && sudo rndc reload
+# Klient: zone "skola.cz" { type secondary; file "/var/cache/bind/db.skola.cz"; primaries { 192.168.1.1; }; };
+dig @192.168.1.2 www.skola.cz +short
+| server.skola.cz.
+| 192.168.1.1
+
+# ===== F4 – dotazy MX a CNAME =====
+dig @192.168.1.2 vyuka.cz MX +noall +answer +additional
+| vyuka.cz.         3600  IN  MX  10 server.vyuka.cz.
+| vyuka.cz.         3600  IN  MX  20 klient.vyuka.cz.
+| server.vyuka.cz.  3600  IN  A   192.168.1.1          # ADDITIONAL: adresy poštovních serverů
+| klient.vyuka.cz.  3600  IN  A   192.168.1.2
+dig @192.168.1.2 www.vyuka.cz CNAME +short
+| server.vyuka.cz.
+dig @192.168.1.2 www.vyuka.cz +noall +answer           # dotaz na A přes alias: CNAME + A
+| www.vyuka.cz.     3600  IN  CNAME  server.vyuka.cz.
+| server.vyuka.cz.  3600  IN  A      192.168.1.1
+host -t MX vyuka.cz 192.168.1.2
+host smtp2.vyuka.cz 192.168.1.2
+
+# ===== F5 – nižší TTL a chování cache =====
+# Server: v db.vyuka.cz změnit  $TTL 3600  →  $TTL 60  a ZVÝŠIT serial
+sudo named-checkzone vyuka.cz /etc/bind/db.vyuka.cz && sudo rndc reload
+# Klient: dotazy na vyuka.cz pošleme přes cache systemd-resolved na Server (jen za běhu):
+IF=$(ip -o -4 addr show | awk '/192\\.168\\.1\\.2\\//{print $2}')
+sudo resolvectl dns "$IF" 192.168.1.1
+sudo resolvectl domain "$IF" '~vyuka.cz'
+sudo resolvectl flush-caches
+dig @127.0.0.53 www.vyuka.cz +noall +answer           # opakujte po několika sekundách
+| www.vyuka.cz.     60  IN  CNAME  server.vyuka.cz.
+| server.vyuka.cz.  60  IN  A      192.168.1.1
+| …                 47  …           # TTL klesá k 0, pak se resolved zeptá Serveru znovu (opět 60)
+sudo resolvectl revert "$IF"          # vrátit původní nastavení rozhraní
+`) + answers([
+        ["F1 Reverzní zóna", "Jméno reverzní zóny se tvoří z adresy sítě pozpátku + <code>.in-addr.arpa</code>: síť 192.168.1.0/24 → <code>1.168.192.in-addr.arpa</code>. Záznam <code>2 IN PTR klient.vyuka.cz.</code> je tedy jméno <code>2.1.168.192.in-addr.arpa.</code> Cíl PTR píšeme vždy s koncovou tečkou — jinak by se k němu připojilo jméno reverzní zóny."],
+        ["F2 forward only × first", "S <code>forward only</code> se BIND ptá jen forwarderu; když neodpoví, vrátí SERVFAIL. S <code>forward first</code> (výchozí) to při neúspěchu zkusí sám od kořene. Přeposílání se týká jen jmen, pro která server nemá vlastní (autoritativní) data — zónu vyuka.cz dál obsluhuje sám. Hodí se, když síť nepouští dotazy přímo na kořenové servery (viz podklad školy: chyba REFUSED/nefunkční rekurze přes ISP)."],
+        ["F5 Co ukazuje nižší TTL", "S <code>$TTL 60</code> si resolver (zde cache systemd-resolved na Klientovi) pamatuje záznam jen minutu — TTL v odpovědi klesá k nule a pak se resolver zeptá Serveru znovu. S původními 3600 s by změna záznamu mohla být v cizích cache vidět až po hodině. Správci proto před plánovanou změnou adresy TTL dočasně snižují. Autoritativní server sám TTL neodpočítává — na <code>dig @192.168.1.1</code> uvidíte vždy plnou hodnotu ze zóny."]
+      ])
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Protokol „DNS server BIND v modelu master–slave pro doménu vyuka.cz“ — obsah: named.conf.local ze Serveru i z Klienta, zónový soubor db.vyuka.cz se zdůvodněním hodnot SOA, výstupy named-checkconf a named-checkzone, dvojí dotaz do cache na obou strojích (Query time, TTL), dotazy na SOA, NS, MX, A a všechny CNAME s příznakem aa, porovnání dotazu na vyuka.cz u lokálního a veřejného DNS serveru, log přenosu zóny na Klientovi, rndc zonestatus na obou strojích a dotazy směrem na Klienta. K tomu odpovědi na otázky pro protokol (část E), případně řešení rozšiřujících úloh.";
+
+  var REFLECT = [
+    "Která chyba v zónovém souboru nebo v konfiguraci vás dnes zdržela nejvíc — a který nástroj vám ji pomohl najít?",
+    "Proč podle vás nestačí, aby škola měla jen jeden DNS server? Co by se stalo, kdyby dnes vypadl Server?",
+    "Jak byste spolužákovi vysvětlili, proč má zvýšení sériového čísla v SOA takový význam?",
+    "Které další služby školy (pošta, web, sdílení souborů) budou nově vytvořená jména využívat — a jaké záznamy by k nim bylo potřeba přidat?"
+  ];
+
+  var SOURCES = [
+    {title:"BIND 9 Administrator Reference Manual 9.20 — Configuration Reference (ISC)", url:"https://bind9.readthedocs.io/en/stable/reference.html", tag:"official", note:"Typy zón a synonyma master/slave, primaries, allow-transfer (výchozí none), allow-recursion, forward/forwarders, notify, masterfile-format raw, minimal-responses."},
+    {title:"bind9 — NEWS.Debian (Debian, stable)", url:"https://metadata-backend.ftp-master.debian.org/changelogs/main/b/bind9/stable_bind9.NEWS", tag:"official", note:"Debian 1:9.20.5-1: odstraněné default-zones a db.* soubory, změna výchozího allow-transfer."},
+    {title:"Debian Package Tracker — bind9", url:"https://tracker.debian.org/pkg/bind9", tag:"official", note:"Verze BIND v Debianu 13 trixie (řada 9.20)."},
+    {title:"named.conf(5) — bind9, Debian 13", url:"https://manpages.debian.org/trixie/bind9/named.conf.5.en.html", tag:"official", note:"Gramatika konfigurace BIND 9.20 (zone type primary/secondary/forward/hint)."},
+    {title:"rndc(8) — bind9-utils, Debian 13", url:"https://manpages.debian.org/trixie/bind9-utils/rndc.8.en.html", tag:"official", note:"reload, status, zonestatus, retransfer, notify, dumpdb, flush."},
+    {title:"named-checkzone(1) — bind9-utils, Debian 13", url:"https://manpages.debian.org/trixie/bind9-utils/named-checkzone.1.en.html", tag:"official", note:"Kontrola zónového souboru; named-compilezone převod formátů raw/text."},
+    {title:"named-checkconf(1) — bind9-utils, Debian 13", url:"https://manpages.debian.org/trixie/bind9-utils/named-checkconf.1.en.html", tag:"official", note:"Kontrola syntaxe named.conf a vložených souborů."},
+    {title:"RFC 1034 — Domain Names: Concepts and Facilities", url:"https://www.rfc-editor.org/rfc/rfc1034", tag:"official", note:"Zóny, autorita, přenos zóny, sekundární servery, časovače SOA."},
+    {title:"RFC 1035 — Domain Names: Implementation and Specification", url:"https://www.rfc-editor.org/rfc/rfc1035", tag:"official", note:"Formát zónového souboru ($ORIGIN, $TTL, @), typy záznamů, pole SOA."},
+    {title:"RFC 1912 — Common DNS Operational and Configuration Errors", url:"https://www.rfc-editor.org/rfc/rfc1912", tag:"official", note:"E-mail v SOA, serial RRRRMMDDnn, doporučené Refresh/Retry/Expire, pravidla pro CNAME."},
+    {title:"RFC 2181 — Clarifications to the DNS Specification", url:"https://www.rfc-editor.org/rfc/rfc2181", tag:"official", note:"Odst. 10: CNAME bez jiných dat; cíl NS a MX nesmí být alias."},
+    {title:"RFC 2308 — Negative Caching of DNS Queries", url:"https://www.rfc-editor.org/rfc/rfc2308", tag:"official", note:"Význam posledního pole SOA (negative TTL), doporučení 1–3 h."},
+    {title:"RFC 1996 — DNS NOTIFY", url:"https://www.rfc-editor.org/rfc/rfc1996", tag:"official", note:"Upozornění sekundárních serverů na změnu zóny."},
+    {title:"RFC 5936 — DNS Zone Transfer Protocol (AXFR)", url:"https://www.rfc-editor.org/rfc/rfc5936", tag:"official", note:"Přenos celé zóny po TCP, SOA na začátku i konci."},
+    {title:"RFC 1995 — Incremental Zone Transfer (IXFR)", url:"https://www.rfc-editor.org/rfc/rfc1995", tag:"official", note:"Přírůstkový přenos změn zóny."},
+    {title:"RFC 2606 a RFC 5737 — vyhrazená jména a adresy pro dokumentaci", url:"https://www.rfc-editor.org/rfc/rfc2606", tag:"official", note:"Doména .test a síť 192.0.2.0/24 v ukázce firma.test (viz též rfc5737)."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+  /* Komentáře ke krokům animace (obr. 2) — synchronizované s časem SVG (10 kroků × 3 s) */
+  var VIDEO_STEPS = [
+    ["Krok 1 · Správce změní zónu", "Na Serveru upraví /etc/bind/db.vyuka.cz — a hlavně zvýší sériové číslo v SOA z 2026102301 na 2026102302. Bez toho by se změna na sekundární server nikdy nedostala."],
+    ["Krok 2 · Kontrola a načtení", "named-checkzone ověří syntaxi zóny, rndc reload ji načte bez restartu služby. V logu se objeví „loaded serial 2026102302“."],
+    ["Krok 3 · NOTIFY", "Server pošle zprávu NOTIFY (UDP 53) všem serverům z NS záznamů zóny kromě sebe (ten je v SOA jako MNAME) — tedy ns2.vyuka.cz = 192.168.1.2. NOTIFY jen upozorňuje, data nenese."],
+    ["Krok 4 · Dotaz na SOA", "Klient NOTIFY nevěří naslepo: zeptá se primárního serveru ze svého seznamu primaries na záznam SOA zóny vyuka.cz."],
+    ["Krok 5 · Odpověď SOA", "Server odpoví záznamem SOA s aktuálním sériovým číslem 2026102302."],
+    ["Krok 6 · Porovnání serialu", "Klient porovná číslo Serveru se svým: 2026102302 > 2026102301 — jeho kopie je zastaralá, zónu je potřeba stáhnout. Kdyby bylo číslo stejné, neudělá nic."],
+    ["Krok 7 · Žádost o přenos (AXFR)", "Klient naváže spojení TCP na port 53 a požádá o přenos zóny. Server zkontroluje allow-transfer: adresa 192.168.1.2 je povolená. Z jiné adresy by přenos odmítl (REFUSED) — v BIND 9.20 je bez allow-transfer zakázaný všem."],
+    ["Krok 8 · Přenos zóny", "Server pošle celou zónu — všech 18 záznamů vyuka.cz; přenos začíná a končí záznamem SOA. Má-li BIND historii změn, může poslat jen rozdíl (IXFR)."],
+    ["Krok 9 · Uložení na sekundárním serveru", "Klient zónu uloží do /var/cache/bind/db.vyuka.cz v binárním formátu raw a hned ji používá: na dotazy odpovídá s příznakem aa, stejně jako Server."],
+    ["Krok 10 · Pojistka: Refresh, Retry, Expire", "Když NOTIFY nedorazí, Klient se na SOA zeptá sám po uplynutí Refresh. Neodpoví-li Server, zkouší to po Retry. Pokud se se Serverem nespojí déle než Expire, zónu přestane poskytovat."]
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+  // Tlačítka „Zastavit animaci“ — SMIL animace v SVG (pauseAnimations/unpauseAnimations).
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll(".svg-figure").forEach(function(fig){
+    var svg = fig.querySelector("svg"), btn = fig.querySelector(".anim-toggle");
+    if(!svg || !btn || !svg.pauseAnimations) { if(btn) btn.style.display = "none"; return; }
+    function set(paused){
+      if(paused){ svg.pauseAnimations(); btn.textContent = "▶ Spustit animaci"; }
+      else { svg.unpauseAnimations(); btn.textContent = "⏸ Zastavit animaci"; }
+      btn.setAttribute("aria-pressed", paused ? "true" : "false");
+    }
+    btn.addEventListener("click", function(){ set(!svg.animationsPaused()); });
+    if(reduce) set(true);
+  });
+
+
+  // „Video“ přehrávač animace přenosu zóny (obr. 2) — SMIL čas SVG + synchronizovaný komentář
+  (function(){
+    var svg = document.getElementById("xfer-video");
+    var fig = document.getElementById("video-fig");
+    if(!svg || !fig) return;
+    var STEP = 3, N = VIDEO_STEPS.length, TOTAL = N * STEP;
+    var btnPlay = document.getElementById("vp-play"), bar = document.getElementById("vp-bar");
+    var timeEl = document.getElementById("vp-time"), track = document.getElementById("vp-track");
+    var tEl = document.getElementById("vp-title"), xEl = document.getElementById("vp-text");
+    var stepsEl = document.getElementById("vp-steps");
+    var ok = !!(svg.pauseAnimations && svg.getCurrentTime && svg.setCurrentTime);
+    var chips = [];
+    for(var i=0;i<N;i++){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "vp-step"; b.textContent = (i+1);
+      b.setAttribute("aria-label", VIDEO_STEPS[i][0]);
+      (function(k){ b.addEventListener("click", function(){ seek(k*STEP + 0.6); }); })(i);
+      stepsEl.appendChild(b); chips.push(b);
+    }
+    function fmt(s){ s = Math.floor(s); return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2); }
+    var last = -1;
+    function render(){
+      var t = ok ? (svg.getCurrentTime() % TOTAL) : 0;
+      var idx = Math.min(N-1, Math.floor(t / STEP));
+      bar.style.width = (t/TOTAL*100) + "%";
+      timeEl.textContent = fmt(t) + " / " + fmt(TOTAL);
+      if(idx !== last){
+        last = idx;
+        tEl.textContent = VIDEO_STEPS[idx][0];
+        xEl.textContent = VIDEO_STEPS[idx][1];
+        chips.forEach(function(c, j){ c.classList.toggle("active", j === idx); });
+      }
+      requestAnimationFrame(render);
+    }
+    function paused(){ return ok && svg.animationsPaused(); }
+    function setPaused(p){
+      if(!ok) return;
+      if(p){ svg.pauseAnimations(); btnPlay.textContent = "▶ Přehrát"; }
+      else { svg.unpauseAnimations(); btnPlay.textContent = "⏸ Pauza"; }
+      btnPlay.setAttribute("aria-pressed", p ? "true" : "false");
+    }
+    function seek(t){
+      if(!ok) return;
+      var base = svg.getCurrentTime() - (svg.getCurrentTime() % TOTAL);
+      svg.setCurrentTime(base + Math.max(0, Math.min(TOTAL - 0.05, t)));
+    }
+    function cur(){ return ok ? (svg.getCurrentTime() % TOTAL) : 0; }
+    btnPlay.addEventListener("click", function(){ setPaused(!paused()); });
+    document.getElementById("vp-restart").addEventListener("click", function(){ seek(0); setPaused(false); });
+    document.getElementById("vp-prev").addEventListener("click", function(){ var k = Math.floor(cur()/STEP); seek(Math.max(0,k-1)*STEP + 0.6); });
+    document.getElementById("vp-next").addEventListener("click", function(){ var k = Math.floor(cur()/STEP); seek(((k+1)%N)*STEP + 0.6); });
+    track.addEventListener("click", function(e){ var r = track.getBoundingClientRect(); seek((e.clientX - r.left)/r.width*TOTAL); });
+    if(!ok){ fig.querySelector(".vp-controls").style.display = "none"; }
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduce) setPaused(true);
+    render();
+  })();
+
+})();
+</script>
+<script src="../assets/tuxik-agent.js" defer></script>
+</body>
+</html>
+

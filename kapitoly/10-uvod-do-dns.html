@@ -1,0 +1,1573 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 Úvod do DNS, DNS dotazy, DNS klient · Operační systém Linux</title>
+<meta name="description" content="Úvod do DNS v Debianu 13: jmenný prostor a zóny, kořenové, TLD a autoritativní servery, rekurzivní a iterativní dotazy (animace), typy záznamů, DNS klient (resolver) se systemd-resolved, dotazy host/nslookup/dig/resolvectl a rozbor odpovědí. Kapitola 10, 1 vyučovací hodina.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ============================================================================
+   KAPITOLA 10 — Úvod do DNS, DNS dotazy, DNS klient — Edu-Linux (SPŠ EI Ostrava)
+   Vychází ze sdílené šablony kapitoly/_sablona-kapitoly.html a strukturně
+   z kapitoly 9 — stejné HTML/CSS/vykreslovací JS (SMIL animace s tlačítkem
+   pozastavení, vzorové odpovědi .model-answers v „Zobrazit řešení“).
+   Nové: „video“ přehrávač SMIL animace (.video-figure) s krokováním,
+   časovou osou a synchronizovaným komentářem.
+   ========================================================================= */
+:root{
+  --bg:#FFFFFF;
+  --surface:#F2F6F8;
+  --surface-2:#E6EEF1;
+  --border:#D7E3E8;
+  --ink:#1E2E38;
+  --ink-soft:#54666F;
+  --ink-faint:#8698A1;
+
+  --robot:#47657D;
+  --robot-deep:#2E4657;
+  --robot-tint:#EAF0F3;
+  --electric:#DBF02A;
+  --electric-deep:#71801A;
+  --electric-tint:#FAFBE6;
+
+  --accent:var(--robot);
+  --accent-ink:var(--robot-deep);
+
+  --good:#3F7455;
+  --good-tint:#E7F1EA;
+  --bad:#B5453B;
+  --bad-tint:#F6E9E7;
+
+  --radius:16px;
+  --radius-lg:20px;
+  --shadow-sm:0 1px 2px rgba(30,46,56,.06), 0 3px 10px rgba(30,46,56,.05);
+  --shadow-md:0 6px 20px rgba(30,46,56,.09), 0 1px 3px rgba(30,46,56,.07);
+
+  --pattern:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72'%3E%3Ctext x='0' y='16' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3Ctext x='36' y='40' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E10%3C/text%3E%3Ctext x='0' y='64' font-family='monospace' font-size='14' fill='%2347657D' fill-opacity='0.09'%3E01%3C/text%3E%3C/svg%3E");
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:"JetBrains Mono","Lilex","Fira Code",Consolas,"SF Mono",Menlo,monospace;
+  font-size:15.5px; line-height:1.68; -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-weight:700; letter-spacing:-.01em; text-wrap:balance; margin:0;}
+p{margin:0 0 1em 0;}
+a{color:inherit;}
+code{font-family:inherit; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.05rem .35rem; font-size:.92em; color:var(--robot-deep);}
+.wrap{max-width:940px; margin:0 auto; padding:0 clamp(1rem,4vw,2rem) 5rem;}
+
+/* ---------- header ---------- */
+header.top{
+  border-bottom:2px solid var(--robot); padding:1.6rem clamp(1rem,4vw,1.6rem) 1.5rem; margin:0;
+  background-color:var(--robot-tint); background-image:var(--pattern);
+}
+.top-row{display:flex; align-items:flex-start; gap:1rem; justify-content:space-between; flex-wrap:wrap;}
+.brand-lockup{display:flex; align-items:center; gap:.85rem;}
+.ei-badge{
+  flex:none; width:44px; height:44px; border-radius:12px; background:var(--electric);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:700; font-size:1.3rem; color:var(--robot-deep); letter-spacing:-.03em;
+  box-shadow:var(--shadow-sm);
+}
+.brand-text .brand-name{font-size:.95rem; font-weight:700; color:var(--robot-deep);}
+.brand-text .brand-tag{font-size:.72rem; color:var(--ink-faint); letter-spacing:.02em;}
+.back-link{font-size:.83rem; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.4rem .85rem; box-shadow:var(--shadow-sm); text-decoration:none; white-space:nowrap;}
+.back-link:hover{border-color:var(--robot);}
+.chapter-id{margin-top:1.3rem; max-width:760px;}
+.chapter-id .ct{font-size:.75rem; letter-spacing:.09em; text-transform:uppercase; color:var(--robot);}
+.chapter-id h1{font-size:clamp(1.5rem,3.4vw,2.05rem); margin-top:.25rem; color:var(--ink);}
+.chip-row{display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.9rem;}
+.chip{font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); box-shadow:var(--shadow-sm); border-radius:999px; padding:.32rem .75rem; white-space:nowrap; display:inline-flex; align-items:center; gap:.35rem;}
+.chip .dot{width:7px; height:7px; border-radius:50%; background:var(--electric); box-shadow:0 0 0 1px var(--electric-deep) inset;}
+
+/* ---------- sticky sub-nav ---------- */
+nav.subnav{
+  position:sticky; top:0; z-index:20; background:rgba(255,255,255,.92); backdrop-filter:blur(6px);
+  border-bottom:1px solid var(--border); box-shadow:0 2px 10px rgba(30,46,56,.05);
+}
+.subnav-inner{max-width:940px; margin:0 auto; padding:.65rem clamp(1rem,4vw,2rem); display:flex; gap:.45rem; overflow-x:auto; scrollbar-width:none;}
+.subnav-inner::-webkit-scrollbar{display:none;}
+.subnav-inner a{
+  flex:none; font-family:inherit; font-size:.83rem; font-weight:600; color:var(--ink-soft);
+  text-decoration:none; padding:.5rem .95rem; border-radius:999px; border:1px solid transparent;
+  display:flex; align-items:center; gap:.45rem; transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+.subnav-inner a .num{font-size:.72rem; opacity:.8; font-variant-numeric:tabular-nums;}
+.subnav-inner a:hover{background:var(--surface); border-color:var(--border);}
+.subnav-inner a.active{background:var(--robot); color:#fff; border-color:var(--robot); box-shadow:var(--shadow-sm);}
+
+/* ---------- sections ---------- */
+section{margin:3.2rem 0; scroll-margin-top:4.2rem;}
+.eyebrow{display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--robot); font-weight:700; margin-bottom:.5rem;}
+.eyebrow::before{content:""; width:8px; height:8px; border-radius:2px; background:var(--electric); box-shadow:0 0 0 1px var(--robot-deep) inset;}
+.eyebrow .phase-en{color:var(--ink-faint); font-weight:600; text-transform:none; letter-spacing:0; margin-left:.15rem;}
+section > h2{font-size:1.4rem; margin-bottom:.7rem;}
+section h3{font-size:1.05rem; margin:1.7rem 0 .8rem; color:var(--robot-deep);}
+section h4{font-size:.95rem; margin:1.3rem 0 .6rem; color:var(--robot-deep);}
+.lede{color:var(--ink-soft); margin-bottom:1.2rem; max-width:700px;}
+
+/* engage card */
+.engage-card{
+  background:linear-gradient(180deg,#fff,var(--robot-tint)); border:1px solid var(--border); border-left:5px solid var(--electric);
+  border-radius:0 var(--radius-lg) var(--radius-lg) 0; padding:1.5rem 1.6rem; box-shadow:var(--shadow-sm);
+}
+.engage-card .row{display:grid; grid-template-columns:auto 1fr; gap:.15rem 1rem; align-items:baseline; margin-bottom:.9rem;}
+.engage-card .row:last-child{margin-bottom:0;}
+.engage-card .label{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); white-space:nowrap; padding-top:.15rem;}
+.engage-card .val{font-size:.95rem; color:var(--ink);}
+.engage-card .val b{color:var(--accent-ink);}
+.master-strip{
+  margin-top:1.1rem; display:flex; align-items:center; gap:.6rem; font-size:.82rem; color:var(--robot-deep);
+  background:var(--electric-tint); border:1px solid var(--electric); border-radius:var(--radius); padding:.6rem .9rem;
+}
+.master-strip svg{width:18px; height:18px; flex:none; color:var(--electric-deep);}
+
+/* poznámky / callout */
+.callout{margin:1rem 0 1.4rem; font-size:.87rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.9rem 1.05rem; border-left:3px solid var(--electric);}
+.callout b{color:var(--ink);}
+.callout ul{margin:.6rem 0 0 1.15rem; padding:0;}
+.callout li{margin-bottom:.3rem;}
+
+/* SVG diagramy — zenovský styl, karta s bílým pozadím */
+.svg-figure{margin:1rem 0 1.6rem; border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.2rem 1.3rem 1rem;}
+.svg-figure svg{width:100%; height:auto; display:block;}
+.svg-figure figcaption{margin-top:.8rem; font-size:.82rem; color:var(--ink-faint); text-align:center;}
+.flow-dot{ animation: flowMove 2.6s ease-in-out infinite; transform-origin:center; }
+.flow-dot.rev{ animation-direction:alternate-reverse; }
+@keyframes flowMove{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(-26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+@keyframes flowMoveDown{
+  0%{ transform:translateY(0); opacity:.95; }
+  50%{ transform:translateY(26px); opacity:.35; }
+  100%{ transform:translateY(0); opacity:.95; }
+}
+.flow-dot.down{ animation-name: flowMoveDown; }
+@keyframes flowMoveRight{
+  0%{ transform:translateX(0); opacity:.25; }
+  15%{ opacity:1; }
+  85%{ opacity:1; }
+  100%{ transform:translateX(64px); opacity:.25; }
+}
+.flow-dot.right{ animation-name: flowMoveRight; animation-duration:2.2s; animation-timing-function:ease-in-out; }
+
+@keyframes flowLongRight{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(540px); opacity:.2; }
+}
+@keyframes flowLongLeft{
+  0%{ transform:translateX(0); opacity:.2; }
+  10%{ opacity:1; }
+  90%{ opacity:1; }
+  100%{ transform:translateX(-540px); opacity:.2; }
+}
+.flow-dot.longr{ animation-name: flowLongRight; animation-duration:3.4s; animation-timing-function:ease-in-out; }
+.flow-dot.longl{ animation-name: flowLongLeft; animation-duration:3.4s; animation-timing-function:ease-in-out; animation-delay:.9s; }
+
+/* štítky rodin adres (IPv4 / IPv6) */
+.fam{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; padding:.08rem .45rem; border-radius:999px; vertical-align:middle; white-space:nowrap;}
+.fam.v4{background:var(--robot-tint); color:var(--robot-deep); border:1px solid var(--robot);}
+.fam.v6{background:var(--electric-tint); color:var(--electric-deep); border:1px solid var(--electric-deep);}
+
+/* guiding questions */
+.gq-list{list-style:none; padding:0; margin:0 0 1.2rem;}
+.gq-list li{position:relative; padding-left:1.6rem; margin-bottom:.55rem; font-size:.93rem; color:var(--ink-soft);}
+.gq-list li::before{content:"?"; position:absolute; left:0; top:-.05rem; color:#fff; background:var(--robot); width:1.1rem; height:1.1rem; border-radius:5px; font-weight:700; font-size:.68rem; display:flex; align-items:center; justify-content:center;}
+
+/* resources / cheat sheet */
+details.cheat{margin:1rem 0 1.4rem; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); overflow:hidden;}
+details.cheat summary{padding:.75rem 1.05rem; cursor:pointer; font-size:.86rem; font-weight:700; color:var(--accent-ink); list-style:none;}
+details.cheat summary::-webkit-details-marker{display:none;}
+details.cheat summary::before{content:"▸ "; color:var(--electric-deep);}
+details.cheat[open] summary::before{content:"▾ ";}
+details.cheat .cheat-body{padding:0 1.15rem 1.05rem; font-size:.87rem; color:var(--ink-soft);}
+details.cheat ul{margin:.3rem 0 0; padding-left:1.1rem;}
+details.cheat li{margin-bottom:.4rem;}
+details.cheat li a{color:var(--accent-ink); font-weight:600;}
+.src-tag{display:inline-block; font-size:.68rem; font-weight:700; letter-spacing:.03em; text-transform:uppercase; padding:.12rem .45rem; border-radius:999px; margin-left:.4rem; vertical-align:middle;}
+.src-tag.official{background:var(--good-tint); color:var(--good);}
+.src-tag.doc{background:var(--surface-2); color:var(--ink-soft);}
+
+/* tabulky sdílený vzhled */
+.src-table{width:100%; border-collapse:collapse; font-size:.87rem;}
+.src-table th{text-align:left; font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-faint); font-weight:700; padding:.5rem .6rem; border-bottom:2px solid var(--border);}
+.src-table td{padding:.65rem .6rem; border-bottom:1px solid var(--border); vertical-align:top; color:var(--ink-soft);}
+.src-table td a{color:var(--accent-ink); font-weight:600; word-break:break-word;}
+.src-table tr:last-child td{border-bottom:none;}
+.src-table td b{color:var(--ink);}
+
+/* quiz */
+.quiz-box{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.3rem 1.4rem;}
+.quiz-progress{font-size:.8rem; color:var(--ink-faint); margin-bottom:.9rem; font-variant-numeric:tabular-nums;}
+.q{border-top:1px solid var(--border); padding:1.1rem 0;}
+.q:first-of-type{border-top:none; padding-top:0;}
+.q-text{font-weight:700; margin-bottom:.7rem; font-size:.95rem;}
+.opts{display:grid; gap:.5rem;}
+.opt{
+  text-align:left; border:1px solid var(--border); background:#fff; border-radius:var(--radius);
+  padding:.62rem .9rem; font-size:.89rem; cursor:pointer; color:var(--ink); font-family:inherit;
+  transition:border-color .12s ease, background .12s ease;
+}
+.opt:hover{border-color:var(--robot); background:var(--surface);}
+.opt[disabled]{cursor:default;}
+.opt.correct{background:var(--good-tint); border-color:var(--good); color:var(--good);}
+.opt.wrong{background:var(--bad-tint); border-color:var(--bad); color:var(--bad);}
+.explain{margin-top:.6rem; font-size:.85rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.65rem .85rem; display:none; border-left:3px solid var(--electric);}
+.explain.show{display:block;}
+
+/* ACT: sub-phases */
+.act-phase{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); margin-bottom:1.1rem; overflow:hidden;}
+.act-phase-head{display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; background:var(--surface); border-bottom:1px solid var(--border);}
+.act-phase-head .ap-num{flex:none; width:28px; height:28px; border-radius:8px; background:var(--robot); color:#fff; font-weight:800; font-size:.82rem; display:flex; align-items:center; justify-content:center;}
+.act-phase-head h4{font-size:.95rem; margin:0; color:var(--ink);}
+.act-phase-head .ap-en{font-size:.72rem; color:var(--ink-faint); font-weight:600;}
+.act-phase-body{padding:1.1rem 1.3rem 1.3rem; font-size:.92rem; color:var(--ink-soft);}
+.act-phase-body p{margin-bottom:.8rem;}
+
+.checklist{list-style:none; padding:0; margin:.6rem 0 0;}
+.checklist li{display:flex; align-items:flex-start; gap:.65rem; padding:.5rem 0; border-top:1px solid var(--border);}
+.checklist li:first-child{border-top:none;}
+.checklist input[type=checkbox]{margin-top:.2rem; width:16px; height:16px; accent-color:var(--robot); flex:none; cursor:pointer;}
+.checklist label{font-size:.9rem; color:var(--ink); cursor:pointer;}
+.checklist li.done label{color:var(--ink-faint); text-decoration:line-through;}
+
+.progress-row{display:flex; align-items:center; gap:1rem; margin:1rem 0 0; flex-wrap:wrap;}
+.progress-track{flex:1 1 200px; height:10px; border-radius:99px; background:var(--surface-2); overflow:hidden; min-width:140px;}
+.progress-track > span{display:block; height:100%; background:linear-gradient(90deg,var(--robot),var(--electric)); border-radius:99px; transition:width .5s ease; width:0%;}
+.progress-label{font-size:.82rem; font-weight:700; color:var(--robot-deep); white-space:nowrap; font-variant-numeric:tabular-nums;}
+
+.artifact-box{
+  margin-top:1.3rem; display:flex; align-items:flex-start; gap:.7rem; padding:1rem 1.2rem;
+  border:1px dashed var(--robot); border-radius:var(--radius-lg); background:var(--robot-tint);
+}
+.artifact-box svg{width:22px; height:22px; flex:none; color:var(--robot); margin-top:.1rem;}
+.artifact-box .at{font-size:.72rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--robot); margin-bottom:.2rem;}
+.artifact-box .av{font-size:.9rem; color:var(--ink);}
+
+/* příkazový blok (terminál) */
+pre.cmdblock{background:var(--robot-deep); color:#EAF3F7; border-radius:var(--radius); padding:.95rem 1.1rem; font-size:.82rem; line-height:1.65; overflow-x:auto; margin:.9rem 0 0;}
+pre.cmdblock code{font-family:inherit; background:none; border:none; padding:0; color:inherit; font-size:1em;}
+pre.cmdblock .c{color:#9FD1C7;}
+
+/* Řešení skryté za tlačítkem — studenti mají nejdřív hledat sami, příkazy jsou jen pro kontrolu */
+details.solution{margin-top:.9rem; border:1px solid var(--electric-deep); border-radius:var(--radius); background:var(--electric-tint); overflow:hidden;}
+details.solution summary{padding:.7rem 1.05rem; cursor:pointer; font-size:.84rem; font-weight:700; color:var(--electric-deep); list-style:none; user-select:none;}
+details.solution summary::-webkit-details-marker{display:none;}
+details.solution summary::before{content:"▸"; margin-right:.4em; display:inline-block;}
+details.solution[open] summary::before{content:"▾";}
+details.solution .solution-body{padding:.15rem 1.05rem 1.05rem;}
+details.solution .solution-body pre.cmdblock{margin-top:.6rem;}
+
+/* Hodnocení — rubrika */
+.rubric-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.1rem; margin:1.2rem 0 1.6rem;}
+.rubric-card{border:1px solid var(--border); border-radius:var(--radius-lg); background:#fff; box-shadow:var(--shadow-sm); padding:1.1rem 1.3rem;}
+.rubric-card-head{display:flex; align-items:center; justify-content:space-between; gap:.6rem; margin-bottom:.7rem; padding-bottom:.6rem; border-bottom:1px solid var(--border);}
+.rubric-card-head h4{font-size:.98rem; color:var(--robot-deep); margin:0;}
+.weight-badge{font-size:.72rem; font-weight:700; color:var(--robot-deep); background:var(--robot-tint); border:1px solid var(--border); border-radius:999px; padding:.2rem .6rem; white-space:nowrap;}
+.level-list{list-style:none; margin:0; padding:0; font-size:.86rem; color:var(--ink-soft);}
+.level-list li{padding:.45rem 0; border-top:1px solid var(--border);}
+.level-list li:first-child{border-top:none;}
+.level-list b{color:var(--ink);}
+
+/* reflect & share */
+.reflect-grid{display:grid; gap:1.3rem;}
+.reflect-q p.rq-text{font-size:.93rem; margin-bottom:.5rem; font-weight:700;}
+textarea{
+  width:100%; min-height:74px; border:1px solid var(--border); border-radius:var(--radius); padding:.7rem .9rem;
+  font-family:inherit; font-size:.87rem; color:var(--ink); resize:vertical; background:var(--surface);
+}
+textarea:focus{outline:2px solid var(--electric-deep); outline-offset:1px;}
+.share-note{margin-top:1.2rem; font-size:.83rem; color:var(--ink-soft); background:var(--surface); border-radius:var(--radius); padding:.8rem 1rem; border-left:3px solid var(--electric);}
+
+footer.pagefoot{border-top:1px solid var(--border); margin-top:3.2rem; padding-top:1.2rem; font-size:.8rem; color:var(--ink-faint); display:flex; justify-content:space-between; flex-wrap:wrap; gap:.5rem;}
+
+@media (max-width:600px){
+  .engage-card .row{grid-template-columns:1fr;}
+}
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important;} html{scroll-behavior:auto;} }
+
+/* ---------- doplňky převzaté z kapitoly 9 ---------- */
+/* tlačítko pozastavení animace pod SVG diagramem */
+.anim-toggle{display:block; margin:.6rem auto 0; font-family:inherit; font-size:.76rem; font-weight:600; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.3rem .85rem; cursor:pointer;}
+.anim-toggle:hover{border-color:var(--robot); background:var(--surface);}
+
+/* datové tabulky v zadání ACT */
+.data-table{margin:.3rem 0 .4rem;}
+.data-table td{padding:.45rem .6rem;}
+
+
+/* vzorové odpovědi v rozbaleném řešení */
+.model-answers{margin-top:.9rem; background:#fff; border:1px solid var(--border); border-left:3px solid var(--robot); border-radius:var(--radius); padding:.8rem 1rem;}
+.model-answers .ma-head{font-size:.72rem; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--robot); margin:0 0 .4rem;}
+.model-answers dl{margin:0;}
+.model-answers dt{font-weight:700; font-size:.86rem; color:var(--ink); margin-top:.55rem;}
+.model-answers dt:first-child{margin-top:0;}
+.model-answers dd{margin:.15rem 0 0; font-size:.86rem; color:var(--ink-soft);}
+.ap-num{min-width:2rem;}
+.lede code, .callout code, .src-table code, .model-answers code{overflow-wrap:anywhere;}
+
+/* ---------- KAPITOLA 10 — video přehrávač animace DNS dotazu ---------- */
+.video-figure{padding-bottom:1.1rem;}
+.vp-controls{display:flex; align-items:center; gap:.5rem; margin-top:.8rem; flex-wrap:wrap;}
+.vp-btn{font-family:inherit; font-size:.78rem; font-weight:700; color:var(--robot-deep); background:#fff; border:1px solid var(--border); border-radius:999px; padding:.35rem .8rem; cursor:pointer; white-space:nowrap;}
+.vp-btn:hover{border-color:var(--robot); background:var(--surface);}
+.vp-btn.primary{background:var(--robot); color:#fff; border-color:var(--robot);}
+.vp-btn.primary:hover{background:var(--robot-deep);}
+.vp-track{flex:1 1 160px; height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden; cursor:pointer; min-width:120px;}
+.vp-track > span{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--robot),var(--electric));}
+.vp-time{font-size:.75rem; color:var(--ink-faint); font-variant-numeric:tabular-nums; min-width:5.5em; text-align:right;}
+.vp-steps{display:flex; gap:.3rem; flex-wrap:wrap; margin-top:.7rem;}
+.vp-step{font-family:inherit; width:2rem; height:2rem; border-radius:8px; border:1px solid var(--border); background:#fff; color:var(--ink-soft); font-size:.75rem; font-weight:700; cursor:pointer;}
+.vp-step:hover{border-color:var(--robot);}
+.vp-step.active{background:var(--electric); border-color:var(--electric-deep); color:var(--robot-deep);}
+.vp-caption{margin-top:.8rem; background:var(--surface); border-left:3px solid var(--electric); border-radius:var(--radius); padding:.75rem 1rem; min-height:5.2rem;}
+.vp-caption .vc-title{font-size:.86rem; font-weight:700; color:var(--robot-deep); margin-bottom:.25rem;}
+.vp-caption .vc-text{font-size:.85rem; color:var(--ink-soft);}
+/* rozbor výstupu dig */
+pre.digout{background:#fff; color:var(--ink); border:1px solid var(--border); border-radius:var(--radius); padding:.9rem 1rem; font-size:.78rem; line-height:1.6; overflow-x:auto; margin:.6rem 0 1rem;}
+pre.digout .m{display:inline-block; min-width:1.35rem; height:1.35rem; line-height:1.35rem; text-align:center; border-radius:6px; background:var(--electric); color:var(--robot-deep); font-weight:800; font-size:.7rem; margin-right:.35rem;}
+pre.digout .k{color:var(--robot); font-weight:700;}
+pre.digout .d{color:var(--ink-faint);}
+</style>
+</head>
+<body>
+<div class="wrap" style="padding-left:0;padding-right:0;">
+
+  <header class="top">
+    <div class="wrap" style="padding-bottom:0;">
+      <div class="top-row">
+        <div class="brand-lockup">
+          <div class="ei-badge">ei</div>
+          <div class="brand-text">
+            <div class="brand-name">&lt;spš ei Ostrava&gt;</div>
+            <div class="brand-tag">Střední průmyslová škola elektrotechniky a informatiky</div>
+          </div>
+        </div>
+        <a class="back-link" href="../index.html">← Rozcestník kapitol</a>
+      </div>
+      <div class="chapter-id">
+        <div class="ct" id="ct-label">Edu-Linux · Serverové služby</div>
+        <h1 id="h1-title">Operační systém Linux — Úvod do DNS, DNS dotazy, DNS klient</h1>
+        <div class="chip-row" id="chip-row"></div>
+      </div>
+    </div>
+  </header>
+
+  <nav class="subnav" aria-label="Části kapitoly">
+    <div class="subnav-inner" id="subnav"></div>
+  </nav>
+
+  <div class="wrap">
+
+    <!-- ENGAGE -->
+    <section id="vyzva">
+      <span class="eyebrow">Engage <span class="phase-en">· Zapojení</span></span>
+      <h2>Výzva</h2>
+      <div class="engage-card" id="engage-card"></div>
+      <div class="master-strip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0Z"/><path d="M7 6H4a3 3 0 0 0 3 5M17 6h3a3 3 0 0 1-3 5"/><path d="M12 14v3M9 21h6M10 17h4v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1Z"/></svg>
+        <span id="master-note">Server i Klient Školy X mají od kapitol 6 a 7 trvalou síť a DNS jim zatím „nějak funguje“ přes cizí server 8.8.8.8. Dnes zjistíte, co se při každém zadaném jménu doopravdy děje a jak to změřit. V příští kapitole na Serveru postavíte vlastní DNS server (Bind9) pro doménu školy — a k jeho ověření použijete přesně ty nástroje, které se naučíte dnes.</span>
+      </div>
+    </section>
+
+    <!-- INVESTIGATE -->
+    <section id="zkoumani">
+      <span class="eyebrow">Investigate <span class="phase-en">· Zkoumání</span></span>
+      <h2>DNS — jak se ze jména stane IP adresa</h2>
+      <p class="lede">DNS (Domain Name System) je <b>celosvětová distribuovaná databáze</b>, která převádí jména jako <code>www.seznam.cz</code> na IP adresy a zpět. Žádný server nezná všechno — každý spravuje jen svou část stromu jmen a o zbytku ví jen to, <b>koho se zeptat dál</b>. Nejdřív teorie (asi 15 minut, animace pomůže), pak si vše ověříte dotazy na Klientovi. Animace zastavíte tlačítkem pod obrázkem.</p>
+
+      <h3>Badatelské otázky</h3>
+      <ul class="gq-list" id="gq-list"></ul>
+
+      <!-- ===================== A — JMENNÝ PROSTOR ===================== -->
+      <h3>A · Jmenný prostor, domény a zóny</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Jména tvoří <b>strom</b>. Na vrcholu je <b>kořen</b> (root) — jméno s nulovou délkou, které se zapisuje jako tečka. Pod ním jsou <b>domény nejvyšší úrovně</b> (TLD: <code>cz</code>, <code>com</code>, <code>org</code>…), pod nimi domény druhého řádu (<code>seznam</code>) a tak dál. Jednotlivé části jména se nazývají <b>návěští</b> (labels) a oddělují se tečkou. Celé jméno včetně koncové tečky je <b>FQDN</b> (Fully Qualified Domain Name), např. <code>www.seznam.cz.</code></p>
+      <figure class="svg-figure">
+<svg viewBox="0 0 900 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgtrt svgtrd" font-family="JetBrains Mono, Consolas, monospace">
+<title id="svgtrt">Strom doménových jmen a zóny</title>
+<desc id="svgtrd">Na vrcholu stromu je kořen, zapisovaný jako tečka. Pod ním domény nejvyšší úrovně cz, com, org a arpa. Pod cz jsou seznam a nic, pod seznam jsou www a mail. Pod arpa je in-addr pro reverzní záznamy. Zóna cz patří CZ.NIC a delegací předává zónu seznam.cz společnosti Seznam. Jméno www.seznam.cz. se čte zprava doleva od kořene.</desc>
+<text x="450" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">Jmenný prostor je strom — jméno čteme zprava doleva, od kořene dolů</text>
+<rect x="160" y="96" width="180" height="58" rx="14" fill="none" stroke="#71801A" stroke-width="1.4" stroke-dasharray="5 5"/>
+<text x="154" y="129" text-anchor="end" font-size="9.5" font-weight="700" fill="#71801A">zóna cz. · CZ.NIC</text>
+<rect x="30" y="170" width="200" height="140" rx="14" fill="none" stroke="#47657D" stroke-width="1.4" stroke-dasharray="5 5"/>
+<text x="40" y="186" font-size="9.5" font-weight="700" fill="#47657D">zóna seznam.cz.</text>
+<path d="M450 64 L250 114" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M450 64 L450 114" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M450 64 L590 114" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M450 64 L750 114" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M250 142 L130 196" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M250 142 L350 196" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M450 142 L450 196" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M750 142 L750 196" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M130 224 L80 270" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M130 224 L180 270" stroke="#C9D6DC" stroke-width="1.8"/>
+<path d="M750 224 L750 270" stroke="#C9D6DC" stroke-width="1.8"/>
+<rect x="428" y="36" width="44" height="28" rx="14" fill="#2E4657" stroke="#47657D" stroke-width="1.6"/>
+<text x="450" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">.</text>
+<rect x="228" y="114" width="44" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="250" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">cz</text>
+<rect x="426" y="114" width="48" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="450" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">com</text>
+<rect x="566" y="114" width="48" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="590" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">org</text>
+<rect x="721" y="114" width="58" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="750" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">arpa</text>
+<rect x="91" y="196" width="78" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="130" y="214" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">seznam</text>
+<rect x="326" y="196" width="48" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="350" y="214" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">nic</text>
+<rect x="411" y="196" width="78" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="450" y="214" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">google</text>
+<rect x="706" y="196" width="88" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="750" y="214" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">in-addr</text>
+<rect x="56" y="270" width="48" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="80" y="288" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">www</text>
+<rect x="151" y="270" width="58" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="180" y="288" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">mail</text>
+<rect x="696" y="270" width="108" height="28" rx="14" fill="#FFFFFF" stroke="#47657D" stroke-width="1.6"/>
+<text x="750" y="288" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">8.8.8.8 …</text>
+<text x="500" y="54" font-size="10" fill="#54666F">kořen (root) — prázdné jméno, píše se jako „.“</text>
+<text x="880" y="132" text-anchor="end" font-size="9.5" fill="#54666F">← TLD</text>
+<text x="815" y="232" text-anchor="middle" font-size="9.5" fill="#54666F">reverzní</text>
+<text x="815" y="244" text-anchor="middle" font-size="9.5" fill="#54666F">překlad (PTR)</text>
+<text x="300" y="250" font-size="9.5" fill="#54666F">delegace: NS záznamy</text>
+<text x="300" y="263" font-size="9.5" fill="#54666F">v zóně cz. ukazují na</text>
+<text x="300" y="276" font-size="9.5" fill="#54666F">servery zóny seznam.cz.</text>
+<rect x="424" y="32" width="52" height="36" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="10.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0100;0.0400;0.8600;0.8900;1"/></rect>
+<rect x="224" y="110" width="52" height="36" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="10.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.1300;0.1600;0.8600;0.8900;1"/></rect>
+<rect x="87" y="192" width="86" height="36" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="10.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.2500;0.2800;0.8600;0.8900;1"/></rect>
+<rect x="52" y="266" width="56" height="36" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="10.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3700;0.4000;0.8600;0.8900;1"/></rect>
+<path d="M450 64 L250 114" stroke="#71801A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="10.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.0900;0.1200;0.8600;0.8900;1"/></path>
+<path d="M250 142 L130 196" stroke="#71801A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="10.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.2100;0.2400;0.8600;0.8900;1"/></path>
+<path d="M130 224 L80 270" stroke="#71801A" stroke-width="3" opacity="0"><animate attributeName="opacity" dur="10.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0;0.3300;0.3600;0.8600;0.8900;1"/></path>
+<rect x="200" y="326" width="500" height="44" rx="12" fill="#EAF0F3" stroke="#D7E3E8"/>
+<text x="250" y="353" font-size="16" font-weight="700" fill="#1E2E38" xml:space="preserve">www<tspan fill="#47657D">.seznam</tspan><tspan fill="#71801A">.cz</tspan><tspan fill="#B5453B">.</tspan></text>
+<text x="440" y="346" font-size="10" fill="#54666F">FQDN — plně kvalifikované jméno;</text>
+<text x="440" y="360" font-size="10" fill="#54666F">koncová tečka = kořen</text>
+</svg>
+        <figcaption>Obr. 1 — Strom jmen: <code>www.seznam.cz.</code> čteme zprava doleva — kořen „.“, TLD <code>cz</code>, doména <code>seznam</code>, uzel <code>www</code>. Čárkovaně jsou vyznačené zóny: CZ.NIC spravuje zónu <code>cz.</code> a správu zóny <code>seznam.cz.</code> <b>delegoval</b> firmě Seznam.</figcaption>
+        <button type="button" class="anim-toggle" aria-pressed="false">⏸ Zastavit animaci</button>
+      </figure>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Pojem</th><th>Význam</th><th>Příklad</th></tr></thead>
+          <tbody>
+            <tr><td><b>Doména</b></td><td>uzel stromu a vše pod ním</td><td>doména <code>cz</code> obsahuje i <code>www.seznam.cz</code></td></tr>
+            <tr><td><b>Zóna</b></td><td>část stromu, kterou spravuje <b>jeden správce</b> na svých serverech; končí tam, kde začíná delegace</td><td>zóna <code>cz.</code> (CZ.NIC) neobsahuje záznamy <code>www.seznam.cz</code> — jen odkaz (NS) na servery Seznamu</td></tr>
+            <tr><td><b>Delegace</b></td><td>záznamy NS v nadřazené zóně, které ukazují na servery podřízené zóny</td><td><code>seznam.cz. NS ans.seznam.cz.</code> v zóně <code>cz.</code></td></tr>
+            <tr><td><b>Glue záznam</b></td><td>adresa (A/AAAA) jmenného serveru přiložená k delegaci, když jméno serveru leží uvnitř delegované zóny</td><td>adresa <code>ans.seznam.cz</code> — jinak by se resolver zacyklil</td></tr>
+            <tr><td><b>FQDN</b></td><td>úplné jméno až ke kořeni, koncová tečka = kořen</td><td><code>mail.seznam.cz.</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p style="margin-bottom:0;"><b>Pravidla pro jména (RFC 1034/1035):</b> jedno návěští má nejvýše <b>63 znaků</b>, celé jméno nejvýše <b>255 bajtů</b> v přenosovém tvaru (v textovém zápisu prakticky 253 znaků). Velká a malá písmena se nerozlišují — <code>WWW.Seznam.CZ</code> je stejné jméno jako <code>www.seznam.cz</code>.</p>
+      </div>
+
+      <!-- ===================== B — KDO SE NA PŘEKLADU PODÍLÍ ===================== -->
+      <h3>B · Kdo se na překladu podílí — a animace celé cesty dotazu</h3>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Účastník</th><th>Co dělá</th><th>U nás</th></tr></thead>
+          <tbody>
+            <tr><td><b>Stub resolver</b> (DNS klient)</td><td>neumí překlad dokončit sám — pošle <b>rekurzivní dotaz</b> resolveru a čeká na hotovou odpověď</td><td>na Klientovi knihovna glibc + <code>systemd-resolved</code> (127.0.0.53)</td></tr>
+            <tr><td><b>Rekurzivní resolver</b></td><td>dohledá odpověď za klienta: ptá se postupně dalších serverů, odpovědi ukládá do <b>cache</b></td><td><code>8.8.8.8</code> (Google Public DNS), DNS poskytovatele, od příští kapitoly Bind9 na Serveru</td></tr>
+            <tr><td><b>Kořenový server</b> (root)</td><td>zná jen servery všech TLD — na dotaz odpoví <b>odkazem</b> (referral)</td><td><code>a.root-servers.net</code> … <code>m.root-servers.net</code></td></tr>
+            <tr><td><b>TLD server</b></td><td>zná servery domén druhého řádu ve své TLD — opět odkáže dál</td><td>pro <code>cz</code> servery CZ.NIC, např. <code>a.ns.nic.cz</code></td></tr>
+            <tr><td><b>Autoritativní server</b></td><td>má data zóny „z první ruky“ a odpovídá s příznakem <b>AA</b> (authoritative answer)</td><td>pro <code>seznam.cz</code> např. <code>ans.seznam.cz</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="svg-figure video-figure" id="video-fig">
+<svg id="dns-video" viewBox="0 0 900 540" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="svgvidt svgvidd" font-family="JetBrains Mono, Consolas, monospace">
+<title id="svgvidt">Animace: cesta DNS dotazu na www.seznam.cz od klienta přes rekurzivní resolver ke kořenovému, TLD a autoritativnímu serveru</title>
+<desc id="svgvidd">Klient pošle rekurzivní dotaz na rekurzivní resolver 8.8.8.8. Resolver, který odpověď nemá v cache, se iterativně zeptá kořenového serveru (odkáže na servery domény cz), pak serveru domény cz (odkáže na servery seznam.cz) a nakonec autoritativního serveru seznam.cz, který vrátí autoritativní odpověď s IP adresou. Resolver odpověď uloží do cache na dobu TTL a předá klientovi jako neautoritativní. Další dotaz se vyřídí z cache.</desc>
+<defs>
+<marker id="ar-47657D" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#47657D"/></marker>
+<marker id="ar-71801A" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#71801A"/></marker>
+<marker id="ar-3F7455" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#3F7455"/></marker>
+</defs>
+<text x="450" y="16" text-anchor="middle" font-size="12" font-weight="700" fill="#1E2E38">Překlad www.seznam.cz — jeden rekurzivní dotaz klienta, tři iterativní dotazy resolveru</text>
+<rect x="20" y="140" width="190" height="180" rx="16" fill="#FFFFFF" stroke="#47657D" stroke-width="2"/>
+<text x="115" y="164" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Klient</text>
+<text x="115" y="181" text-anchor="middle" font-size="10" fill="#54666F">192.168.1.2</text>
+<rect x="32" y="192" width="166" height="48" rx="10" fill="#EAF0F3" stroke="#47657D" stroke-width="1.4"/>
+<text x="115" y="212" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">aplikace</text>
+<text x="115" y="229" text-anchor="middle" font-size="9.5" fill="#54666F">ping · firefox · apt</text>
+<rect x="32" y="256" width="166" height="52" rx="10" fill="#EAF0F3" stroke="#2E4657" stroke-width="1.4"/>
+<text x="115" y="276" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">stub resolver</text>
+<text x="115" y="293" text-anchor="middle" font-size="9.5" fill="#54666F">systemd-resolved</text>
+<text x="115" y="304" text-anchor="middle" font-size="9.5" fill="#54666F">127.0.0.53 · cache</text>
+<path d="M115 241 L115 254" stroke="#47657D" stroke-width="1.6" fill="none" marker-end="url(#ar-47657D)"/>
+<rect x="360" y="140" width="200" height="180" rx="16" fill="#FFFFFF" stroke="#47657D" stroke-width="2"/>
+<text x="460" y="164" text-anchor="middle" font-size="14" font-weight="700" fill="#1E2E38">Rekurzivní resolver</text>
+<text x="460" y="181" text-anchor="middle" font-size="10" fill="#54666F">8.8.8.8 · ISP · školní DNS</text>
+<text x="460" y="208" text-anchor="middle" font-size="9.5" fill="#54666F">odpověď dohledá za klienta,</text>
+<text x="460" y="222" text-anchor="middle" font-size="9.5" fill="#54666F">ptá se postupně (iterativně)</text>
+<rect x="376" y="256" width="168" height="52" rx="10" fill="#FAFBE6" stroke="#71801A" stroke-width="1.4"/>
+<text x="460" y="277" text-anchor="middle" font-size="11" font-weight="700" fill="#1E2E38">cache</text>
+<text x="460" y="295" text-anchor="middle" font-size="9.5" fill="#54666F">záznamy platí po dobu TTL</text>
+<rect x="690" y="24" width="190" height="96" rx="16" fill="#FAFBE6" stroke="#71801A" stroke-width="2"/>
+<text x="785" y="54" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1E2E38">Kořenový server  .</text>
+<text x="785" y="76" text-anchor="middle" font-size="9.5" fill="#2E4657">a – m.root-servers.net</text>
+<text x="785" y="94" text-anchor="middle" font-size="9.5" fill="#54666F">13 jmen · 12 operátorů</text>
+<rect x="690" y="186" width="190" height="96" rx="16" fill="#FAFBE6" stroke="#71801A" stroke-width="2"/>
+<text x="785" y="216" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1E2E38">TLD server  cz.</text>
+<text x="785" y="238" text-anchor="middle" font-size="9.5" fill="#2E4657">a.ns.nic.cz … d.ns.nic.cz</text>
+<text x="785" y="256" text-anchor="middle" font-size="9.5" fill="#54666F">spravuje CZ.NIC</text>
+<rect x="690" y="348" width="190" height="96" rx="16" fill="#FAFBE6" stroke="#71801A" stroke-width="2"/>
+<text x="785" y="378" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1E2E38">Autoritativní server</text>
+<text x="785" y="400" text-anchor="middle" font-size="9.5" fill="#2E4657">zóna seznam.cz.</text>
+<text x="785" y="418" text-anchor="middle" font-size="9.5" fill="#54666F">ans.seznam.cz · ams.seznam.cz</text>
+<path d="M212 214 L356 214" stroke="#47657D" stroke-width="2" fill="none" marker-end="url(#ar-47657D)"/>
+<path d="M358 236 L214 236" stroke="#47657D" stroke-width="2" fill="none" stroke-dasharray="6 5" marker-end="url(#ar-47657D)"/>
+<path d="M562 172 L686 70" stroke="#71801A" stroke-width="2" fill="none" marker-end="url(#ar-71801A)"/>
+<path d="M688 88 L564 190" stroke="#71801A" stroke-width="2" fill="none" stroke-dasharray="6 5" marker-end="url(#ar-71801A)"/>
+<path d="M562 226 L686 226" stroke="#71801A" stroke-width="2" fill="none" marker-end="url(#ar-71801A)"/>
+<path d="M688 244 L564 244" stroke="#71801A" stroke-width="2" fill="none" stroke-dasharray="6 5" marker-end="url(#ar-71801A)"/>
+<path d="M562 266 L686 382" stroke="#71801A" stroke-width="2" fill="none" marker-end="url(#ar-71801A)"/>
+<path d="M688 400 L564 284" stroke="#3F7455" stroke-width="2" fill="none" stroke-dasharray="6 5" marker-end="url(#ar-3F7455)"/>
+<circle cx="284" cy="200" r="10" fill="#47657D"/><text x="284" y="204" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">2</text>
+<circle cx="284" cy="252" r="10" fill="#47657D"/><text x="284" y="256" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">9</text>
+<circle cx="606" cy="118" r="10" fill="#71801A"/><text x="606" y="122" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">3</text>
+<circle cx="652" cy="160" r="10" fill="#71801A"/><text x="652" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">4</text>
+<circle cx="624" cy="210" r="10" fill="#71801A"/><text x="624" y="214" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">5</text>
+<circle cx="624" cy="262" r="10" fill="#71801A"/><text x="624" y="266" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">6</text>
+<circle cx="650" cy="318" r="10" fill="#71801A"/><text x="650" y="322" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">7</text>
+<circle cx="604" cy="344" r="10" fill="#3F7455"/><text x="604" y="348" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">8</text>
+<circle cx="32" cy="192" r="10" fill="#47657D"/><text x="32" y="196" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">1</text>
+<circle cx="32" cy="256" r="10" fill="#47657D"/><text x="32" y="260" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">10</text>
+<text x="115" y="334" text-anchor="middle" font-size="10" font-weight="700" fill="#B5453B" opacity="0">/etc/hosts: ✗ nenalezeno<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.0014;0.0083;0.0778;0.0847;1"/></text>
+<text x="115" y="334" text-anchor="middle" font-size="10" font-weight="700" fill="#B5453B" opacity="0">cache: ✗ miss → ptám se resolveru<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.0792;0.0861;0.1556;0.1625;1"/></text>
+<text x="460" y="334" text-anchor="middle" font-size="10" font-weight="700" fill="#B5453B" opacity="0">cache: ✗ miss → začínám u kořene<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.1625;0.1694;0.2389;0.2458;1"/></text>
+<text x="460" y="334" text-anchor="middle" font-size="10" font-weight="700" fill="#3F7455" opacity="0">cache: ✓ uloženo (TTL)<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.6625;0.6694;0.7444;0.7514;1"/></text>
+<text x="115" y="334" text-anchor="middle" font-size="10" font-weight="700" fill="#3F7455" opacity="0">cache: ✓ uloženo · spojení na 77.75.77.222<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.7458;0.7528;0.8278;0.8347;1"/></text>
+<text x="460" y="334" text-anchor="middle" font-size="10" font-weight="700" fill="#3F7455" opacity="0">cache: ✓ hit → odpovídám hned<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.8292;0.8361;0.9111;0.9181;1"/></text>
+<rect x="28" y="188" width="174" height="56" rx="12" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.0000;0.0056;0.0778;0.0847;1"/></rect>
+<rect x="28" y="252" width="174" height="60" rx="12" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.0792;0.0861;0.1611;0.1681;1"/></rect>
+<rect x="372" y="252" width="176" height="60" rx="12" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.1625;0.1694;0.2222;0.2292;1"/></rect>
+<rect x="686" y="20" width="198" height="104" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.2153;0.2222;0.3278;0.3347;1"/></rect>
+<rect x="686" y="182" width="198" height="104" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.3819;0.3889;0.4944;0.5014;1"/></rect>
+<rect x="686" y="344" width="198" height="104" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.5486;0.5556;0.6611;0.6681;1"/></rect>
+<rect x="372" y="252" width="176" height="60" rx="12" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.6625;0.6694;0.7222;0.7292;1"/></rect>
+<rect x="28" y="252" width="174" height="60" rx="12" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.7375;0.7444;0.8278;0.8347;1"/></rect>
+<rect x="28" y="188" width="174" height="56" rx="12" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.7708;0.7778;0.8278;0.8347;1"/></rect>
+<rect x="372" y="252" width="176" height="60" rx="12" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.8375;0.8444;0.9139;0.9208;1"/></rect>
+<rect x="356" y="136" width="208" height="188" rx="18" fill="none" stroke="#DBF02A" stroke-width="3.2" opacity="0"><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.9153;0.9222;0.9944;1.0000;1"/></rect>
+<circle r="6" fill="#47657D" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M212 214 L356 214" keyPoints="0;0;1;1" keyTimes="0;0.1000;0.1556;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.0986;0.1000;0.1556;0.1569;1"/></circle>
+<circle r="6" fill="#71801A" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M562 172 L686 70" keyPoints="0;0;1;1" keyTimes="0;0.1833;0.2389;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.1819;0.1833;0.2389;0.2403;1"/></circle>
+<circle r="6" fill="#71801A" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M688 88 L564 190" keyPoints="0;0;1;1" keyTimes="0;0.2611;0.3167;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.2597;0.2611;0.3167;0.3181;1"/></circle>
+<circle r="6" fill="#71801A" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M562 226 L686 226" keyPoints="0;0;1;1" keyTimes="0;0.3444;0.4000;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.3431;0.3444;0.4000;0.4014;1"/></circle>
+<circle r="6" fill="#71801A" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M688 244 L564 244" keyPoints="0;0;1;1" keyTimes="0;0.4278;0.4833;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.4264;0.4278;0.4833;0.4847;1"/></circle>
+<circle r="6" fill="#71801A" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M562 266 L686 382" keyPoints="0;0;1;1" keyTimes="0;0.5111;0.5667;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.5097;0.5111;0.5667;0.5681;1"/></circle>
+<circle r="7" fill="#3F7455" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M688 400 L564 284" keyPoints="0;0;1;1" keyTimes="0;0.5944;0.6500;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.5931;0.5944;0.6500;0.6514;1"/></circle>
+<circle r="7" fill="#3F7455" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M358 236 L214 236" keyPoints="0;0;1;1" keyTimes="0;0.6833;0.7389;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.6819;0.6833;0.7389;0.7403;1"/></circle>
+<circle r="6" fill="#47657D" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M212 214 L356 214" keyPoints="0;0;1;1" keyTimes="0;0.8389;0.8694;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.8375;0.8389;0.8694;0.8708;1"/></circle>
+<circle r="7" fill="#3F7455" opacity="0"><animateMotion dur="36.0s" repeatCount="indefinite" path="M358 236 L214 236" keyPoints="0;0;1;1" keyTimes="0;0.8806;0.9111;1" calcMode="linear"/><animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.8792;0.8806;0.9111;0.9125;1"/></circle>
+<path d="M40 462 L84 462" stroke="#47657D" stroke-width="2"/>
+<text x="92" y="466" font-size="10" fill="#1E2E38"><tspan font-weight="700">rekurzivní dotaz</tspan> (RD=1) — „zjisti to za mě“</text>
+<path d="M470 462 L514 462" stroke="#71801A" stroke-width="2"/>
+<text x="522" y="466" font-size="10" fill="#1E2E38"><tspan font-weight="700">iterativní dotaz</tspan> — server odkáže dál</text>
+<path d="M40 482 L84 482" stroke="#54666F" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="92" y="486" font-size="10" fill="#1E2E38"><tspan font-weight="700">odpověď</tspan> (čárkovaně) · odkaz = referral</text>
+<path d="M470 482 L514 482" stroke="#3F7455" stroke-width="2" stroke-dasharray="6 5"/>
+<text x="522" y="486" font-size="10" fill="#1E2E38"><tspan font-weight="700">konečná odpověď</tspan> s IP adresou</text>
+<rect x="20" y="500" width="860" height="34" rx="10" fill="#2E4657" stroke="#2E4657"/>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">1 · Klient: aplikace → getaddrinfo() → nsswitch.conf: files (/etc/hosts) ✗ → dns<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.0003;0.0014;0.0819;0.0831;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">2 · Klient → 8.8.8.8 · UDP 53 · QUERY  www.seznam.cz.  IN A · flags: rd<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.0836;0.0847;0.1653;0.1664;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">3 · 8.8.8.8 → kořenový server · www.seznam.cz.  IN A · bez rd (iterativně)<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.1669;0.1681;0.2486;0.2497;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">4 · kořen → 8.8.8.8 · REFERRAL · AUTHORITY: cz. NS a.ns.nic.cz. … + glue (A/AAAA)<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.2503;0.2514;0.3319;0.3331;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">5 · 8.8.8.8 → a.ns.nic.cz · QUERY  www.seznam.cz.  IN A<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.3336;0.3347;0.4153;0.4164;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">6 · a.ns.nic.cz → 8.8.8.8 · REFERRAL · AUTHORITY: seznam.cz. NS ans.seznam.cz. …<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.4169;0.4181;0.4986;0.4997;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">7 · 8.8.8.8 → ans.seznam.cz · QUERY  www.seznam.cz.  IN A<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.5003;0.5014;0.5819;0.5831;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">8 · ans.seznam.cz → 8.8.8.8 · NOERROR · flags: qr aa · www.seznam.cz. 300 IN A 77.75.77.222<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.5836;0.5847;0.6653;0.6664;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">9 · 8.8.8.8 → Klient · NOERROR · flags: qr rd ra (bez aa) · resolver si záznam pamatuje po dobu TTL<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.6669;0.6681;0.7486;0.7497;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">10 · Klient: resolved uloží odpověď do své cache · aplikace se připojí na 77.75.77.222<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.7503;0.7514;0.8319;0.8331;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">11 · Další dotaz během TTL → odpověď rovnou z cache, kroky 3–8 se vůbec nekonají<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.8336;0.8347;0.9153;0.9164;1"/></text>
+<text x="36" y="522" font-size="11" font-weight="600" fill="#EAF3F7" opacity="0" xml:space="preserve">12 · Shrnutí: klient poslal 1 rekurzivní dotaz, resolver za něj udělal 3 iterativní<animate attributeName="opacity" dur="36.0s" repeatCount="indefinite" values="0;0;1;1;0;0" keyTimes="0.0000;0.9169;0.9181;0.9986;0.9997;1"/></text>
+</svg>
+        <div class="vp-controls">
+          <button type="button" class="vp-btn primary" id="vp-play" aria-pressed="false">⏸ Pauza</button>
+          <button type="button" class="vp-btn" id="vp-prev" aria-label="Předchozí krok">⏮</button>
+          <button type="button" class="vp-btn" id="vp-next" aria-label="Další krok">⏭</button>
+          <button type="button" class="vp-btn" id="vp-restart">↺ Od začátku</button>
+          <div class="vp-track" id="vp-track" title="Klikněte pro posun"><span id="vp-bar"></span></div>
+          <span class="vp-time" id="vp-time">0:00 / 0:36</span>
+        </div>
+        <div class="vp-steps" id="vp-steps"></div>
+        <div class="vp-caption" aria-live="polite"><div class="vc-title" id="vp-title"></div><div class="vc-text" id="vp-text"></div></div>
+        <figcaption>Obr. 2 — Animace překladu <code>www.seznam.cz</code> (12 kroků, 36 s, opakuje se). Plnou čarou dotaz, čárkovaně odpověď. Spodní tmavý pruh ukazuje obsah zprávy jako v síťovém analyzátoru. Adresy a TTL jsou ilustrační — skutečné hodnoty zjistíte v části Řešení.</figcaption>
+      </figure>
+
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th></th><th>Rekurzivní dotaz</th><th>Iterativní dotaz</th></tr></thead>
+          <tbody>
+            <tr><td><b>Kdo ho posílá</b></td><td>stub resolver klienta → rekurzivní resolver</td><td>rekurzivní resolver → kořen, TLD, autoritativní server</td></tr>
+            <tr><td><b>Příznak v dotazu</b></td><td><code>RD</code> = 1 (recursion desired)</td><td>bez <code>RD</code></td></tr>
+            <tr><td><b>Co se vrátí</b></td><td>hotová odpověď, nebo chyba (např. NXDOMAIN)</td><td>buď odpověď, nebo <b>odkaz</b> (referral): NS záznamy v sekci AUTHORITY a glue v ADDITIONAL</td></tr>
+            <tr><td><b>Zkusíte si</b></td><td><code>dig www.seznam.cz</code></td><td><code>dig +trace www.seznam.cz</code> — dig projde cestu od kořene sám</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Autoritativní × neautoritativní odpověď.</b> Odpověď přímo od serveru, který spravuje zónu, má příznak <code>aa</code> (authoritative answer). Odpověď od rekurzivního resolveru — i když ji právě čerstvě získal — příznak <code>aa</code> nemá. Proto <code>nslookup www.seznam.cz</code> vypíše <i>Non-authoritative answer</i>, kdežto <code>nslookup www.seznam.cz ans.seznam.cz</code> ne.</p>
+        <p style="margin-bottom:0;"><b>Kořenové servery:</b> existuje <b>13 jmen</b> <code>a</code>–<code>m.root-servers.net</code>, provozuje je <b>12 nezávislých organizací</b> (Verisign má A i J). Nejde ale o 13 počítačů: díky <b>anycastu</b> běží po světě přes <b>2 000 instancí</b> (údaj root-servers.org, říjen 2026). Adresy kořenových serverů musí mít každý rekurzivní resolver předem (tzv. <i>root hints</i>), jinak by neměl kde začít.</p>
+      </div>
+      <div class="callout">
+        <p style="margin-bottom:0;"><b>Cache a TTL.</b> Každý záznam má <b>TTL</b> (time to live) v sekundách — tak dlouho si ho smí resolver pamatovat. Proto se celá cesta přes kořen děje jen zřídka: většinu dotazů resolver vyřídí z cache a TTL v odpovědi pak <b>odpočítává</b>. Cache má i <code>systemd-resolved</code> na Klientovi. Důsledek pro správce: změna záznamu se po internetu „rozšíří“ až po vypršení starého TTL.</p>
+      </div>
+
+      <!-- ===================== C — ZÁZNAMY A PROTOKOL ===================== -->
+      <h3>C · Typy záznamů a protokol</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Zóna je seznam <b>záznamů</b> (resource records). Každý má tvar <code>jméno  TTL  třída  typ  data</code>, např. <code>www.seznam.cz.  300  IN  A  77.75.77.222</code>. Třída je v praxi vždy <code>IN</code> (Internet).</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Typ</th><th>Obsah</th><th>Dotaz</th></tr></thead>
+          <tbody>
+            <tr><td><b>A</b></td><td>IPv4 adresa jména</td><td><code>dig www.seznam.cz A</code></td></tr>
+            <tr><td><b>AAAA</b></td><td>IPv6 adresa jména (RFC 3596)</td><td><code>dig www.seznam.cz AAAA</code></td></tr>
+            <tr><td><b>CNAME</b></td><td>alias — „toto jméno je jen jiný název pro…“</td><td><code>dig www.microsoft.com</code> (sledujte ANSWER)</td></tr>
+            <tr><td><b>MX</b></td><td>poštovní servery domény s <b>prioritou</b> (nižší číslo = přednost)</td><td><code>dig seznam.cz MX</code></td></tr>
+            <tr><td><b>NS</b></td><td>autoritativní jmenné servery zóny</td><td><code>dig seznam.cz NS</code></td></tr>
+            <tr><td><b>SOA</b></td><td>začátek autority: primární server, e-mail správce, sériové číslo zóny a časovače</td><td><code>dig seznam.cz SOA</code></td></tr>
+            <tr><td><b>PTR</b></td><td>reverzní záznam: adresa → jméno (pod <code>in-addr.arpa</code> / <code>ip6.arpa</code>)</td><td><code>dig -x 8.8.8.8</code></td></tr>
+            <tr><td><b>TXT</b></td><td>libovolný text (ověření domény, SPF pro poštu…)</td><td><code>dig seznam.cz TXT</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Protokol:</b> DNS používá port <b>53</b>, běžné dotazy jdou po <b>UDP</b> (jeden datagram tam, jeden zpět — rychlé, bez navazování spojení). <b>TCP</b> se použije, když se odpověď do UDP nevejde (server nastaví příznak <code>tc</code> = truncated a klient se zeptá znovu po TCP), a pro přenos celé zóny (AXFR). Podpora TCP je pro DNS povinná (RFC 7766).</p>
+        <p style="margin-bottom:0;"><b>Dotaz typu ANY</b> (<code>host -a</code>, <code>dig … ANY</code>) dnes už nevrací „všechno“: podle RFC 8482 smí server odpovědět jen částí záznamů nebo syntetickým záznamem HINFO s textem <code>RFC8482</code>. Na konkrétní typy se proto ptejte jednotlivě.</p>
+      </div>
+
+      <!-- ===================== D — DNS KLIENT ===================== -->
+      <h3>D · DNS klient (resolver) v Debianu 13</h3>
+      <p class="lede" style="margin-bottom:.9rem;">Když aplikace (ping, prohlížeč, apt) potřebuje adresu, zavolá funkci knihovny glibc <code>getaddrinfo()</code>. Ta se podle <code>/etc/nsswitch.conf</code> podívá nejdřív do <code>/etc/hosts</code> a pak do DNS. Na vašich strojích od kapitoly 6 obsluhuje DNS démon <b>systemd-resolved</b>: poslouchá na <code>127.0.0.53</code>, má vlastní cache a dotazy posílá na servery z <code>/etc/systemd/resolved.conf</code>.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Soubor / nástroj</th><th>Role</th><th>Co v něm uvidíte</th></tr></thead>
+          <tbody>
+            <tr><td><code>/etc/nsswitch.conf</code></td><td>pořadí zdrojů pro překlad jmen</td><td>řádek <code>hosts:</code>, typicky <code>files … dns</code>; <code>files</code> = <code>/etc/hosts</code>. S balíkem <code>libnss-resolve</code> navíc modul <code>resolve</code>.</td></tr>
+            <tr><td><code>/etc/hosts</code></td><td>ruční statický překlad (kapitoly 5 a 7)</td><td><code>192.168.1.1  server.vyuka.cz server</code></td></tr>
+            <tr><td><code>/etc/resolv.conf</code></td><td>komu posílat DNS dotazy (čte glibc i <code>dig</code>, <code>host</code>, <code>nslookup</code>)</td><td>symlink na <code>/run/systemd/resolve/stub-resolv.conf</code> → <code>nameserver 127.0.0.53</code></td></tr>
+            <tr><td><code>/etc/systemd/resolved.conf</code></td><td>konfigurace systemd-resolved — skutečné DNS servery</td><td><code>[Resolve]</code>, <code>DNS=8.8.8.8</code>, <code>FallbackDNS=</code>, <code>Domains=</code>, <code>Cache=yes</code>, <code>ReadEtcHosts=yes</code></td></tr>
+            <tr><td><code>/run/systemd/resolve/resolv.conf</code></td><td>výpis skutečných serverů, které resolved používá</td><td><code>nameserver 8.8.8.8</code></td></tr>
+            <tr><td><code>resolvectl</code></td><td>ovládání a diagnostika resolved</td><td><code>status</code>, <code>dns</code>, <code>query</code>, <code>statistics</code>, <code>flush-caches</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><b>Dva stub listenery systemd-resolved:</b> <code>127.0.0.53</code> poskytuje plnou funkčnost resolveru (cache, lokální záznamy, validaci DNSSEC). <code>127.0.0.54</code> je „proxy“ — zprávy předává na nadřazený server téměř beze změny, bez lokálního zpracování. Rozdíl využijete v úkolu A3.</p>
+        <p style="margin-bottom:0;"><b>Řádek <code>search</code></b> v <code>resolv.conf</code> (v <code>resolved.conf</code> klíč <code>Domains=</code>) doplňuje ke krátkým jménům doménu. S <code>Domains=vyuka.cz</code> by se jméno <code>server</code> zkoušelo jako <code>server.vyuka.cz</code>.</p>
+      </div>
+      <div class="callout">
+        <p style="margin-bottom:0;"><b>Pozor — poučení z kapitoly 5:</b> nástroje <code>dig</code>, <code>host</code> a <code>nslookup</code> jsou <b>DNS nástroje</b>. Neřídí se <code>nsswitch.conf</code> a <code>/etc/hosts</code> samy nečtou — pošlou dotaz přímo DNS serveru z <code>/etc/resolv.conf</code> (nebo zadanému <code>@serveru</code>). Jak jméno vidí <b>celý systém</b> (tak jako ping nebo prohlížeč), ukáže <code>getent hosts JMÉNO</code>, případně <code>resolvectl query JMÉNO</code>.</p>
+      </div>
+
+      <!-- ===================== E — NÁSTROJE A ROZBOR ODPOVĚDI ===================== -->
+      <h3>E · Nástroje pro DNS dotazy a rozbor odpovědi</h3>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Nástroj</th><th>Balík (Debian 13)</th><th>K čemu se hodí</th></tr></thead>
+          <tbody>
+            <tr><td><b>host</b></td><td><code>bind9-dnsutils</code></td><td>rychlá stručná odpověď; bez volby vypíše A, AAAA i MX</td></tr>
+            <tr><td><b>nslookup</b></td><td><code>bind9-dnsutils</code></td><td>klasika dostupná i ve Windows; hlásí <i>Non-authoritative answer</i></td></tr>
+            <tr><td><b>dig</b></td><td><code>bind9-dnsutils</code></td><td>nástroj správce: celá odpověď se všemi sekcemi a příznaky, <code>+trace</code>, <code>+short</code></td></tr>
+            <tr><td><b>resolvectl query</b></td><td><code>systemd-resolved</code></td><td>dotaz <b>přes systemd-resolved</b> včetně jeho cache a <code>/etc/hosts</code></td></tr>
+            <tr><td><b>getent hosts</b></td><td><code>libc-bin</code></td><td>překlad přesně jako aplikace — přes <code>nsswitch.conf</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="lede" style="margin:.9rem 0 .3rem;">Ukázkový výstup <code>dig www.seznam.cz</code> na Klientovi (hodnoty se u vás budou lišit):</p>
+<pre class="digout"><span class="d">; &lt;&lt;&gt;&gt; DiG 9.20 &lt;&lt;&gt;&gt; www.seznam.cz</span>
+<span class="m">1</span><span class="k">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 31367</span>
+<span class="m">2</span><span class="k">;; flags: qr rd ra;</span> QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+
+<span class="m">3</span><span class="k">;; QUESTION SECTION:</span>
+;www.seznam.cz.                 IN      A
+
+<span class="m">4</span><span class="k">;; ANSWER SECTION:</span>
+<span class="m">5</span>www.seznam.cz.          187     IN      A       77.75.77.222
+<span class="m" style="visibility:hidden">5</span>www.seznam.cz.          187     IN      A       77.75.79.222
+
+<span class="m">6</span><span class="k">;; Query time: 32 msec</span>
+<span class="m">7</span><span class="k">;; SERVER: 127.0.0.53#53(127.0.0.53) (UDP)</span>
+<span class="d">;; MSG SIZE  rcvd: 74</span></pre>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>#</th><th>Část výstupu</th><th>Jak ji číst</th></tr></thead>
+          <tbody>
+            <tr><td><b>1</b></td><td><code>status</code></td><td>výsledek: <b>NOERROR</b> v pořádku · <b>NXDOMAIN</b> jméno neexistuje · <b>SERVFAIL</b> server odpověď nezískal (chyba na cestě, DNSSEC) · <b>REFUSED</b> server odmítl odpovědět (uvidíte u Bind9). <code>id</code> páruje odpověď s dotazem.</td></tr>
+            <tr><td><b>2</b></td><td><code>flags</code></td><td><b>qr</b> = je to odpověď · <b>rd</b> = klient chtěl rekurzi · <b>ra</b> = server rekurzi nabízí · <b>aa</b> = autoritativní odpověď · <b>ad</b> = data ověřena DNSSEC · <b>tc</b> = odpověď zkrácena</td></tr>
+            <tr><td><b>3</b></td><td>QUESTION</td><td>na co jsme se ptali: jméno, třída, typ</td></tr>
+            <tr><td><b>4</b></td><td>ANSWER · AUTHORITY · ADDITIONAL</td><td>odpověď · NS záznamy (u odkazu kam dál) · doplňující údaje (glue adresy). Prázdná ANSWER + vyplněná AUTHORITY = <b>odkaz</b> (referral).</td></tr>
+            <tr><td><b>5</b></td><td>TTL (číslo ve 2. sloupci)</td><td>kolik sekund ještě smí záznam zůstat v cache — při opakovaném dotazu přes cache klesá</td></tr>
+            <tr><td><b>6</b></td><td>Query time</td><td>doba odpovědi; z cache řádově 0–1 ms, přes internet desítky ms</td></tr>
+            <tr><td><b>7</b></td><td>SERVER</td><td>kdo odpověděl — tady stub systemd-resolved, ne přímo 8.8.8.8</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Přehled příkazů pro dnešní zadání</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Rychlá orientační reference — podrobné použití si vyzkoušíte v části Řešení.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Příkaz</th><th>Co dělá</th><th>Poznámka</th></tr></thead>
+          <tbody>
+            <tr><td><b>resolvectl status</b> · <b>resolvectl dns</b></td><td>Nastavení resolveru, aktuální DNS server pro rozhraní</td><td>řádek <code>Current DNS Server</code></td></tr>
+            <tr><td><b>resolvectl query [-t TYP] JMÉNO</b></td><td>Dotaz přes systemd-resolved</td><td><code>--cache=no</code> obejde cache</td></tr>
+            <tr><td><b>resolvectl statistics</b> · <b>flush-caches</b></td><td>Statistiky (zásahy cache) · vyprázdnění cache</td><td></td></tr>
+            <tr><td><b>getent hosts JMÉNO</b></td><td>Překlad jako aplikace (nsswitch)</td><td>bere v úvahu <code>/etc/hosts</code></td></tr>
+            <tr><td><b>host [-t TYP] JMÉNO [SERVER]</b></td><td>Stručný dotaz</td><td><code>host 8.8.8.8</code> = reverzní dotaz</td></tr>
+            <tr><td><b>nslookup [-query=TYP] JMÉNO [SERVER]</b></td><td>Dotaz, interaktivní režim bez argumentů</td><td></td></tr>
+            <tr><td><b>dig [@SERVER] JMÉNO [TYP]</b></td><td>Úplná odpověď</td><td><code>+short</code>, <code>+noall +answer</code>, <code>+norecurse</code></td></tr>
+            <tr><td><b>dig -x ADRESA</b></td><td>Reverzní dotaz (PTR)</td><td>jméno pod <code>in-addr.arpa</code> sestaví dig sám</td></tr>
+            <tr><td><b>dig +trace JMÉNO</b></td><td>Iterativní průchod od kořene</td><td>potřebuje přímý přístup na UDP/TCP 53 do internetu</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="resources"></div>
+
+      <h3>Rychlá kontrola porozumění</h3>
+      <div class="quiz-box">
+        <div class="quiz-progress" id="quiz-progress">0 / 0 správně</div>
+        <div id="quiz-body"></div>
+      </div>
+    </section>
+
+    <!-- ACT -->
+    <section id="reseni">
+      <span class="eyebrow">Act <span class="phase-en">· Jednání</span></span>
+      <h2>DNS klient a DNS dotazy – Zadání pro žáky</h2>
+      <p class="lede">Hodina má 45 minut: zhruba <b>15 min</b> výklad s animací, <b>30 min</b> praktická část: <b>A</b> konfigurace DNS klienta (9 min) → <b>B</b> dotazy host, nslookup, dig (8 min) → <b>C</b> analýza odpovědí a cesta dotazu (10 min) → <b>D</b> závěrečné otázky (3 min, případně dokončit doma). Vše děláte na <b>Klientovi</b> (192.168.1.2), který jde do internetu přes Server. Výstupy si průběžně zapisujte do protokolu. Časy jsou orientační.</p>
+      <div class="callout">
+        <p><b>1. Metodika a cíle hodiny</b><br>Cílem cvičení je prakticky si ověřit, jak probíhá překlad jmen v DNS, a naučit se číst odpovědi DNS serverů.<br>Po absolvování cvičení bude žák schopen:</p>
+        <ul>
+          <li>1.1 popsat hierarchii DNS a cestu dotazu od kořenového serveru k autoritativnímu</li>
+          <li>1.2 rozlišit rekurzivní a iterativní dotaz, autoritativní a neautoritativní odpověď</li>
+          <li>1.3 zjistit a změnit nastavení DNS klienta (resolveru) v Debianu</li>
+          <li>1.4 položit dotaz na různé typy záznamů a rozebrat odpověď (status, příznaky, sekce, TTL)</li>
+        </ul>
+        <p style="margin:.7rem 0 0;"><b>2. Organizační pokyny</b></p>
+        <ul>
+          <li>2.1 Pracuj samostatně</li>
+          <li>2.2 Příkazy zadávej ručně</li>
+          <li>2.3 U každé odpovědi si všimni, <b>kdo</b> odpověděl a <b>jak</b> (status, příznaky)</li>
+        </ul>
+      </div>
+      <div id="act-phases"></div>
+      <div class="progress-row">
+        <div class="progress-track"><span id="act-bar"></span></div>
+        <div class="progress-label" id="act-label">0 / 0 kroků hotovo</div>
+      </div>
+      <div class="artifact-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.3c0-1 .8-1.8 1.8-1.8h4l1.8 2h9.9c1 0 1.8.8 1.8 1.8v8.7c0 1-.8 1.8-1.8 1.8H5.8c-1 0-1.8-.8-1.8-1.8Z"/></svg>
+        <div>
+          <div class="at">Artefakt do Master Challenge</div>
+          <div class="av" id="artifact-text"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HODNOCENÍ -->
+    <section id="hodnoceni">
+      <span class="eyebrow">Evaluate <span class="phase-en">· Hodnocení</span></span>
+      <h2>Hodnocení a sebehodnocení</h2>
+      <p class="lede">Hodnoticí rámec platí pro celý předmět Serverové služby (4 kritéria); u dnešní kapitoly se promítá takto.</p>
+
+      <div class="rubric-grid">
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Teoretické znalosti</h4><span class="weight-badge">25 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — ví, že DNS překládá jména na adresy, ale nepopíše, kdo se na tom podílí.</li>
+            <li><b>Rozvíjející se</b> — vyjmenuje kořenový, TLD a autoritativní server, ale plete si rekurzivní a iterativní dotaz.</li>
+            <li><b>Očekávaná úroveň</b> — popíše celou cestu dotazu, roli cache a TTL, rozdíl autoritativní/neautoritativní odpovědi a hlavní typy záznamů.</li>
+            <li><b>Nad rámec</b> — vysvětlí delegaci a glue záznamy, anycast kořenových serverů a proč TCP i omezení dotazu ANY.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Praktická realizace</h4><span class="weight-badge">40 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — položí dotaz <code>host</code> nebo <code>nslookup</code>, ale nenajde nastavení resolveru.</li>
+            <li><b>Rozvíjející se</b> — zjistí nastavení resolveru a položí dotazy na různé typy, změnu DNS serveru neověří.</li>
+            <li><b>Očekávaná úroveň</b> — splní části A–C: změněný a ověřený DNS server, dotazy na všechny typy, <code>+trace</code> a autoritativní dotaz s rozborem.</li>
+            <li><b>Nad rámec</b> — doloží měřením vliv cache (TTL, Query time, statistiky) a rozdíl stubů 127.0.0.53 / 127.0.0.54.</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Aplikace v praxi</h4><span class="weight-badge">20 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — při nefunkčním webu neví, jak ověřit, zda jde o problém DNS.</li>
+            <li><b>Rozvíjející se</b> — rozliší „nefunguje DNS“ od „nefunguje síť“ (ping na IP × ping na jméno).</li>
+            <li><b>Očekávaná úroveň</b> — podle statusu (NXDOMAIN/SERVFAIL/REFUSED) a serveru v odpovědi určí, kde je chyba.</li>
+            <li><b>Nad rámec</b> — navrhne, jak DNS ovlivní připravovaný školní server (TTL při změnách, záložní server).</li>
+          </ul>
+        </div>
+        <div class="rubric-card">
+          <div class="rubric-card-head"><h4>Samostatnost a zapojení</h4><span class="weight-badge">15 %</span></div>
+          <ul class="level-list">
+            <li><b>Začínající</b> — potřebuje pomoc u každého dotazu.</li>
+            <li><b>Rozvíjející se</b> — dotazy položí sám, s rozborem odpovědí potřebuje vést.</li>
+            <li><b>Očekávaná úroveň</b> — pracuje samostatně, nejasnosti dohledá v manuálových stránkách (<code>man dig</code>, <code>man resolved.conf</code>).</li>
+            <li><b>Nad rámec</b> — pomůže spolužákovi najít příčinu, proč mu nefunguje <code>+trace</code> nebo změna DNS serveru.</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Sebehodnocení před odevzdáním</h3>
+      <p class="lede" style="margin-bottom:.8rem;">Než úkol odevzdáte, zaškrtněte, co už bezpečně umíte:</p>
+      <ul class="checklist" id="eval-checklist">
+        <li><input type="checkbox" id="ev-1"><label for="ev-1">Umím popsat strom DNS, FQDN, rozdíl mezi doménou a zónou a co je delegace.</label></li>
+        <li><input type="checkbox" id="ev-2"><label for="ev-2">Umím krok za krokem popsat cestu dotazu přes kořenový, TLD a autoritativní server a rozlišit rekurzivní a iterativní dotaz.</label></li>
+        <li><input type="checkbox" id="ev-3"><label for="ev-3">Vím, kde je v Debianu 13 nastaven DNS klient (nsswitch.conf, hosts, resolv.conf, resolved.conf) a k čemu je 127.0.0.53.</label></li>
+        <li><input type="checkbox" id="ev-4"><label for="ev-4">Umím změnit DNS server klienta a změnu ověřit (resolvectl status / dns, dig).</label></li>
+        <li><input type="checkbox" id="ev-5"><label for="ev-5">Vím, proč dig/host/nslookup nečtou /etc/hosts a čím to ověřím (getent hosts).</label></li>
+        <li><input type="checkbox" id="ev-6"><label for="ev-6">Umím se zeptat na záznamy A, AAAA, CNAME, MX, NS, SOA, PTR a TXT.</label></li>
+        <li><input type="checkbox" id="ev-7"><label for="ev-7">Umím v odpovědi dig najít status, příznaky (qr, aa, rd, ra), sekce, TTL a server, který odpověděl.</label></li>
+        <li><input type="checkbox" id="ev-8"><label for="ev-8">Umím získat autoritativní odpověď a projít cestu od kořene pomocí dig +trace.</label></li>
+      </ul>
+      <div class="progress-row">
+        <div class="progress-track"><span id="eval-bar"></span></div>
+        <div class="progress-label" id="eval-label">0 / 8 zvládnuto</div>
+      </div>
+    </section>
+
+    <!-- REFLECT, DOCUMENT & SHARE -->
+    <section id="reflexe">
+      <span class="eyebrow">Reflect, Document &amp; Share <span class="phase-en">· průběžně</span></span>
+      <h2>Reflexe a sdílení</h2>
+      <p class="lede">Zapište si stručné odpovědi — jsou součástí vašeho portfolia a podkladem pro hodnocení.</p>
+      <div class="reflect-grid" id="reflect-grid"></div>
+      <div class="share-note">📎 Screenshoty nastavení resolveru (ls -l /etc/resolv.conf, resolvectl status), změněného DNS serveru, porovnání getent × dig u server.vyuka.cz, dotazů na typy záznamů, rozboru odpovědi dig, autoritativní odpovědi s příznakem aa a výpisu dig +trace ukládejte do sdílené složky týmu.</div>
+    </section>
+
+    <!-- SOURCES -->
+    <section id="zdroje">
+      <span class="eyebrow">Ověřené zdroje</span>
+      <h2>Zdroje</h2>
+      <p class="lede">Pouze zdroje ověřené podle pravidel z metodiky CBL — standardy IETF (RFC), oficiální manuálové stránky Debianu 13, provozovatelé kořenové zóny (IANA, root-servers.org), Debian Reference a materiály školy.</p>
+      <div style="overflow-x:auto;">
+        <table class="src-table">
+          <thead><tr><th>Zdroj</th><th>Typ</th><th>Poznámka</th></tr></thead>
+          <tbody id="src-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="pagefoot">
+      <span>Edu-Linux · Kapitola 10 · předmět Serverové služby, 4. ročník · SPŠ EI Ostrava</span>
+      <span id="foot-num"></span>
+    </footer>
+  </div>
+</div>
+
+<script>
+(function(){
+
+/* ==========================================================================
+   OBSAH KAPITOLY 10 — Úvod do DNS, DNS dotazy, DNS klient
+   ========================================================================== */
+
+  function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+  function cmd(txt){
+    var out = txt.replace(/^\n/,"").replace(/\n$/,"").split("\n").map(function(l){
+      if(l === "#" || l.indexOf("# ") === 0) return '<span class="c">'+esc(l)+'</span>';
+      if(l === "|" || l.indexOf("| ") === 0) return '<span class="c">'+esc(l.slice(2))+'</span>';
+      return esc(l);
+    }).join("\n");
+    return '<pre class="cmdblock"><code>'+out+'</code></pre>';
+  }
+  function answers(list){
+    return '<div class="model-answers"><p class="ma-head">Vzorové odpovědi</p><dl>' +
+      list.map(function(a){ return '<dt>'+a[0]+'</dt><dd>'+a[1]+'</dd>'; }).join("") + '</dl></div>';
+  }
+
+  var TOPIC = {
+    num: "10",
+    title: "Úvod do DNS, DNS dotazy, DNS klient",
+    hours: "1 h",
+    ctLabel: "Edu-Linux · Serverové služby · Master Challenge Škola X"
+  };
+
+  var ENGAGE = {
+    bigIdea: "DNS je <b>hierarchická, distribuovaná databáze</b>: žádný server nezná všechno, ale každý ví, <b>koho se zeptat dál</b> — od kořene přes TLD až k autoritativnímu serveru. Klient se ptá jen svého <b>rekurzivního resolveru</b>, ten cestu projde za něj a výsledek si na dobu <b>TTL</b> zapamatuje.",
+    eq: "Co se doopravdy stane mezi tím, kdy napíšu www.seznam.cz, a tím, kdy počítač zná IP adresu — a jak z odpovědi DNS poznám, kdo mi odpověděl a jestli jí můžu věřit?",
+    challenge: "Správce Školy X chystá vlastní DNS server. Než ho postaví, potřebuje přesně vědět, jak se ptají klienti. Na <b>Klientovi</b> zjistěte, jak je nastaven resolver, a změňte mu DNS servery. Pak se nástroji <code>host</code>, <code>nslookup</code> a <code>dig</code> ptejte na různé typy záznamů, získejte <b>autoritativní</b> odpověď přímo od serveru zóny a projděte cestu dotazu <b>od kořenového serveru</b>. U každé odpovědi určete, kdo odpověděl, s jakými příznaky a jak dlouho bude platit."
+  };
+
+  var INVESTIGATE = {
+    guidingQuestions: [
+      "Proč DNS není jeden velký server se všemi jmény, ale strom zón s delegacemi?",
+      "Jakou cestou putuje dotaz na www.seznam.cz, když ho nikdo nemá v cache — a kolik dotazů při tom pošle klient a kolik resolver?",
+      "Čím se liší autoritativní a neautoritativní odpověď a jak to poznám ve výstupu dig nebo nslookup?",
+      "Kde je v Debianu 13 nastaveno, kterého DNS serveru se Klient ptá, a proč je v /etc/resolv.conf adresa 127.0.0.53?",
+      "Proč může getent hosts vrátit jinou odpověď než dig — a kterému z nich věří ping a prohlížeč?"
+    ],
+    resources: [
+      {
+        title: "RFC 1034 a RFC 1035 — koncepce a specifikace DNS",
+        tag: "official",
+        items: [
+          "Strom jmen, zóny a delegace, rekurzivní a iterativní režim, formát zprávy (hlavička s příznaky QR, AA, TC, RD, RA; sekce question, answer, authority, additional), typy záznamů, omezení 63 znaků na návěští a 255 bajtů na jméno, port 53 UDP/TCP.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc1034' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc1034</a> · <a href='https://www.rfc-editor.org/rfc/rfc1035' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc1035</a>"
+        ]
+      },
+      {
+        title: "RFC 9499 — DNS Terminology",
+        tag: "official",
+        items: [
+          "Přesné definice: stub resolver, rekurzivní resolver, iterativní překlad, odkaz (referral — prázdná ANSWER, NS v AUTHORITY), autoritativní server (odpovídá s příznakem AA), glue záznamy, FQDN a koncová tečka jako kořen.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc9499' target='_blank' rel='noopener'>rfc-editor.org/rfc/rfc9499</a>"
+        ]
+      },
+      {
+        title: "Kořenové servery — IANA a root-servers.org",
+        tag: "official",
+        items: [
+          "13 jmen <code>a</code>–<code>m.root-servers.net</code>, 12 provozovatelů (Verisign provozuje A i J), přes 2 000 instancí díky anycastu (stav k říjnu 2026).",
+          "<a href='https://www.iana.org/domains/root/servers' target='_blank' rel='noopener'>iana.org/domains/root/servers</a> · <a href='https://root-servers.org/' target='_blank' rel='noopener'>root-servers.org</a>"
+        ]
+      },
+      {
+        title: "dig(1), host(1), nslookup(1) — bind9-dnsutils (Debian 13)",
+        tag: "official",
+        items: [
+          "<code>dig</code>: bez <code>@server</code> použije servery z <code>/etc/resolv.conf</code>; <code>+trace</code> dělá iterativní dotazy od kořene (vypne rekurzi a zapne <code>+dnssec</code>); <code>+norecurse</code> smaže příznak RD; <code>-x</code> reverzní dotaz PTR; <code>+short</code>, <code>+noall +answer</code>. <code>nslookup</code>: neinteraktivní režim <code>nslookup jméno [server]</code>, výchozí dotaz A a pak AAAA, typ volbou <code>-query=</code>.",
+          "<a href='https://manpages.debian.org/trixie/bind9-dnsutils/dig.1.en.html' target='_blank' rel='noopener'>…/dig.1</a> · <a href='https://manpages.debian.org/trixie/bind9-dnsutils/host.1.en.html' target='_blank' rel='noopener'>…/host.1</a> · <a href='https://manpages.debian.org/trixie/bind9-dnsutils/nslookup.1.en.html' target='_blank' rel='noopener'>…/nslookup.1</a>"
+        ]
+      },
+      {
+        title: "systemd-resolved.service(8), resolved.conf(5), resolvectl(1)",
+        tag: "official",
+        items: [
+          "Stub 127.0.0.53 (plná funkčnost) a 127.0.0.54 (proxy bez lokálního zpracování); čtyři režimy <code>/etc/resolv.conf</code> (doporučený symlink na <code>stub-resolv.conf</code>); <code>DNS=</code>, <code>FallbackDNS=</code>, <code>Domains=</code>, <code>ReadEtcHosts=yes</code>, <code>Cache=yes</code>; <code>resolvectl query -t TYP</code>, <code>--cache=no</code>, <code>statistics</code>, <code>flush-caches</code>.",
+          "<a href='https://manpages.debian.org/trixie/systemd-resolved/systemd-resolved.service.8.en.html' target='_blank' rel='noopener'>…/systemd-resolved.service.8</a> · <a href='https://manpages.debian.org/trixie/systemd-resolved/resolved.conf.5.en.html' target='_blank' rel='noopener'>…/resolved.conf.5</a> · <a href='https://manpages.debian.org/trixie/systemd-resolved/resolvectl.1.en.html' target='_blank' rel='noopener'>…/resolvectl.1</a>"
+        ]
+      },
+      {
+        title: "nsswitch.conf(5), resolv.conf(5), getent(1)",
+        tag: "official",
+        items: [
+          "Řádek <code>hosts:</code> určuje pořadí zdrojů (<code>files</code> = <code>/etc/hosts</code>, <code>dns</code>); <code>resolv.conf</code> obsahuje <code>nameserver</code> a <code>search</code>; <code>getent hosts</code> překládá stejnou cestou jako aplikace.",
+          "<a href='https://man7.org/linux/man-pages/man5/nsswitch.conf.5.html' target='_blank' rel='noopener'>…/nsswitch.conf.5</a> · <a href='https://man7.org/linux/man-pages/man5/resolv.conf.5.html' target='_blank' rel='noopener'>…/resolv.conf.5</a> · <a href='https://man7.org/linux/man-pages/man1/getent.1.html' target='_blank' rel='noopener'>…/getent.1</a>"
+        ]
+      },
+      {
+        title: "RFC 7766 a RFC 8482 — DNS po TCP, odpovědi na ANY",
+        tag: "official",
+        items: [
+          "RFC 7766: podpora TCP je pro DNS povinná (velké odpovědi, příznak TC). RFC 8482: na dotaz typu ANY smí server odpovědět jen částí záznamů nebo syntetickým HINFO „RFC8482“.",
+          "<a href='https://www.rfc-editor.org/rfc/rfc7766' target='_blank' rel='noopener'>rfc7766</a> · <a href='https://www.rfc-editor.org/rfc/rfc8482' target='_blank' rel='noopener'>rfc8482</a>"
+        ]
+      },
+      {
+        title: "ŠVP SPŠ EI Ostrava — 6.17 Operační systémy",
+        tag: "doc",
+        items: [
+          "Výstupy, které má žák po absolvování tematického celku prokázat.",
+          "K nahlédnutí u vyučujícího / ve sdílené složce předmětu."
+        ]
+      }
+    ]
+  };
+
+  var QUIZ = [
+    {
+      q: "Co znamená koncová tečka ve jméně <code>www.seznam.cz.</code>?",
+      opts: ["Konec věty, v DNS nemá význam", "Kořen (root) stromu DNS — jméno je plně kvalifikované (FQDN)", "Že jde o reverzní záznam", "Že se má použít IPv6"],
+      correct: 1,
+      explain: "Kořen má prázdné jméno a zapisuje se jako tečka. <code>www.seznam.cz.</code> je FQDN — úplné jméno až ke kořeni."
+    },
+    {
+      q: "Kolik je kořenových DNS serverů?",
+      opts: ["Přesně 13 počítačů", "13 jmen a–m.root-servers.net od 12 provozovatelů, díky anycastu přes 2 000 instancí po světě", "Jeden v USA a jeden záložní v Evropě", "Kolik je TLD domén"],
+      correct: 1,
+      explain: "Jmen (a adres) je 13, provozovatelů 12 (Verisign má A i J). Každá adresa je ale anycastová a odpovídá z mnoha míst světa (root-servers.org)."
+    },
+    {
+      q: "Klient pošle dotaz na <code>8.8.8.8</code>, ten se postupně zeptá kořene, serveru <code>cz</code> a serveru <code>seznam.cz</code>. Jaké to jsou dotazy?",
+      opts: ["Všechny čtyři rekurzivní", "Klient → 8.8.8.8 rekurzivní (RD=1), dotazy resolveru na kořen, TLD a autoritativní server iterativní", "Všechny iterativní", "Klient → 8.8.8.8 iterativní, ostatní rekurzivní"],
+      correct: 1,
+      explain: "Klient chce hotovou odpověď (recursion desired). Resolver se pak ptá iterativně a sleduje odkazy (referral) směrem dolů stromem."
+    },
+    {
+      q: "Co v odpovědi <code>dig</code> znamená příznak <code>aa</code>?",
+      opts: ["Odpověď prošla antivirem", "Odpověď je autoritativní — poslal ji server, který spravuje danou zónu", "Odpověď je z cache", "Adresa je IPv6"],
+      correct: 1,
+      explain: "AA = Authoritative Answer. Rekurzivní resolver ho nenastavuje ani u čerstvě získané odpovědi — proto <code>nslookup</code> přes 8.8.8.8 píše <i>Non-authoritative answer</i>."
+    },
+    {
+      q: "Kořenový server dostane dotaz <code>www.seznam.cz. IN A</code>. Co odpoví?",
+      opts: ["IP adresu www.seznam.cz", "NXDOMAIN, protože jméno nezná", "Odkaz (referral): prázdná ANSWER, v AUTHORITY servery NS domény cz a v ADDITIONAL jejich adresy (glue)", "REFUSED"],
+      correct: 2,
+      explain: "Kořen zná jen delegace TLD. Odpoví odkazem „zeptej se serverů zóny cz“ — to dobře uvidíte ve výpisu <code>dig +trace</code>."
+    },
+    {
+      q: "V <code>/etc/hosts</code> je <code>192.168.1.1 server.vyuka.cz</code>. <code>getent hosts server.vyuka.cz</code> vrátí 192.168.1.1, <code>dig @8.8.8.8 server.vyuka.cz</code> ne. Proč?",
+      opts: ["dig je rozbitý", "getent jde přes nsswitch.conf (files → /etc/hosts), dig se ptá přímo DNS serveru 8.8.8.8, který o souboru /etc/hosts Klienta nic neví", "8.8.8.8 blokuje školní síť", "/etc/hosts platí jen pro root"],
+      correct: 1,
+      explain: "DNS nástroje nečtou <code>nsswitch.conf</code> ani <code>/etc/hosts</code>. Jak jméno uvidí aplikace (ping, prohlížeč), ověříte <code>getent hosts</code>."
+    },
+    {
+      q: "V <code>/etc/resolv.conf</code> Klienta je jen <code>nameserver 127.0.0.53</code>. Co to znamená?",
+      opts: ["DNS je vypnuté", "Dotazy jdou na lokální stub démona systemd-resolved; skutečné servery (např. 8.8.8.8) jsou v resolved.conf a ukáže je resolvectl status", "Na Klientovi běží Bind9", "Je to chyba, má tam být 8.8.8.8"],
+      correct: 1,
+      explain: "<code>/etc/resolv.conf</code> je symlink na <code>/run/systemd/resolve/stub-resolv.conf</code>. resolved má vlastní cache a dotazy přeposílá serverům z <code>DNS=</code>."
+    },
+    {
+      q: "dig vrátí <code>status: NXDOMAIN</code>. Co to znamená?",
+      opts: ["Server je nedostupný", "Dotazované jméno v DNS neexistuje", "Server odmítl odpovědět", "Odpověď je zkrácená"],
+      correct: 1,
+      explain: "NXDOMAIN = Non-Existent Domain. Nedostupný nebo selhávající server hlásí SERVFAIL nebo vůbec neodpoví (timeout); odmítnutí je REFUSED."
+    }
+  ];
+
+  // DŮLEŽITÉ — Linux příkazy, které ŘEŠÍ zadanou úlohu, jsou v poli "extra" (renderAct je skryje
+  // za "Zobrazit řešení"); vysvětlovací úkoly mají vzorové odpovědi přes answers().
+  var ACT = [
+    {
+      num: "A", en: "DNS klient · Klient", title: "3. ČÁST A – KONFIGURACE DNS KLIENTA (RESOLVERU)",
+      body: "<p>⏱ orientačně 9 min. Pracujte na <b>Klientovi</b>. Nejdřív zjistěte, jak je resolver nastaven <b>teď</b> (od kapitol 6–7: <code>systemd-resolved</code>, <code>DNS=8.8.8.8</code>), a teprve pak měňte. Pokud chybí příkazy <code>dig</code>, <code>host</code> a <code>nslookup</code>, nainstalujte balík <code>bind9-dnsutils</code>.</p>",
+      checklist: [
+        "<b>3.1 Úkol A1 – Současný stav resolveru</b> — <b>3.1.1</b> Zjisti, zda je <code>/etc/resolv.conf</code> obyčejný soubor, nebo symbolický odkaz, a na co ukazuje.",
+        "<b>3.1.2</b> Zapiš, jaký <code>nameserver</code> v něm je, a vysvětli, proč to není 8.8.8.8.",
+        "<b>3.1.3</b> Zjisti, který DNS server Klient skutečně používá (Current DNS Server).",
+        "<b>3.1.4</b> Najdi v <code>/etc/nsswitch.conf</code> řádek <code>hosts:</code> a zapiš pořadí zdrojů.",
+        "<b>3.2 Úkol A2 – Změna DNS serverů</b> — <b>3.2.1</b> Nastav Klientovi dva DNS servery: <code>8.8.8.8</code> a <code>1.1.1.1</code>.",
+        "<b>3.2.2</b> Restartuj resolver a ověř, že platí oba servery.",
+        "<b>3.2.3</b> Porovnej obsah <code>/etc/resolv.conf</code> a <code>/run/systemd/resolve/resolv.conf</code>.",
+        "<b>3.3 Úkol A3 – Kdo odpovídá na jméno server.vyuka.cz</b> — <b>3.3.1</b> Přelož jméno <code>server.vyuka.cz</code> tak, jak ho vidí aplikace, a pak dotazem přímo na DNS server 8.8.8.8.",
+        "<b>3.3.2</b> Vysvětli rozdíl ve výsledcích.",
+        "<b>3.3.3</b> <i>Bonus:</i> zeptej se stejně na stub 127.0.0.53 a 127.0.0.54 a výsledek vysvětli."
+      ],
+      extra: cmd(`
+# ===== A1 – současný stav (na Klientovi) =====
+ls -l /etc/resolv.conf
+| lrwxrwxrwx 1 root root … /etc/resolv.conf -> /run/systemd/resolve/stub-resolv.conf
+grep -v '^#' /etc/resolv.conf
+| nameserver 127.0.0.53
+| options edns0 trust-ad
+| search .
+resolvectl status
+| Global
+|        Protocols: …
+| resolv.conf mode: stub
+| Current DNS Server: 8.8.8.8
+|        DNS Servers: 8.8.8.8
+grep '^hosts:' /etc/nsswitch.conf
+| hosts:          files dns          # files = /etc/hosts, pak DNS (může obsahovat i další moduly)
+
+# ===== A2 – dva DNS servery =====
+sudo nano /etc/systemd/resolved.conf
+| [Resolve]
+| DNS=8.8.8.8 1.1.1.1
+sudo systemctl restart systemd-resolved
+resolvectl status | grep -A1 'DNS Server'
+| Current DNS Server: 8.8.8.8
+|        DNS Servers: 8.8.8.8 1.1.1.1
+resolvectl dns
+cat /run/systemd/resolve/resolv.conf | grep nameserver
+| nameserver 8.8.8.8
+| nameserver 1.1.1.1
+grep nameserver /etc/resolv.conf
+| nameserver 127.0.0.53                 # stub — beze změny
+
+# ===== A3 – kdo odpovídá na server.vyuka.cz =====
+sudo apt install bind9-dnsutils          # dig, host, nslookup (pokud chybí)
+getent hosts server.vyuka.cz             # jako aplikace: nsswitch → files
+| 192.168.1.1     server.vyuka.cz server
+dig @8.8.8.8 server.vyuka.cz +noall +comments +answer | grep -E 'status|IN'
+# → nikdy 192.168.1.1 (veřejný DNS o /etc/hosts Klienta neví)
+# bonus:
+dig @127.0.0.53 server.vyuka.cz +short   # plný stub resolved (ReadEtcHosts=yes)
+dig @127.0.0.54 server.vyuka.cz +short   # proxy stub — jen přeposílá
+`) + answers([
+        ["3.1.2 Proč není v resolv.conf 8.8.8.8", "<code>/etc/resolv.conf</code> je symlink na <code>stub-resolv.conf</code> a obsahuje jen <code>127.0.0.53</code> — lokální stub démona <code>systemd-resolved</code>. Programy posílají dotazy jemu, on má cache a teprve on se ptá skutečných serverů z <code>/etc/systemd/resolved.conf</code> (ty ukáže <code>resolvectl status</code> nebo <code>/run/systemd/resolve/resolv.conf</code>)."],
+        ["3.1.4 Pořadí zdrojů", "Na řádku <code>hosts:</code> je <code>files</code> před <code>dns</code> — nejdřív se hledá v <code>/etc/hosts</code>, a až když tam jméno není, ptá se systém DNS. Pokud je nainstalovaný <code>libnss-resolve</code>, je tam i modul <code>resolve</code>, který jde přímo na systemd-resolved."],
+        ["3.2.3 Porovnání souborů", "<code>/etc/resolv.conf</code> (stub) zůstává s <code>127.0.0.53</code> — aplikace se dál ptají lokálního stubu. <code>/run/systemd/resolve/resolv.conf</code> ukazuje skutečné nadřazené servery <code>8.8.8.8</code> a <code>1.1.1.1</code>. Druhý server se použije, když první neodpovídá; resolved pak přepne <code>Current DNS Server</code>."],
+        ["3.3.2 Rozdíl getent × dig", "<code>getent hosts</code> jde přes <code>nsswitch.conf</code>: <code>files</code> najde záznam v <code>/etc/hosts</code> → 192.168.1.1. <code>dig @8.8.8.8</code> je čistě DNS dotaz na veřejný server, který obsah <code>/etc/hosts</code> Klienta nezná → odpověď NXDOMAIN (nebo jakákoli jiná adresa z internetu), nikdy 192.168.1.1. Ping a prohlížeč se chovají jako <code>getent</code>. Proto se lokální překlad testuje <code>getent hosts</code>, ne <code>dig</code> — a proto potřebuje škola vlastní DNS server, aby jména znaly všechny stroje bez úprav <code>/etc/hosts</code>."],
+        ["3.3.3 Bonus 127.0.0.53 × 127.0.0.54", "Stub <code>127.0.0.53</code> poskytuje plnou funkčnost resolveru včetně lokálních záznamů — systemd-resolved má výchozí <code>ReadEtcHosts=yes</code>, takže na něm uvidíte adresu z <code>/etc/hosts</code>. Stub <code>127.0.0.54</code> pracuje jako proxy bez lokálního zpracování a dotaz pošle dál na 8.8.8.8 — výsledek je stejný jako u <code>dig @8.8.8.8</code>. Zapište, co jste naměřili: rozhoduje skutečný výstup."]
+      ])
+    },
+    {
+      num: "B", en: "Dotazy · Klient", title: "4. ČÁST B – DNS DOTAZY: HOST, NSLOOKUP, DIG",
+      body: "<p>⏱ orientačně 8 min. Ke každému dotazu si do protokolu zapište výsledek. Domény jsou příklady — můžete použít i jiné (např. <code>skola.cz</code> vaší školy, <code>debian.org</code>). Pokud by doména záznam daného typu neměla, zvolte jinou.</p>",
+      checklist: [
+        "<b>4.1 Úkol B1 – host</b> — <b>4.1.1</b> Zjisti IPv4 i IPv6 adresy <code>www.seznam.cz</code>.",
+        "<b>4.1.2</b> Zjisti poštovní servery domény <code>seznam.cz</code> a jejich priority.",
+        "<b>4.1.3</b> Zjisti jméno k adrese <code>8.8.8.8</code> (reverzní dotaz).",
+        "<b>4.2 Úkol B2 – nslookup</b> — <b>4.2.1</b> Přelož <code>www.seznam.cz</code> a zapiš, který server odpověděl.",
+        "<b>4.2.2</b> Polož stejný dotaz přímo serveru <code>8.8.8.8</code>.",
+        "<b>4.3 Úkol B3 – dig a typy záznamů</b> — <b>4.3.1</b> Zjisti záznamy NS a SOA domény <code>seznam.cz</code>.",
+        "<b>4.3.2</b> Najdi jméno, které má záznam CNAME (např. <code>www.microsoft.com</code>), a popiš řetězec odpovědí.",
+        "<b>4.3.3</b> Zjisti záznamy TXT domény <code>seznam.cz</code> a jeden z nich vysvětli."
+      ],
+      extra: cmd(`
+# ===== B1 – host =====
+host www.seznam.cz
+| www.seznam.cz has address 77.75.77.222
+| www.seznam.cz has IPv6 address 2a02:598:2::1222
+host -t MX seznam.cz
+| seznam.cz mail is handled by 10 mx1.seznam.cz.
+| seznam.cz mail is handled by 20 mx2.seznam.cz.
+host 8.8.8.8
+| 8.8.8.8.in-addr.arpa domain name pointer dns.google.
+
+# ===== B2 – nslookup =====
+nslookup www.seznam.cz
+| Server:         127.0.0.53
+| Address:        127.0.0.53#53
+| Non-authoritative answer:
+| Name:   www.seznam.cz
+| Address: 77.75.77.222
+nslookup www.seznam.cz 8.8.8.8
+| Server:         8.8.8.8
+| Address:        8.8.8.8#53
+| Non-authoritative answer: …
+nslookup -query=mx seznam.cz            # jiný typ záznamu
+
+# ===== B3 – dig =====
+dig seznam.cz NS +short
+| ans.seznam.cz.
+| ams.seznam.cz.
+dig seznam.cz SOA +noall +answer
+| seznam.cz.  …  IN  SOA  ans.seznam.cz. hostmaster.seznam.cz. 2026… …
+#                          primární NS     e-mail správce (první . = @)  sériové číslo, časovače
+dig www.microsoft.com +noall +answer
+| www.microsoft.com.  …  IN  CNAME  www.microsoft.com-c-3.edgekey.net.
+| …                       IN  CNAME  …akamaiedge.net.
+| …                       IN  A      …
+dig seznam.cz TXT +short
+| "v=spf1 …"
+`) + answers([
+        ["4.1.2 MX a priority", "Záznam MX má číslo priority — <b>nižší číslo má přednost</b>. Pošta se doručuje nejdřív na server s nejnižší hodnotou, ostatní jsou záložní."],
+        ["4.2.1 Kdo odpověděl", "<code>Server: 127.0.0.53</code> — lokální stub systemd-resolved, ne přímo 8.8.8.8. Odpověď je <i>Non-authoritative</i>, protože ji nedal autoritativní server zóny <code>seznam.cz</code>, ale resolver (z cache nebo po vlastním dohledání)."],
+        ["4.3.1 SOA", "SOA (start of authority) říká: primární jmenný server zóny, e-mail správce (první tečka zastupuje @), <b>sériové číslo</b> zóny (zvyšuje se při každé změně — podle něj sekundární servery poznají novou verzi) a časovače refresh/retry/expire/minimum. S SOA budete pracovat v příští kapitole při psaní vlastní zóny."],
+        ["4.3.2 CNAME", "Na <code>www.microsoft.com</code> nepřijde rovnou A, ale <b>alias</b> (CNAME) na jiné jméno sítě CDN; resolver ho sám dál sleduje, dokud nezíská záznam A. Ve výpisu ANSWER je tak celý řetězec CNAME → … → A. Konkrétní jména se mohou měnit."],
+        ["4.3.3 TXT", "TXT nese libovolný text. Typicky <code>v=spf1 …</code> — seznam serverů, které smí odesílat poštu za doménu (SPF), nebo ověřovací řetězce služeb (např. <code>google-site-verification=…</code>)."]
+      ])
+    },
+    {
+      num: "C", en: "Analýza odpovědí · Klient", title: "5. ČÁST C – ANALÝZA ODPOVĚDÍ A CESTA DOTAZU",
+      body: "<p>⏱ orientačně 10 min. Teď výstupy <b>čtěte</b> — porovnávejte s animací (obr. 2) a s tabulkou rozboru výstupu <code>dig</code> v části E. Pro <code>dig +trace</code> a dotazy přímo na autoritativní server musí Klient (přes NAT Serveru) dosáhnout na port 53 serverů v internetu. Pokud to školní síť blokuje, výpis vyučující předvede, nebo použijte ukázku v řešení.</p>",
+      checklist: [
+        "<b>5.1 Úkol C1 – Rozbor odpovědi</b> — <b>5.1.1</b> Polož dotaz <code>dig www.seznam.cz</code> a v odpovědi označ: status, příznaky, počty záznamů v sekcích, TTL, server a dobu odpovědi.",
+        "<b>5.1.2</b> Vysvětli význam příznaků <code>qr</code>, <code>rd</code>, <code>ra</code>.",
+        "<b>5.2 Úkol C2 – Cache a TTL</b> — <b>5.2.1</b> Zopakuj stejný dotaz 2× po sobě a porovnej TTL a Query time.",
+        "<b>5.2.2</b> Ověř pomocí <code>resolvectl</code>, že odpověď přišla z cache, a pak cache obejdi.",
+        "<b>5.3 Úkol C3 – Autoritativní odpověď</b> — <b>5.3.1</b> Zeptej se na <code>www.seznam.cz</code> přímo autoritativního serveru zóny <code>seznam.cz</code>.",
+        "<b>5.3.2</b> Porovnej příznaky s odpovědí přes resolver.",
+        "<b>5.4 Úkol C4 – Cesta od kořene</b> — <b>5.4.1</b> Projdi cestu dotazu na <code>www.seznam.cz</code> od kořenových serverů.",
+        "<b>5.4.2</b> Ve výpisu najdi kořenový server, server domény <code>cz</code> a autoritativní server a porovnej s animací.",
+        "<b>5.5 Úkol C5 – Chybová odpověď</b> — <b>5.5.1</b> Zeptej se na neexistující jméno (např. <code>neexistuje-xyz.seznam.cz</code>) a zapiš status a obsah sekce AUTHORITY."
+      ],
+      extra: cmd(`
+# ===== C1 – rozbor =====
+dig www.seznam.cz
+| ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 31367
+| ;; flags: qr rd ra; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1
+| ;; ANSWER SECTION:
+| www.seznam.cz.   187   IN   A   77.75.77.222
+| ;; Query time: 32 msec
+| ;; SERVER: 127.0.0.53#53(127.0.0.53) (UDP)
+
+# ===== C2 – cache a TTL =====
+dig www.seznam.cz +noall +answer +stats | grep -E 'IN|Query time'
+dig www.seznam.cz +noall +answer +stats | grep -E 'IN|Query time'
+# 2. dotaz: TTL menší, Query time ~0–1 ms → odpověď z cache
+resolvectl query www.seznam.cz           # poslední řádky: data z cache / ze sítě
+resolvectl query --cache=no www.seznam.cz
+resolvectl statistics                    # Cache → Hits / Misses
+sudo resolvectl flush-caches             # vyprázdnění cache resolved
+
+# ===== C3 – autoritativní odpověď =====
+dig seznam.cz NS +short                  # kdo je autoritativní
+dig @ans.seznam.cz www.seznam.cz +norecurse
+| ;; flags: qr aa; QUERY: 1, ANSWER: 2, …          ← aa, bez ra
+dig @ans.seznam.cz www.seznam.cz            # bez +norecurse dig žádá rekurzi:
+| ;; WARNING: recursion requested but not available
+| ;; flags: qr aa rd; …                             ← rd od klienta, ra chybí
+dig @8.8.8.8 www.seznam.cz | grep flags   # pro srovnání: qr rd ra, bez aa
+nslookup www.seznam.cz ans.seznam.cz     # chybí řádek "Non-authoritative answer"
+
+# ===== C4 – cesta od kořene =====
+dig +trace www.seznam.cz
+| .            …  IN  NS  a.root-servers.net.      ← kořenové servery (od resolveru)
+| ;; Received … bytes from 127.0.0.53#53(127.0.0.53)
+| cz.          …  IN  NS  a.ns.nic.cz.             ← odkaz od kořene na TLD cz
+| ;; Received … bytes from 199.7.83.42#53(l.root-servers.net)
+| seznam.cz.   …  IN  NS  ans.seznam.cz.           ← odkaz od cz na seznam.cz
+| ;; Received … bytes from …#53(c.ns.nic.cz)
+| www.seznam.cz. … IN A   77.75.77.222             ← autoritativní odpověď
+| ;; Received … bytes from …#53(ams.seznam.cz)
+# (řádky DS/RRSIG patří k DNSSEC — +trace zapíná +dnssec)
+
+# ===== C5 – NXDOMAIN =====
+dig neexistuje-xyz.seznam.cz
+| ;; ->>HEADER<<- opcode: QUERY, status: NXDOMAIN, …
+| ;; AUTHORITY SECTION:
+| seznam.cz.  …  IN  SOA  ans.seznam.cz. hostmaster.seznam.cz. …
+`) + answers([
+        ["5.1.2 Příznaky qr, rd, ra", "<b>qr</b> — zpráva je odpověď (query response). <b>rd</b> — klient požádal o rekurzi (dig ji žádá standardně). <b>ra</b> — server rekurzi nabízí, je to rekurzivní resolver. Chybí <b>aa</b> → odpověď není autoritativní."],
+        ["5.2 Cache a TTL", "Při druhém dotazu je TTL nižší přesně o čas, který mezitím uplynul, a Query time klesne na 0–1 ms: odpověď přišla z cache systemd-resolved (nebo resolveru 8.8.8.8), ne z autoritativního serveru. <code>resolvectl statistics</code> ukáže přibývající <i>Cache Hits</i>. <code>--cache=no</code> vynutí dotaz do sítě. Po vypršení TTL se záznam musí získat znovu."],
+        ["5.3.2 Autoritativní × přes resolver", "Odpověď od <code>ans.seznam.cz</code> má příznak <b>aa</b> a nemá <b>ra</b> — autoritativní server rekurzi neposkytuje, odpovídá jen za svou zónu. TTL je plné, tak jak je zapsané v zóně. Odpověď přes resolver má <b>ra</b> a nemá <b>aa</b>."],
+        ["5.4.2 Cesta od kořene", "Pořadí ve výpisu: (1) seznam kořenových serverů <code>.</code> — dig si ho vyžádá od resolveru; (2) odpověď kořenového serveru (<code>x.root-servers.net</code>) = odkaz na NS zóny <code>cz.</code>; (3) odpověď serveru CZ.NIC (<code>x.ns.nic.cz</code>) = odkaz na NS zóny <code>seznam.cz.</code>; (4) odpověď autoritativního serveru Seznamu se záznamem A. Odpovídá krokům 3–8 animace — dig tu hraje roli rekurzivního resolveru."],
+        ["5.5.1 NXDOMAIN", "Status <b>NXDOMAIN</b> = jméno neexistuje. Sekce ANSWER je prázdná a v AUTHORITY je záznam <b>SOA</b> zóny <code>seznam.cz</code> — dokazuje, kdo nad zónou „ručí“, a jeho hodnota (minimum/TTL) určuje, jak dlouho si resolver smí pamatovat i tuto zápornou odpověď (negativní cache)."]
+      ])
+    },
+    {
+      num: "D", en: "Závěrečné otázky", title: "6. ČÁST D – Závěrečné otázky",
+      body: "<p>⏱ orientačně 3 min, případně dokončit doma. Odpovězte vlastními slovy (2–3 věty) do protokolu. Vzorové odpovědi si otevřete až po napsání vlastních.</p>",
+      checklist: [
+        "<b>6.1</b> Proč rekurzivní resolver nemusí při většině dotazů kontaktovat kořenový server?",
+        "<b>6.2</b> Jak poznáš autoritativní odpověď a proč ji běžný klient téměř nikdy nedostane?",
+        "<b>6.3</b> Web na jméno nejde otevřít, na IP adresu ano. Jak postupně zjistíš, kde je chyba?"
+      ],
+      extra: answers([
+        ["6.1 Kořen a cache", "Resolver si ukládá do cache nejen konečné odpovědi, ale i odkazy (NS záznamy TLD a domén s dlouhým TTL). Servery zóny <code>cz.</code> zná po prvním dotazu ještě dlouho, takže další dotazy na <code>*.cz</code> začíná rovnou u nich. Kořen se ptá jen tehdy, když potřebný odkaz v cache nemá."],
+        ["6.2 Autoritativní odpověď", "Má příznak <code>aa</code> (v nslookup chybí <i>Non-authoritative answer</i>). Posílá ji jen server, který spravuje danou zónu. Klient se ale ptá svého rekurzivního resolveru a ten příznak <code>aa</code> nenastavuje — autoritativní odpověď dostanete jen dotazem přímo na server zóny (<code>dig @ans.seznam.cz …</code>)."],
+        ["6.3 Hledání chyby", "1) <code>resolvectl status</code> — je nastaven a dostupný DNS server? 2) <code>getent hosts jméno</code> — jak jméno vidí systém, nehraje roli <code>/etc/hosts</code>? 3) <code>dig jméno</code> — status: NXDOMAIN (překlep, neexistující jméno), SERVFAIL (problém na cestě / DNSSEC), timeout (resolver nedostupný, firewall na portu 53). 4) <code>dig @8.8.8.8 jméno</code> — pomůže jiný server? Pak je problém v místním resolveru. 5) <code>dig @autoritativní_server jméno</code> — co tvrdí sama zóna."]
+      ])
+    }
+  ];
+
+  var ARTIFACT_TEXT = "Protokol „DNS klient a DNS dotazy na Klientovi Školy X“ — screenshoty: ls -l /etc/resolv.conf a resolvectl status před změnou a po změně DNS serverů (8.8.8.8 a 1.1.1.1), řádek hosts: z nsswitch.conf, porovnání getent hosts × dig @8.8.8.8 pro server.vyuka.cz, dotazy na A/AAAA, MX, PTR, NS, SOA, CNAME a TXT, rozbor jedné odpovědi dig (status, příznaky, sekce, TTL, server), dvojí dotaz s klesajícím TTL, autoritativní odpověď s příznakem aa, výpis dig +trace s vyznačeným kořenovým, TLD a autoritativním serverem a odpověď NXDOMAIN. K tomu odpovědi na vysvětlovací úkoly a závěrečné otázky 6.1–6.3.";
+
+  var REFLECT = [
+    "Jak byste spolužákovi pomocí animace vysvětlili rozdíl mezi rekurzivním a iterativním dotazem?",
+    "Co vás ve výpisu dig +trace překvapilo — a kolik serverů se na jeden „obyčejný“ překlad jména podílelo?",
+    "Proč podle vás škola potřebuje vlastní DNS server, když Klient může mít všechna jména v /etc/hosts?",
+    "Jak využijete dnešní nástroje (dig, getent, resolvectl) příští hodinu při ověřování vlastního DNS serveru Bind9?"
+  ];
+
+  var SOURCES = [
+    {title:"RFC 1034 — Domain Names: Concepts and Facilities", url:"https://www.rfc-editor.org/rfc/rfc1034", tag:"official", note:"Strom jmen, zóny, delegace, rekurzivní a iterativní překlad."},
+    {title:"RFC 1035 — Domain Names: Implementation and Specification", url:"https://www.rfc-editor.org/rfc/rfc1035", tag:"official", note:"Formát zprávy, příznaky hlavičky, typy záznamů, limity jmen, UDP/TCP port 53."},
+    {title:"RFC 9499 — DNS Terminology", url:"https://www.rfc-editor.org/rfc/rfc9499", tag:"official", note:"Stub a rekurzivní resolver, referral, autoritativní server, glue, FQDN."},
+    {title:"RFC 3596 — DNS Extensions to Support IPv6", url:"https://www.rfc-editor.org/rfc/rfc3596", tag:"official", note:"Záznam AAAA a reverzní zóna ip6.arpa."},
+    {title:"RFC 7766 — DNS Transport over TCP", url:"https://www.rfc-editor.org/rfc/rfc7766", tag:"official", note:"Povinná podpora TCP."},
+    {title:"RFC 8482 — Minimal-Sized Responses to DNS Queries That Have QTYPE=ANY", url:"https://www.rfc-editor.org/rfc/rfc8482", tag:"official", note:"Proč host -a / dig ANY nevrací všechny záznamy."},
+    {title:"IANA — Root Servers", url:"https://www.iana.org/domains/root/servers", tag:"official", note:"13 kořenových serverů a–m a jejich provozovatelé."},
+    {title:"root-servers.org", url:"https://root-servers.org/", tag:"official", note:"12 provozovatelů, mapa a počet anycastových instancí."},
+    {title:"dig(1) — bind9-dnsutils (Debian 13)", url:"https://manpages.debian.org/trixie/bind9-dnsutils/dig.1.en.html", tag:"official", note:"+trace, +short, +norecurse, -x, @server, výchozí /etc/resolv.conf."},
+    {title:"host(1) — bind9-dnsutils (Debian 13)", url:"https://manpages.debian.org/trixie/bind9-dnsutils/host.1.en.html", tag:"official", note:"Stručné dotazy, volba -t, reverzní dotaz."},
+    {title:"nslookup(1) — bind9-dnsutils (Debian 13)", url:"https://manpages.debian.org/trixie/bind9-dnsutils/nslookup.1.en.html", tag:"official", note:"Interaktivní a neinteraktivní režim, -query=."},
+    {title:"systemd-resolved.service(8) — Debian 13", url:"https://manpages.debian.org/trixie/systemd-resolved/systemd-resolved.service.8.en.html", tag:"official", note:"Stub 127.0.0.53 a 127.0.0.54, režimy /etc/resolv.conf, cache, nss-resolve."},
+    {title:"resolved.conf(5) — Debian 13", url:"https://manpages.debian.org/trixie/systemd-resolved/resolved.conf.5.en.html", tag:"official", note:"DNS=, FallbackDNS=, Domains=, ReadEtcHosts=, Cache=."},
+    {title:"resolvectl(1) — Debian 13", url:"https://manpages.debian.org/trixie/systemd-resolved/resolvectl.1.en.html", tag:"official", note:"status, dns, query -t, --cache=no, statistics, flush-caches."},
+    {title:"nsswitch.conf(5), resolv.conf(5), getent(1) — man7.org", url:"https://man7.org/linux/man-pages/man5/nsswitch.conf.5.html", tag:"official", note:"Pořadí zdrojů překladu, nameserver/search, překlad jako aplikace."},
+    {title:"Debian Reference, kap. 5 — Network setup (hostname resolution)", url:"https://www.debian.org/doc/manuals/debian-reference/ch05.en.html", tag:"official", note:"Překlad jmen v Debianu: /etc/hosts, nsswitch.conf, resolv.conf."},
+    {title:"ŠVP SPŠ EI Ostrava, kap. 6.17", url:"#", tag:"doc", note:"Interní dokument školy — výstupy tematického celku."}
+  ];
+
+  /* Komentáře ke krokům animace (obr. 2) — synchronizované s časem SVG (12 kroků × 3 s) */
+  var VIDEO_STEPS = [
+    ["Krok 1 · Aplikace potřebuje adresu", "Prohlížeč nebo ping zavolá getaddrinfo(). Podle /etc/nsswitch.conf se nejdřív hledá v /etc/hosts (files) — www.seznam.cz tam není, jde se do DNS."],
+    ["Krok 2 · Rekurzivní dotaz klienta", "Stub resolver (systemd-resolved, 127.0.0.53) nemá odpověď v cache. Pošle jeden dotaz s příznakem RD (recursion desired) svému rekurzivnímu resolveru 8.8.8.8 po UDP na port 53: „zjisti to za mě“."],
+    ["Krok 3 · Resolver začíná u kořene", "Ani resolver nemá odpověď ani žádný odkaz v cache. Zeptá se jednoho z kořenových serverů (adresy zná předem z root hints). Dotaz je iterativní — bez RD."],
+    ["Krok 4 · Kořen odkazuje na TLD cz", "Kořenový server www.seznam.cz nezná, zná jen všechny TLD. Odpoví odkazem (referral): prázdná ANSWER, v AUTHORITY NS servery zóny cz. a v ADDITIONAL jejich adresy (glue)."],
+    ["Krok 5 · Dotaz na server domény cz", "Resolver položí stejnou otázku serveru CZ.NIC, např. a.ns.nic.cz."],
+    ["Krok 6 · TLD odkazuje na seznam.cz", "Server zóny cz. zná jen delegace domén druhého řádu. Vrátí odkaz: seznam.cz. NS ans.seznam.cz. a ams.seznam.cz."],
+    ["Krok 7 · Dotaz na autoritativní server", "Resolver se zeptá serveru, který spravuje zónu seznam.cz — ten má data „z první ruky“."],
+    ["Krok 8 · Autoritativní odpověď", "ans.seznam.cz odpoví se statusem NOERROR a příznakem aa (authoritative answer): www.seznam.cz. IN A 77.75.77.222 a TTL, jak dlouho smí záznam zůstat v cache."],
+    ["Krok 9 · Odpověď klientovi", "Resolver uloží záznam (i odkazy na cz a seznam.cz) do cache a pošle odpověď klientovi s příznaky qr rd ra — bez aa. Proto nslookup hlásí „Non-authoritative answer“."],
+    ["Krok 10 · Klient se připojí", "systemd-resolved si odpověď také uloží do cache a předá ji aplikaci. Teprve teď se prohlížeč začne připojovat k IP adrese 77.75.77.222."],
+    ["Krok 11 · Další dotaz z cache", "Zeptá-li se kdokoli znovu dřív, než vyprší TTL, resolver odpoví hned z cache — kroky 3 až 8 se vůbec nekonají. TTL v odpovědi mezitím klesá."],
+    ["Krok 12 · Shrnutí", "Klient poslal jeden rekurzivní dotaz, resolver za něj udělal tři iterativní (kořen → cz → seznam.cz). Ověříte si to příkazem dig +trace www.seznam.cz."]
+  ];
+
+/* ==========================================================================
+   VYKRESLENÍ
+   ========================================================================== */
+
+
+  document.getElementById("ct-label").textContent = TOPIC.ctLabel;
+  document.getElementById("h1-title").textContent = "Operační systém Linux — " + TOPIC.title;
+  document.title = TOPIC.num + " " + TOPIC.title + " · Operační systém Linux";
+  document.getElementById("foot-num").textContent = "Kapitola " + TOPIC.num;
+
+  var chipRow = document.getElementById("chip-row");
+  chipRow.innerHTML =
+    '<span class="chip"><span class="dot"></span>Kapitola ' + TOPIC.num + '</span>' +
+    '<span class="chip">' + TOPIC.hours + '</span>' +
+    '<span class="chip">Engage → Investigate → Act → Evaluate</span>';
+
+  // subnav (6 sekcí — vč. Hodnocení)
+  var SECTIONS = [
+    {id:"vyzva", num:"01", label:"Výzva"},
+    {id:"zkoumani", num:"02", label:"Zkoumání"},
+    {id:"reseni", num:"03", label:"Řešení"},
+    {id:"hodnoceni", num:"04", label:"Hodnocení"},
+    {id:"reflexe", num:"05", label:"Reflexe"},
+    {id:"zdroje", num:"06", label:"Zdroje"}
+  ];
+  var subnav = document.getElementById("subnav");
+  SECTIONS.forEach(function(s){
+    var a = document.createElement("a");
+    a.href = "#" + s.id;
+    a.dataset.target = s.id;
+    a.innerHTML = '<span class="num">'+s.num+'</span>'+s.label;
+    subnav.appendChild(a);
+  });
+
+  // engage card
+  var eCard = document.getElementById("engage-card");
+  eCard.innerHTML =
+    '<div class="row"><span class="label">Big Idea</span><span class="val">'+ENGAGE.bigIdea+'</span></div>' +
+    '<div class="row"><span class="label">Essential Question</span><span class="val"><b>'+ENGAGE.eq+'</b></span></div>' +
+    '<div class="row"><span class="label">Challenge</span><span class="val">'+ENGAGE.challenge+'</span></div>';
+
+  // guiding questions
+  var gqEl = document.getElementById("gq-list");
+  INVESTIGATE.guidingQuestions.forEach(function(q){
+    var li = document.createElement("li");
+    li.textContent = q;
+    gqEl.appendChild(li);
+  });
+
+  // resources
+  var resEl = document.getElementById("resources");
+  INVESTIGATE.resources.forEach(function(r){
+    var det = document.createElement("details");
+    det.className = "cheat";
+    var tagHtml = r.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    det.innerHTML =
+      '<summary>'+r.title+tagHtml+'</summary>' +
+      '<div class="cheat-body"><ul>' + r.items.map(function(i){return '<li>'+i+'</li>';}).join("") + '</ul></div>';
+    resEl.appendChild(det);
+  });
+
+  // quiz
+  var quizBody = document.getElementById("quiz-body");
+  var quizProgress = document.getElementById("quiz-progress");
+  var qCorrect = 0;
+  function updateQuizProgress(){
+    quizProgress.textContent = qCorrect + " / " + QUIZ.length + " správně";
+  }
+  QUIZ.forEach(function(item, qi){
+    var qDiv = document.createElement("div");
+    qDiv.className = "q";
+    var optsHtml = item.opts.map(function(o, oi){
+      return '<button type="button" class="opt" data-qi="'+qi+'" data-oi="'+oi+'">'+o+'</button>';
+    }).join("");
+    qDiv.innerHTML =
+      '<div class="q-text">'+(qi+1)+'. '+item.q+'</div>' +
+      '<div class="opts">'+optsHtml+'</div>' +
+      '<div class="explain" id="explain-'+qi+'">'+item.explain+'</div>';
+    quizBody.appendChild(qDiv);
+  });
+  updateQuizProgress();
+
+  quizBody.addEventListener("click", function(e){
+    var btn = e.target.closest(".opt");
+    if(!btn) return;
+    var qi = +btn.dataset.qi, oi = +btn.dataset.oi;
+    var qDiv = btn.closest(".q");
+    if(qDiv.dataset.answered) return;
+    qDiv.dataset.answered = "1";
+    var buttons = qDiv.querySelectorAll(".opt");
+    buttons.forEach(function(b){ b.disabled = true; });
+    if(oi === QUIZ[qi].correct){
+      btn.classList.add("correct");
+      qCorrect++;
+    } else {
+      btn.classList.add("wrong");
+      buttons[QUIZ[qi].correct].classList.add("correct");
+    }
+    qDiv.querySelector(".explain").classList.add("show");
+    updateQuizProgress();
+  });
+
+  function wrapSolution(html){
+    // Skryje blok s Linux příkazy za rozklikávací "Zobrazit řešení" — student má úkol
+    // nejdřív zkusit vyřešit sám, příkazy slouží jen ke kontrole/nápovědě.
+    if(!html) return "";
+    return '<details class="solution"><summary>Zobrazit řešení</summary><div class="solution-body">'+html+'</div></details>';
+  }
+
+  // ACT phases
+  var actEl = document.getElementById("act-phases");
+  ACT.forEach(function(phase){
+    var div = document.createElement("div");
+    div.className = "act-phase";
+    var itemsHtml = phase.checklist.map(function(c, ci){
+      var id = "chk-"+phase.num+"-"+ci;
+      return '<li><input type="checkbox" id="'+id+'"><label for="'+id+'">'+c+'</label></li>';
+    }).join("");
+    div.innerHTML =
+      '<div class="act-phase-head"><span class="ap-num">'+phase.num+'</span><h4>'+phase.title+'</h4><span class="ap-en">'+phase.en+'</span></div>' +
+      '<div class="act-phase-body">'+phase.body+'<ul class="checklist">'+itemsHtml+'</ul>'+wrapSolution(phase.extra)+'</div>';
+    actEl.appendChild(div);
+  });
+
+  var actBar = document.getElementById("act-bar");
+  var actLabel = document.getElementById("act-label");
+  function updateActProgress(){
+    var boxes = actEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    actBar.style.width = pct + "%";
+    actLabel.textContent = done + " / " + boxes.length + " kroků hotovo";
+  }
+  actEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateActProgress();
+  });
+  updateActProgress();
+
+  document.getElementById("artifact-text").textContent = ARTIFACT_TEXT;
+
+  // hodnocení — sebehodnocení checklist
+  var evalEl = document.getElementById("eval-checklist");
+  var evalBar = document.getElementById("eval-bar");
+  var evalLabel = document.getElementById("eval-label");
+  function updateEvalProgress(){
+    var boxes = evalEl.querySelectorAll('input[type=checkbox]');
+    var done = 0;
+    boxes.forEach(function(b){
+      var li = b.closest("li");
+      if(b.checked){ done++; li.classList.add("done"); } else { li.classList.remove("done"); }
+    });
+    var pct = boxes.length ? Math.round(done/boxes.length*100) : 0;
+    evalBar.style.width = pct + "%";
+    evalLabel.textContent = done + " / " + boxes.length + " zvládnuto";
+  }
+  evalEl.addEventListener("change", function(e){
+    if(e.target.type === "checkbox") updateEvalProgress();
+  });
+  updateEvalProgress();
+
+  // reflect
+  var refEl = document.getElementById("reflect-grid");
+  REFLECT.forEach(function(q, i){
+    var div = document.createElement("div");
+    div.className = "reflect-q";
+    div.innerHTML = '<p class="rq-text">'+(i+1)+'. '+q+'</p><textarea placeholder="Vaše odpověď…"></textarea>';
+    refEl.appendChild(div);
+  });
+
+  // sources
+  var srcBody = document.getElementById("src-body");
+  SOURCES.forEach(function(s){
+    var tr = document.createElement("tr");
+    var tagHtml = s.tag === "official"
+      ? '<span class="src-tag official">Oficiální</span>'
+      : '<span class="src-tag doc">Materiál školy</span>';
+    tr.innerHTML =
+      '<td><a href="'+s.url+'" target="_blank" rel="noopener">'+s.title+'</a></td>' +
+      '<td>'+tagHtml+'</td>' +
+      '<td>'+s.note+'</td>';
+    srcBody.appendChild(tr);
+  });
+
+  // scrollspy
+  var navLinks = subnav.querySelectorAll("a");
+  var sectionEls = SECTIONS.map(function(s){ return document.getElementById(s.id); });
+  function setActive(id){
+    navLinks.forEach(function(a){ a.classList.toggle("active", a.dataset.target === id); });
+  }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if(entry.isIntersecting){ setActive(entry.target.id); }
+      });
+    }, {rootMargin: "-45% 0px -50% 0px", threshold: 0});
+    sectionEls.forEach(function(el){ if(el) io.observe(el); });
+  }
+  setActive("vyzva");
+
+  // Tlačítka „Zastavit animaci“ — SMIL animace v SVG (pauseAnimations/unpauseAnimations).
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.querySelectorAll(".svg-figure").forEach(function(fig){
+    var svg = fig.querySelector("svg"), btn = fig.querySelector(".anim-toggle");
+    if(!svg || !btn || !svg.pauseAnimations) { if(btn) btn.style.display = "none"; return; }
+    function set(paused){
+      if(paused){ svg.pauseAnimations(); btn.textContent = "▶ Spustit animaci"; }
+      else { svg.unpauseAnimations(); btn.textContent = "⏸ Zastavit animaci"; }
+      btn.setAttribute("aria-pressed", paused ? "true" : "false");
+    }
+    btn.addEventListener("click", function(){ set(!svg.animationsPaused()); });
+    if(reduce) set(true);
+  });
+
+
+  // „Video“ přehrávač animace DNS dotazu (obr. 2) — SMIL čas SVG + synchronizovaný komentář
+  (function(){
+    var svg = document.getElementById("dns-video");
+    var fig = document.getElementById("video-fig");
+    if(!svg || !fig) return;
+    var TOTAL = 36, STEP = 3, N = VIDEO_STEPS.length;
+    var btnPlay = document.getElementById("vp-play"), bar = document.getElementById("vp-bar");
+    var timeEl = document.getElementById("vp-time"), track = document.getElementById("vp-track");
+    var tEl = document.getElementById("vp-title"), xEl = document.getElementById("vp-text");
+    var stepsEl = document.getElementById("vp-steps");
+    var ok = !!(svg.pauseAnimations && svg.getCurrentTime && svg.setCurrentTime);
+    var chips = [];
+    for(var i=0;i<N;i++){
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "vp-step"; b.textContent = (i+1);
+      b.setAttribute("aria-label", VIDEO_STEPS[i][0]);
+      (function(k){ b.addEventListener("click", function(){ seek(k*STEP + 0.6); }); })(i);
+      stepsEl.appendChild(b); chips.push(b);
+    }
+    function fmt(s){ s = Math.floor(s); return Math.floor(s/60)+":"+("0"+(s%60)).slice(-2); }
+    var last = -1;
+    function render(){
+      var t = ok ? (svg.getCurrentTime() % TOTAL) : 0;
+      var idx = Math.min(N-1, Math.floor(t / STEP));
+      bar.style.width = (t/TOTAL*100) + "%";
+      timeEl.textContent = fmt(t) + " / " + fmt(TOTAL);
+      if(idx !== last){
+        last = idx;
+        tEl.textContent = VIDEO_STEPS[idx][0];
+        xEl.textContent = VIDEO_STEPS[idx][1];
+        chips.forEach(function(c, j){ c.classList.toggle("active", j === idx); });
+      }
+      requestAnimationFrame(render);
+    }
+    function paused(){ return ok && svg.animationsPaused(); }
+    function setPaused(p){
+      if(!ok) return;
+      if(p){ svg.pauseAnimations(); btnPlay.textContent = "▶ Přehrát"; }
+      else { svg.unpauseAnimations(); btnPlay.textContent = "⏸ Pauza"; }
+      btnPlay.setAttribute("aria-pressed", p ? "true" : "false");
+    }
+    function seek(t){
+      if(!ok) return;
+      var base = svg.getCurrentTime() - (svg.getCurrentTime() % TOTAL);
+      svg.setCurrentTime(base + Math.max(0, Math.min(TOTAL - 0.05, t)));
+    }
+    function cur(){ return ok ? (svg.getCurrentTime() % TOTAL) : 0; }
+    btnPlay.addEventListener("click", function(){ setPaused(!paused()); });
+    document.getElementById("vp-restart").addEventListener("click", function(){ seek(0); setPaused(false); });
+    document.getElementById("vp-prev").addEventListener("click", function(){ var k = Math.floor(cur()/STEP); seek(Math.max(0,k-1)*STEP + 0.6); });
+    document.getElementById("vp-next").addEventListener("click", function(){ var k = Math.floor(cur()/STEP); seek(((k+1)%N)*STEP + 0.6); });
+    track.addEventListener("click", function(e){ var r = track.getBoundingClientRect(); seek((e.clientX - r.left)/r.width*TOTAL); });
+    if(!ok){ fig.querySelector(".vp-controls").style.display = "none"; }
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(reduce) setPaused(true);
+    render();
+  })();
+
+})();
+</script>
+<script src="../assets/tuxik-agent.js" defer></script>
+</body>
+</html>
